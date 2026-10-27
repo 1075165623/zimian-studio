@@ -64,7 +64,6 @@
 
   <div class="grow"></div>
 
-  <button class="btn" id="btnAiRef2" style="display:none"></button>`r`n  <button class="btn ghost" id="btnLib" title="看全部手法，点一下就套到当前这一行">效果库</button>
   <button class="btn ghost" id="btnShuffleAll" title="换一整套编排（同样的字，不同的手法）">整片重排</button>
   <button class="btn ghost" id="btnExportPNG" title="导出带透明通道的 MOV 视频，可导入剪映 / AE / PR 当透明素材（Alt+点击 = 导出 PNG 序列 zip）">透明 MOV</button>
   <button class="btn primary" id="btnExport">导出视频</button>
@@ -328,6 +327,41 @@
       </div>
     </details>
 
+    <!-- 字体 -->
+    <details class="card" data-tone="fonts" data-fold="fonts">
+      <summary class="ch">
+        <i class="ch-ico">A</i>
+        <span class="ch-t">字体</span>
+        <span class="ch-s" id="sumFonts">跟随风格</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="fonts">
+          <label><span>主字</span><select id="fDisplay"></select></label>
+          <label><span>衬线</span><select id="fSerif"></select></label>
+          <label><span>正文</span><select id="fBody"></select></label>
+        </div>
+        <p class="tip">全部用你本机已装的中文字体，断网也能用。</p>
+      </div>
+    </details>
+
+    <!-- 效果库（顶栏搬下来：全部手法，点一下套到当前这一行） -->
+    <details class="card lib-card" data-tone="lib" data-fold="lib" id="cardLib">
+      <summary class="ch">
+        <i class="ch-ico">✦</i>
+        <span class="ch-t">效果库</span>
+        <span class="ch-s" id="libCount">全部手法</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="lib-bar">
+          <input id="libSearch" type="search" placeholder="搜索：翻页 / 网点 / 墨 / 拍手…" spellcheck="false">
+          <div class="lib-target">套用到 <b id="libTarget">（先点开一行歌词）</b></div>
+        </div>
+        <div class="lib-scroll" id="libBody"></div>
+      </div>
+    </details>
+
   </aside>
 
   <div class="rz" data-rz="left" title="拖动调整左栏宽度 · 双击复位"></div>
@@ -455,37 +489,8 @@
       </div>
     </details>
 
-    <details class="card" data-tone="fonts" data-fold="fonts">
-      <summary class="ch">
-        <i class="ch-ico">A</i>
-        <span class="ch-t">字体</span>
-        <span class="ch-s" id="sumFonts">跟随风格</span>
-        <i class="ch-ar"></i>
-      </summary>
-      <div class="ch-body">
-        <div class="fonts">
-          <label><span>主字</span><select id="fDisplay"></select></label>
-          <label><span>衬线</span><select id="fSerif"></select></label>
-          <label><span>正文</span><select id="fBody"></select></label>
-        </div>
-        <p class="tip">全部用你本机已装的中文字体，断网也能用。</p>
-      </div>
-    </details>
-
   </aside>
 </main>
-
-<div id="lib" class="lib" hidden>
-  <div class="lib-box">
-    <header class="lib-head">
-      <div class="lib-title">效果库 <small id="libCount"></small></div>
-      <input id="libSearch" type="search" placeholder="搜索：翻页 / 网点 / 墨 / 拍手…" spellcheck="false">
-      <div class="lib-target">套用到 <b id="libTarget"></b></div>
-      <button class="btn ghost" id="libClose">关闭</button>
-    </header>
-    <div class="lib-body" id="libBody"></div>
-  </div>
-</div>
 
 <div id="toast" class="toast" hidden></div>
 

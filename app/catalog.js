@@ -208,41 +208,62 @@ function toggleEnable(g, k) {
   S.api.replan();
 }
 
-/* ───────── 开关 ───────── */
+/* ───────── 开合：左栏里的一张折叠卡片，不再是弹窗 ───────── */
+
+const cardEl = () => document.getElementById('cardLib');
+
+function build(box) {
+  if (!box.dataset.built) {
+    render('');
+    box.dataset.built = '1';
+    // 第一次展开：先把「构图」摊开，一进来就能看到卡片墙，而不是十个折条
+    const g = box.querySelector('.lib-g');
+    if (g) g.open = true;
+  } else refreshActive();
+}
+
+function syncOpen() {
+  const d = cardEl();
+  open = !!(d && d.open);
+  if (open) kick(); else teardown();
+}
 
 function openLib() {
-  if (!open) {
-    $('#lib').hidden = false;
-    open = true;
-    document.body.classList.add('lib-open');
-    if (!$('#libBody').dataset.built) { render(''); $('#libBody').dataset.built = '1'; }
-    else refreshActive();
-    kick();
-  }
+  const d = cardEl(); if (!d) return;
+  if (!d.open) d.open = true;                       // toggle 里会 build + syncOpen
+  else { build(document.getElementById('libBody')); syncOpen(); }
+  try { d.scrollIntoView({ block: 'nearest' }); } catch (e) {}
 }
+
 function closeLib() {
-  $('#lib').hidden = true;
-  open = false;
-  document.body.classList.remove('lib-open');
-  teardown();
+  const d = cardEl(); if (!d) return;
+  if (d.open) d.open = false;
+  syncOpen();
 }
 
 function bind() {
-  $('#btnLib').onclick = openLib;
-  $('#libClose').onclick = closeLib;
-  $('#lib').addEventListener('click', e => { if (e.target.id === 'lib') closeLib(); });
+  const d = cardEl(), box = document.getElementById('libBody');
+  if (!d || !box) return;
+
+  d.addEventListener('toggle', () => {
+    if (d.open) build(box);
+    syncOpen();
+  });
+  if (d.open) { build(box); syncOpen(); }           // 上次离开时是展开的：直接接上
+
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && open) { e.stopPropagation(); closeLib(); }
   });
 
   let timer = 0;
-  $('#libSearch').addEventListener('input', e => {
+  const search = $('#libSearch');
+  if (search) search.addEventListener('input', e => {
     const q = e.target.value;
     clearTimeout(timer);
-    timer = setTimeout(() => { $('#libBody').dataset.built = ''; render(q); }, 220);
+    timer = setTimeout(() => { box.dataset.built = ''; render(q); }, 220);
   });
 
-  $('#libBody').addEventListener('click', e => {
+  box.addEventListener('click', e => {
     const dot = e.target.closest('.ldot');
     if (dot) { const c = dot.closest('.lcard'); toggleEnable(c.dataset.g, c.dataset.k); e.stopPropagation(); return; }
     const card = e.target.closest('.lcard');
@@ -262,18 +283,27 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else bind();
 window.LIB = { open: openLib, close: closeLib, render };
 
-/* 深链接：?lib=1 打开效果库；?lib=翻页 直接按关键词筛 */
+/* 深链接：?lib=1 展开左栏的效果库；?lib=翻页 直接按关键词筛 */
 (() => {
-  const v = new URLSearchParams(location.search).get('lib');
+  const q = new URLSearchParams(location.search);
+  const v = q.get('lib');
   if (v == null || v === '0') return;
-  const g = new URLSearchParams(location.search).get('libg');
+  const g = q.get('libg');
   setTimeout(() => {
+    const d = cardEl(); if (!d) return;
+    const s = $('#libSearch');
+    if (s && v !== '1') s.value = v;
+    const box = $('#libBody');
+    if (!d.open) d.open = true;
+    render(v === '1' ? '' : v);
+    box.dataset.built = '1';
+    if (!g) { const first = box.querySelector('.lib-g'); if (first) first.open = true; }
+    syncOpen();
     openLib();
-    if (v !== '1') { const s = $('#libSearch'); if (s) { s.value = v; render(v); } }
     if (g) {
-      const d = document.querySelector('.lib-g[data-g="' + g + '"]');
-      if (d) { d.open = true; d.scrollIntoView({ block: 'start' }); }
+      const grp = box.querySelector('.lib-g[data-g="' + g + '"]');
+      if (grp) { grp.open = true; grp.scrollIntoView({ block: 'start' }); }
     }
-  }, 260);
+  }, 300);
 })();
 })();
