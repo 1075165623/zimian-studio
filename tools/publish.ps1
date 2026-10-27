@@ -69,6 +69,18 @@ if ($r.code -ne 0) {
   }
 }
 
+# 静态资源版本号：每次发布换一个，免得浏览器 / CDN 拿旧缓存（index.html 里的 ?v=）
+$idx = Join-Path $root 'index.html'
+if (Test-Path $idx) {
+  $stamp = Get-Date -Format 'yyyyMMddHHmm'
+  $txt = [IO.File]::ReadAllText($idx, [Text.Encoding]::UTF8)
+  $new = [regex]::Replace($txt, '\?v=[0-9A-Za-z]+', "?v=$stamp")
+  if ($new -ne $txt) {
+    [IO.File]::WriteAllText($idx, $new, (New-Object Text.UTF8Encoding($false)))
+    Write-Host "  静态资源版本号 → $stamp"
+  }
+}
+
 # 提交
 & $git add -A | Out-Null
 $st = Run @('status', '--porcelain')

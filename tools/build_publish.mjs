@@ -32,16 +32,16 @@ for (const f of ['index.html', 'LICENSE-JIZURA.txt', '使用说明.md']) fs.copy
 /* ---------- 2. 单文件版 ---------- */
 let html = r(path.join(ROOT, 'index.html'));
 
-// CSS 内联
+// CSS 内联（href 上可能带 ?v= 版本号，取文件时要去掉）
 html = html.replace(/<link rel="stylesheet" href="([^"]+)">/g, (_, href) => {
-  const css = r(path.join(ROOT, href));
+  const css = r(path.join(ROOT, href.split('?')[0]));
   return '<style>\n' + css + '\n</style>';
 });
 
 // JS 内联（保持原来的顺序：全都是老式全局脚本，顺序就是依赖顺序）
 let inlined = 0;
 html = html.replace(/<script src="([^"]+)"><\/script>/g, (_, src) => {
-  const js = r(path.join(ROOT, src)).replace(/<\/script/gi, '<\\/script');
+  const js = r(path.join(ROOT, src.split('?')[0])).replace(/<\/script/gi, '<\\/script');
   inlined++;
   return '<script>/* ' + src + ' */\n' + js + '\n</script>';
 });

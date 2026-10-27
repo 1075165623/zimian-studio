@@ -31,7 +31,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 /* ───────── 小人 ───────── */
 const HAIR = '#3B4A7E', HAIR_D = '#303E6C', SKIN = '#FFE3D0', DRESS = '#2B3358';
 const SVG = `
-<svg class="pet-svg" viewBox="0 0 220 250" width="220" height="250" aria-hidden="true">
+<svg class="pet-svg" viewBox="0 0 220 250" width="220" height="250" style="display:block;width:100%;height:auto" aria-hidden="true">
   <g class="pet-bob">
     <!-- 后发 -->
     <path d="M110 24c38 0 66 26 68 60 1 24-2 44-8 60-4 11-12 18-24 18H74c-12 0-20-7-24-18-6-16-9-36-8-60 2-34 30-60 68-60z" fill="${HAIR}"/>
@@ -92,6 +92,8 @@ function build() {
   root = document.createElement('div');
   root.className = 'pet';
   root.id = 'petRoot';
+  // 关键定位写成内联：万一样式表是旧缓存（还没有 .pet 规则），她也照样站在右下角
+  root.style.cssText = 'position:fixed;z-index:70;right:14px;bottom:32px;cursor:grab;touch-action:none;user-select:none;';
   root.innerHTML = `<div class="pet-bubble" id="petBubble" aria-live="polite"></div><div class="pet-ink">${SVG}</div>`;
   document.body.appendChild(root);
   bubbleEl = root.querySelector('#petBubble');
