@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F7F8FA">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNGOTczMTYiLz48dGV4dCB4PSIzMiIgeT0iNDYiIGZvbnQtc2l6ZT0iMzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJzZXJpZiI+5a2XPC90ZXh0Pjwvc3ZnPg==">
-<link rel="stylesheet" href="app/studio.css?v=202610272259">
+<link rel="stylesheet" href="app/studio.css?v=202610272317">
 </head>
 <body>
 
@@ -258,8 +258,8 @@
             <div class="mi-acts">
               <button class="btn tiny" id="miVidIn" title="把播放头所在位置设为入点">播放头=入点</button>
               <button class="btn tiny" id="miVidOut" title="把播放头所在位置设为出点">播放头=出点</button>
-              <button class="btn tiny" id="miVidWhole" title="按原片长度铺开，不循环、不锁进版式">按原片长</button>
-              <button class="btn tiny" id="miVidAll" title="从片头铺满整首（不够长就循环）">铺满整首</button>
+              <button class="btn tiny" id="miVidWhole" title="按原片长度铺到时间线上，并嵌进覆盖到的每一句卡片，不循环">按原片长</button>
+              <button class="btn tiny" id="miVidAll" title="从片头铺满整首，并嵌进每一句的卡片 / 版式里（连续播放）">铺满整首</button>
             </div>
           </div>
           <div class="mi-kf">
@@ -306,7 +306,7 @@
           </div>
           <div class="mi-acts">
             <button class="btn tiny" id="miFit" title="按画面宽度铺满">铺满</button>
-            <button class="btn tiny" id="miTimeAll" title="把这一个素材的时间铺满整首：图片 / 视频都可以，不再卡在一句歌词里">铺满整首</button>
+            <button class="btn tiny" id="miTimeAll" title="从片头铺满整首，并嵌进每一句的卡片 / 版式里（视频连续播放）">铺满整首</button>
             <button class="btn tiny" id="miCenter" title="回到画面中央">居中</button>
             <button class="btn tiny" id="miFront" title="图是在歌词下面当背景，还是在歌词上面盖住字">压在字下</button>
             <button class="btn tiny" id="miUp" title="在时间线上往上挪一层，盖住下面的轨道">上层</button>
@@ -600,64 +600,64 @@
 </footer>
 
 <!-- 引擎 -->
-<script src="vendor/mp4-muxer.min.js?v=202610272259"></script>
-<script src="engine/01_util.js?v=202610272259"></script>
-<script src="engine/02_fonts.js?v=202610272259"></script>
-<script src="engine/02b_lang.js?v=202610272259"></script>
-<script src="engine/03_text.js?v=202610272259"></script>
-<script src="engine/04_styles.js?v=202610272259"></script>
-<script src="engine/05_anim.js?v=202610272259"></script>
-<script src="engine/05b_registry.js?v=202610272259"></script>
-<script src="engine/06_layouts.js?v=202610272259"></script>
-<script src="engine/07_decor.js?v=202610272259"></script>
-<script src="engine/08_planner.js?v=202610272259"></script>
-<script src="engine/08b_omakase.js?v=202610272259"></script>
-<script src="engine/09_render.js?v=202610272259"></script>
-<script src="engine/10_audio.js?v=202610272259"></script>
-<script src="engine/11_export.js?v=202610272259"></script>
-<script src="engine/11p_bgcamB.js?v=202610272259"></script>
-<script src="engine/11p_decor.js?v=202610272259"></script>
-<script src="engine/11p_decorB.js?v=202610272259"></script>
-<script src="engine/11p_enter.js?v=202610272259"></script>
-<script src="engine/11p_enterB.js?v=202610272259"></script>
-<script src="engine/11p_exit.js?v=202610272259"></script>
-<script src="engine/11p_exitB.js?v=202610272259"></script>
-<script src="engine/11p_fxB.js?v=202610272259"></script>
-<script src="engine/11p_horror1.js?v=202610272259"></script>
-<script src="engine/11p_horror2.js?v=202610272259"></script>
-<script src="engine/11p_horror3.js?v=202610272259"></script>
-<script src="engine/11p_kinetic1.js?v=202610272259"></script>
-<script src="engine/11p_kinetic2.js?v=202610272259"></script>
-<script src="engine/11p_kinetic3.js?v=202610272259"></script>
-<script src="engine/11p_layoutsA.js?v=202610272259"></script>
-<script src="engine/11p_layoutsB.js?v=202610272259"></script>
-<script src="engine/11p_layoutsC.js?v=202610272259"></script>
-<script src="engine/11p_layoutsD.js?v=202610272259"></script>
-<script src="engine/11p_looks.js?v=202610272259"></script>
-<script src="engine/11p_styles.js?v=202610272259"></script>
-<script src="engine/11p_styles2.js?v=202610272259"></script>
-<script src="engine/11p_treattrans.js?v=202610272259"></script>
-<script src="engine/11p_typo1.js?v=202610272259"></script>
-<script src="engine/11p_typo2.js?v=202610272259"></script>
-<script src="engine/11p_typo3.js?v=202610272259"></script>
-<script src="engine/11q_sets.js?v=202610272259"></script>
-<script src="engine/11r_shapes.js?v=202610272259"></script>
-<script src="engine/11s_garnish.js?v=202610272259"></script>
-<script src="engine/11z_more.js?v=202610272259"></script>
-<script src="engine/12_slot.js?v=202610272259"></script>
-<script src="engine/13_frames.js?v=202610272259"></script>
-<script src="engine/14_spec.js?v=202610272259"></script>
+<script src="vendor/mp4-muxer.min.js?v=202610272317"></script>
+<script src="engine/01_util.js?v=202610272317"></script>
+<script src="engine/02_fonts.js?v=202610272317"></script>
+<script src="engine/02b_lang.js?v=202610272317"></script>
+<script src="engine/03_text.js?v=202610272317"></script>
+<script src="engine/04_styles.js?v=202610272317"></script>
+<script src="engine/05_anim.js?v=202610272317"></script>
+<script src="engine/05b_registry.js?v=202610272317"></script>
+<script src="engine/06_layouts.js?v=202610272317"></script>
+<script src="engine/07_decor.js?v=202610272317"></script>
+<script src="engine/08_planner.js?v=202610272317"></script>
+<script src="engine/08b_omakase.js?v=202610272317"></script>
+<script src="engine/09_render.js?v=202610272317"></script>
+<script src="engine/10_audio.js?v=202610272317"></script>
+<script src="engine/11_export.js?v=202610272317"></script>
+<script src="engine/11p_bgcamB.js?v=202610272317"></script>
+<script src="engine/11p_decor.js?v=202610272317"></script>
+<script src="engine/11p_decorB.js?v=202610272317"></script>
+<script src="engine/11p_enter.js?v=202610272317"></script>
+<script src="engine/11p_enterB.js?v=202610272317"></script>
+<script src="engine/11p_exit.js?v=202610272317"></script>
+<script src="engine/11p_exitB.js?v=202610272317"></script>
+<script src="engine/11p_fxB.js?v=202610272317"></script>
+<script src="engine/11p_horror1.js?v=202610272317"></script>
+<script src="engine/11p_horror2.js?v=202610272317"></script>
+<script src="engine/11p_horror3.js?v=202610272317"></script>
+<script src="engine/11p_kinetic1.js?v=202610272317"></script>
+<script src="engine/11p_kinetic2.js?v=202610272317"></script>
+<script src="engine/11p_kinetic3.js?v=202610272317"></script>
+<script src="engine/11p_layoutsA.js?v=202610272317"></script>
+<script src="engine/11p_layoutsB.js?v=202610272317"></script>
+<script src="engine/11p_layoutsC.js?v=202610272317"></script>
+<script src="engine/11p_layoutsD.js?v=202610272317"></script>
+<script src="engine/11p_looks.js?v=202610272317"></script>
+<script src="engine/11p_styles.js?v=202610272317"></script>
+<script src="engine/11p_styles2.js?v=202610272317"></script>
+<script src="engine/11p_treattrans.js?v=202610272317"></script>
+<script src="engine/11p_typo1.js?v=202610272317"></script>
+<script src="engine/11p_typo2.js?v=202610272317"></script>
+<script src="engine/11p_typo3.js?v=202610272317"></script>
+<script src="engine/11q_sets.js?v=202610272317"></script>
+<script src="engine/11r_shapes.js?v=202610272317"></script>
+<script src="engine/11s_garnish.js?v=202610272317"></script>
+<script src="engine/11z_more.js?v=202610272317"></script>
+<script src="engine/12_slot.js?v=202610272317"></script>
+<script src="engine/13_frames.js?v=202610272317"></script>
+<script src="engine/14_spec.js?v=202610272317"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
-<script src="app/names_zh.js?v=202610272259"></script>
-<script src="app/labels_zh.js?v=202610272259"></script>
-<script src="app/local_fonts.js?v=202610272259"></script>
-<script src="app/mov_muxer.js?v=202610272259"></script>
-<script src="app/zip.js?v=202610272259"></script>
-<script src="app/project_io.js?v=202610272259"></script>
-<script src="app/studio.js?v=202610272259"></script>
-<script src="app/pet.js?v=202610272259"></script>
-<script src="app/catalog.js?v=202610272259"></script>
-<script src="app/ai_ref.js?v=202610272259"></script>
+<script src="app/names_zh.js?v=202610272317"></script>
+<script src="app/labels_zh.js?v=202610272317"></script>
+<script src="app/local_fonts.js?v=202610272317"></script>
+<script src="app/mov_muxer.js?v=202610272317"></script>
+<script src="app/zip.js?v=202610272317"></script>
+<script src="app/project_io.js?v=202610272317"></script>
+<script src="app/studio.js?v=202610272317"></script>
+<script src="app/pet.js?v=202610272317"></script>
+<script src="app/catalog.js?v=202610272317"></script>
+<script src="app/ai_ref.js?v=202610272317"></script>
 </body>
 </html>

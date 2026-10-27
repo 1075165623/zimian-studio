@@ -1180,7 +1180,7 @@ function bindTimeline() {
           m.start = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'media', i: h.i }), 0, Math.max(0, G.dur - 0.2));
           // 上下拖动换轨道
           m.lane = J.clamp(drag.lane0 + laneDelta, 0, TL.maxLane);
-          if (drag.slot) snapSlotLive(m);              // 融在版式里的：拖着就直接吸到落点那一句
+          if (drag.slot && m.kind !== 'video' && !m.spanSlot) snapSlotLive(m);   // 普通图片融在版式里：吸到落点那一句；视频/跨句素材保持自由时长
         }
       } else if (h.edge === 'right') {
         m.dur = J.clamp(magSnapSpan(b.start + b.dur + dt, 0, { kind: 'media', i: h.i }) - m.start, 0.3, Math.max(0.3, G.dur - m.start));
@@ -1220,6 +1220,16 @@ function bindTimeline() {
         if (drag.moved) flushTextReplan();          // 松手：用最终时间重排一次画面
       } else if (h.kind === 'media' && drag.moved && drag.slot) {
         dropSlotClip(S.media[h.i]);              // 松手：素材落在哪一句，就绑到哪一句
+      } else if (h.kind === 'media' && drag.moved) {
+        const m = S.media[h.i];
+        if (m && m.kind === 'video' && !m.inLayout) {
+          // 自由视频拖到有版式的区间：自动嵌进覆盖到的每一句
+          const lines = spanSlotTo(m);
+          if (lines.length) {
+            replan(); drawTimeline(); syncMediaList(); syncMediaInsp();
+            toast('视频已嵌进 ' + lines.length + ' 句的卡片 · 按时间线连续播放');
+          }
+        }
       }
     }
     drag = null;
@@ -2220,6 +2230,25 @@ function paintSlotBackdrop(env, m, lt) {
   ctx.restore();
 }
 
+/* 跨句 / 无插槽段落：不做模糊，直接铺在文字后面 */
+function paintDirectMedia(env, m, lt) {
+  const ctx = env.ctx, W = env.W, H = env.H;
+  const k = (ctx.canvas.width || W) / W || 1;
+  const img = sourceOf(m, lt);
+  if (!img) return;
+  const iw = m.iw || img.videoWidth || img.naturalWidth || img.width || 0;
+  const ih = m.ih || img.videoHeight || img.naturalHeight || img.height || 0;
+  if (!iw || !ih) return;
+  const sc = Math.max(W / iw, H / ih);
+  const dw = iw * sc, dh = ih * sc;
+  ctx.save();
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.globalAlpha = J.clamp(evalProp(m, 'opacity', lt), 0, 1);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  try { ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh); } catch (e) {}
+  ctx.restore();
+}
+
 function paintMedia(env, t, front) {
   if (!S.media.length) return;
   const ctx = env.ctx, W = env.W, H = env.H;
@@ -2233,9 +2262,12 @@ function paintMedia(env, t, front) {
   const list = S.media.slice().sort((a, b) => (b.lane | 0) - (a.lane | 0));
   for (const m of list) {
     if (m.inLayout && !m.orphan) {
-      // 视频嵌进版式时：背后铺一层它自己的模糊视频，纸片周围不再露出静态底图
-      if (!front && m.kind === 'video' && m.slotBg !== false && t >= m.start - 1e-4 && t <= m.start + m.dur + 1e-4) {
-        paintSlotBackdrop(env, m, t - m.start);
+      // 视频嵌进版式时：有插槽的段落铺模糊视频背景；没有插槽的段落不模糊，直接压在文字后面
+      if (!front && t >= m.start - 1e-4 && t <= m.start + m.dur + 1e-4) {
+        const cut = env.cut;
+        const hasSlot = !!(cut && cut.line >= 0 && J.LAYOUTS[cut.layout] && J.LAYOUTS[cut.layout].slot);
+        if (!hasSlot) paintDirectMedia(env, m, t - m.start);
+        else if (m.kind === 'video' && m.slotBg !== false) paintSlotBackdrop(env, m, t - m.start);
       }
       continue;                       // 已经融进版式：由版式的插槽来画，绝不再当贴图压在卡片底下
     }
@@ -2357,6 +2389,7 @@ function bindSlot(m, line, opts = {}) {
   m.inLayout = true;
   m.orphan = false;
   m.line = line | 0;
+  m.spanSlot = false; m.spanLines = null;
   m.slotName = name;
   m.scale = 1; m.x = 0.5; m.y = 0.5; m.rot = 0; m.opacity = 1;
   m.blend = 0; m.border = 0; m.radius = 0; m.shadow = 0; m.fill = 'none'; m.react = 0; m.inM = 'none';
@@ -2371,6 +2404,7 @@ function bindSlot(m, line, opts = {}) {
 
 function unbindSlot(m) {
   m.inLayout = false; m.orphan = false; m.line = null; m.slotName = null;
+  m.spanSlot = false; m.spanLines = null;
   if (m.layout === 'slot') m.layout = 'auto';
   syncSlotLines();
   return m;
@@ -2382,6 +2416,7 @@ function attachSlot(m, cut) {
   const keep = m.slotName && names.includes(m.slotName) && freeSlotName(cut.line, cut.layout, m) === m.slotName;
   m.slotName = keep ? m.slotName : (freeSlotName(cut.line, cut.layout, m) || names[0] || 'photo');
   m.inLayout = true; m.orphan = false; m.line = cut.line | 0;
+  m.spanSlot = false; m.spanLines = null;
   m.start = cut.start;
   m.dur = Math.max(0.2, cut.end - cut.start);
   if (!Array.isArray(S.project.slotLines)) S.project.slotLines = [];
@@ -2400,8 +2435,49 @@ function snapSlotLive(m) {
   m.dur = Math.max(0.2, cut.end - cut.start);
 }
 
+/* 这一段时间覆盖了哪些歌词行（用于「一个视频跨好几句、每句都嵌进卡片」） */
+function coveredLines(start, end) {
+  const out = [];
+  if (!S.plan) return out;
+  for (const c of S.plan.cuts || []) {
+    if (c.line == null || c.line < 0) continue;
+    if (c.end > start + 0.05 && c.start < end - 0.05 && !out.includes(c.line)) out.push(c.line);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/* 把一段素材按它现在的时间范围，嵌进覆盖到的每一句版式里。
+   · 时间不再被某一句锁死：拉多长、从哪里开始，就覆盖到哪些卡片
+   · 视频用同一个元素连续播放（paintSlot 按全局时间取帧），不会每句重头开始
+   · 没有任何可嵌套的行时退回自由层，不模糊，直接压文字后面 */
+function slotLook(m) {
+  m.scale = 1; m.x = 0.5; m.y = 0.5; m.rot = 0; m.opacity = 1;
+  m.blend = 0; m.border = 0; m.radius = 0; m.shadow = 0; m.fill = 'none'; m.react = 0; m.inM = 'none';
+  m.front = false; m.fade = false; m.kf = newKf();
+  m.layout = 'slot';
+}
+function spanSlotTo(m) {
+  if (!m || !S.plan) return [];
+  const lines = coveredLines(m.start, m.start + m.dur);
+  if (!lines.length) { unbindSlot(m); return []; }
+  if (!m.inLayout) slotLook(m);
+  m.inLayout = true; m.orphan = false;
+  m.spanSlot = true; m.spanLines = lines; m.line = lines[0];
+  if (!m.slotName) m.slotName = 'photo';
+  syncSlotLines();
+  return lines;
+}
+
 function dropSlotClip(m) {
   if (!m || !S.plan) return;
+  // 已经在版式里 / 视频：保持当前 start + dur，覆盖到哪几句就嵌进哪几句
+  if (m.inLayout || m.kind === 'video') {
+    const lines = spanSlotTo(m);
+    replan();
+    if (lines.length && !m.orphan) toast('已嵌进第 ' + (lines[0] + 1) + (lines.length > 1 ? '–' + (lines[lines.length - 1] + 1) : '') + ' 句 · 视频连续播放');
+    else toast('这里没有能放素材的版式 · 已退回自由层当背景');
+    return;
+  }
   const cut = J.cutAt(S.plan, m.start + 0.005);
   const L = cut && cut.line >= 0 ? J.LAYOUTS[cut.layout] : null;
   if (L && L.slot) {
@@ -2419,7 +2495,14 @@ function dropSlotClip(m) {
 /* 由 S.media 反推「哪几行要版式插槽」，planner 会优先给这些行挑能放素材的版式 */
 function syncSlotLines() {
   const lines = [];
-  for (const m of S.media) if (m.inLayout && m.line != null && !lines.includes(m.line)) lines.push(m.line);
+  for (const m of S.media) {
+    if (!m.inLayout || m.orphan) continue;
+    const ls = (m.spanSlot && Array.isArray(m.spanLines) && m.spanLines.length)
+      ? m.spanLines
+      : (m.line != null ? [m.line] : []);
+    for (const l of ls) if (!lines.includes(l)) lines.push(l);
+  }
+  lines.sort((a, b) => a - b);
   S.project.slotLines = lines;
   return lines;
 }
@@ -2430,6 +2513,16 @@ function syncSlotClips() {
   if (!S.media.length) { if (Array.isArray(S.project.slotLines) && S.project.slotLines.length) S.project.slotLines = []; return; }
   for (const m of S.media) {
     if (!m.inLayout) continue;
+    if (m.spanSlot) {                                 // 跨句素材：时间由自己决定，只重算覆盖到哪几句
+      const lines = coveredLines(m.start, m.start + m.dur);
+      m.spanLines = lines;
+      let hasSlot = false;
+      for (const l of lines) { const c = cutOfLine(l), L = c && J.LAYOUTS[c.layout]; if (L && L.slot) { hasSlot = true; break; } }
+      m.orphan = !lines.length || !hasSlot;           // 一段都嵌不进去：退回自由层（视频不模糊，直接压文字后面）
+      if (lines.length) m.line = lines[0];
+      if (!m.slotName) m.slotName = 'photo';
+      continue;
+    }
     const cut = cutOfLine(m.line);
     const L = cut && J.LAYOUTS[cut.layout];
     if (!cut || !L || !L.slot) {                     // 这一句没了 / 换成了没有插槽的版式 → 先按自由层画
@@ -2454,7 +2547,8 @@ function paintSlot(slot) {
   const cut = slot.cut;
   if (!cut || cut.line < 0) return false;
   const t = slot.env && slot.env.t != null ? slot.env.t : S.t;
-  const live = c => c.inLayout && !c.orphan && c.line === cut.line && t >= c.start - 0.03 && t <= c.start + c.dur + 0.03;
+  const live = c => c.inLayout && !c.orphan && t >= c.start - 0.03 && t <= c.start + c.dur + 0.03 &&
+    (c.spanSlot ? true : c.line === cut.line);
   let m = S.media.find(c => live(c) && (c.slotName || 'photo') === slot.name);
   if (!m) m = S.media.find(live);                                 // 版式换了、插槽名对不上：这一行的素材顶上
   if (!m) return false;
@@ -2512,6 +2606,13 @@ function paintSlot(slot) {
 /* 这一行现在是什么版式 / 有没有插槽 —— 面板上显示用 */
 function slotInfoOf(m) {
   if (!m || !m.inLayout) return null;
+  if (m.spanSlot && m.spanLines && m.spanLines.length) {
+    const a = m.spanLines[0], b = m.spanLines[m.spanLines.length - 1];
+    return {
+      line: a, layout: null, has: true,
+      tid: '第 ' + (a + 1) + (b > a ? '–' + (b + 1) : '') + ' 句 · 共 ' + m.spanLines.length + ' 句 · ' + (m.kind === 'video' ? '视频连续播放' : '跨句嵌进卡片'),
+    };
+  }
   const cut = cutOfLine(m.line);
   if (!cut) return { line: m.line, layout: null, tid: '这一句已经不在时间线上了' };
   const L = J.LAYOUTS[cut.layout];
@@ -2632,17 +2733,22 @@ function syncMediaInsp() {
   if (sbox) sbox.hidden = false;
   if (sinfo) {
     const info = slotInfoOf(m);
-    sinfo.textContent = inSlot ? ((info && info.tid) || '在版式里') + ' · 时长跟着这一句'
+    sinfo.textContent = inSlot ? ((info && info.tid) || '在版式里') + (m.spanSlot ? '' : ' · 时长跟着这一句')
       : m.inLayout ? '这一句暂时没有插槽 · 先按自由层画'
         : '自由层 · 浮在画面上';
   }
-  // 融进版式之后：时间由歌词决定，前后 / 轨道 / 铺满都交给版式，面板上锁掉
-  ['#miStart', '#miDur', '#miFront', '#miFit', '#miCenter', '#miUp', '#miDown'].forEach(sel => {
+  // 融进版式之后：版式内的位置交给插槽；视频 / 跨句素材仍然可以改起点和时长
+  ['#miStart', '#miDur'].forEach(sel => {
+    const el = $(sel); if (el) el.disabled = inSlot && !(m.spanSlot || m.kind === 'video');
+  });
+  ['#miFront', '#miFit', '#miCenter', '#miUp', '#miDown'].forEach(sel => {
     const el = $(sel); if (el) el.disabled = inSlot;
   });
   const stip = $('#miSlotTip');
   if (stip) stip.textContent = inSlot
-    ? '它现在是这一页纸的一部分：大小 = 在纸里放大 / 缩小，位置 / 旋转 = 在纸里微调（都可以打关键帧）。'
+    ? (m.spanSlot
+      ? '它跨了好几句：每一句的卡片都会嵌进这一段' + (m.kind === 'video' ? '，视频按时间线连续播放' : '') + '。拖时间线左右边缘可以改覆盖范围，拖整块可以换覆盖到哪些句子。'
+      : '它现在是这一页纸的一部分：大小 = 在纸里放大 / 缩小，位置 / 旋转 = 在纸里微调（都可以打关键帧）。')
     : '点「放进这一句」把它融进这一句的版式（立绘印在信纸 / 拍立得上，跟着纸一起动）。';
   // 视频专属：入点 / 出点 / 整段铺开
   const vr = $('#miVideoRow');
@@ -2749,8 +2855,14 @@ function bindMediaCard() {
     if (!el) return;
     el.addEventListener('change', () => { const m = cur(); if (!m) return; fn(m, +el.value); touch(); commit(); });
   };
-  num('#miStart', (m, v) => { if (isFinite(v)) m.start = J.clamp(v, 0, Math.max(0, (S.plan ? S.plan.duration : 600) - 0.2)); });
-  num('#miDur', (m, v) => { if (isFinite(v)) m.dur = J.clamp(v, 0.3, 600); });
+  const slotTimeChanged = (m) => {
+    if (!m || !m.inLayout) return;
+    const lines = spanSlotTo(m);
+    if (!lines.length) unbindSlot(m);
+    replan(); drawTimeline(); syncMediaList(); syncMediaInsp();
+  };
+  num('#miStart', (m, v) => { if (isFinite(v)) { m.start = J.clamp(v, 0, Math.max(0, (S.plan ? S.plan.duration : 600) - 0.2)); slotTimeChanged(m); } });
+  num('#miDur', (m, v) => { if (isFinite(v)) { m.dur = J.clamp(v, 0.3, 600); slotTimeChanged(m); } });
   num('#miTrim', (m, v) => {
     const a = S.assets[m.assetId];
     if (isFinite(v) && a && a.dur) {
@@ -2792,21 +2904,31 @@ function bindMediaCard() {
     toast('视频出点 = ' + m.trimEnd.toFixed(2) + 's');
   });
   vidBtn('#miVidWhole', (m, d, planDur) => {
-    unbindSlot(m);
     m.trim = 0; m.trimEnd = d; m.loop = false;
     // 整段视频放得下就自动挪到放得下的位置（优先保留原来的起点）
     const st = Math.max(0, Math.min(m.start, planDur - d));
     m.start = st;
     m.dur = Math.max(0.3, Math.min(d, planDur - st));
-    autoFit(m, 'fit'); m.blend = 0; m.react = 0;
-    toast('已按原片长铺开：' + d.toFixed(1) + 's 完整放进来，不循环');
+    const lines = spanSlotTo(m);
+    if (!lines.length) { unbindSlot(m); autoFit(m, 'fit'); m.blend = 0; m.react = 0; }
+    toast(lines.length
+      ? '已按原片长嵌进 ' + lines.length + ' 句的卡片：' + m.dur.toFixed(1) + 's 完整播放，不循环'
+      : '没有可嵌套的版式，已退回自由层：' + m.dur.toFixed(1) + 's 完整播放');
   });
-  vidBtn('#miVidAll', (m, d, planDur) => {
-    unbindSlot(m);
+  // 铺满整首：不再是「垫在底下」，而是把这一段嵌进覆盖到的每一句卡片里
+  const spanWhole = (m) => {
+    const planDur = S.plan ? S.plan.duration : 10;
     m.start = 0; m.dur = Math.max(0.3, planDur);
-    m.trim = 0; m.trimEnd = d; m.loop = true;
-    autoFit(m, 'cover'); m.blend = 0; m.react = 0;
-    toast('已铺满整首：从 0 开始，视频比歌短就在选段里循环');
+    m.loop = true;
+    const lines = spanSlotTo(m);
+    if (!lines.length) { unbindSlot(m); autoFit(m, 'cover'); m.front = false; m.react = 0; }
+    return lines;
+  };
+  vidBtn('#miVidAll', (m, d, planDur) => {
+    const lines = spanWhole(m);
+    toast(lines.length
+      ? '视频已铺满整首，并嵌进 ' + lines.length + ' 句的卡片里（连续播放）'
+      : '没有可嵌套的版式，已退回自由层当整首背景');
   });
   const act = (sel, fn) => { const el = $(sel); if (el) el.onclick = () => { const m = cur(); if (!m) return; fn(m); S.need = true; drawTimeline(); syncMediaList(); commit(); }; };
   act('#miFit', m => { autoFit(m, 'cover'); toast('铺满画面'); });
@@ -2817,13 +2939,11 @@ function bindMediaCard() {
   const timeAll = $('#miTimeAll');
   if (timeAll) timeAll.onclick = () => {
     const m = cur(); if (!m) return;
-    unbindSlot(m);
-    m.start = 0;
-    m.dur = Math.max(0.3, S.plan ? S.plan.duration : 10);
-    m.loop = true; m.front = false; m.react = 0;
-    autoFit(m, 'cover');
+    const lines = spanWhole(m);
     S.need = true; replan(); drawTimeline(); syncMediaList(); syncMediaInsp(); commit();
-    toast((m.kind === 'video' ? '视频' : '图片') + '已铺满整首时间线（压在文字后面）');
+    toast(lines.length
+      ? (m.kind === 'video' ? '视频' : '图片') + '已铺满整首，并嵌进 ' + lines.length + ' 句的卡片里'
+      : '没有可嵌套的版式，已退回自由层当整首背景');
   };
 
   // ── 关键帧 ──
