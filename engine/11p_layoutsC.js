@@ -1644,7 +1644,7 @@ function disc(env, cx, cy, R, ang, labC, a, txt, seed, big = false) {
 }
 reg('vinyl', {
   name: 'レコード', tags: ['emotional', 'pop', 'calm'], w: 0.8, ae: 'ring', treat: 'safe', fits: n => n <= 16,
-  slot: true, slots: ['photo'],
+  
   enterBias: { blur: 1.3, zoom: 1.2, spin: 0.4 },
   plan: (rng, cut, st) => ({
     font: rng.pick(fontsOf(st, ['display', 'serif'])), variant: cut.n <= 6 ? rng.pick(['sleeve', 'label']) : 'sleeve', side: rng.pick(['A', 'B']), rpm: rng.pick(['33⅓', '45']),
@@ -1719,7 +1719,7 @@ reg('vinyl', {
    ====================================================================== */
 reg('cassette', {
   name: 'カセット', tags: ['emotional', 'pop', 'calm'], w: 0.8, ae: 'pill', treat: 'safe', portrait: 0.7, fits: n => n <= 16,
-  slot: true, slots: ['photo'],
+  
   enterBias: { type: 1.6, wipe: 1.3, cut: 1.2 },
   plan: (rng, cut, st) => ({
     font: rng.chance(0.55) ? 'klee' : rng.pick(fontsOf(st, ['body', 'display'])), shell: rng.pick(['ink', 'accent', 'clear']), band: rng.pick(['accent', 'ink', 'stripe']),
@@ -1979,7 +1979,7 @@ function perfRect(env, x, y, w, h, hole, col, a) {
 }
 reg('stampSheet', {
   name: '切手シート', tags: ['pop', 'graphic', 'calm'], w: 0.7, ae: 'tile', treat: 'safe', fits: n => n >= 1 && n <= 12,
-  slot: true, slots: ['photo'],
+  
   enterBias: { pop: 1.4, cut: 1.3, blur: 1.1 },
   plan: (rng, cut, st) => {
     const port = portOf(cut);
@@ -2057,7 +2057,7 @@ reg('stampSheet', {
    ====================================================================== */
 reg('postcard', {
   name: 'はがき', tags: ['emotional', 'calm', 'editorial'], w: 0.8, ae: 'vcols', treat: 'safe', fits: n => n >= 1 && n <= 18,
-  slot: true, slots: ['body', 'stamp'],
+  slot: true, slots: ['stamp'],
   enterBias: { blur: 1.3, type: 1.3, wipe: 1.2 },
   plan: (rng, cut, st) => ({
     font: rng.chance(0.4) ? 'klee' : rng.pick(fontsOf(st, ['serif', 'display'])), tilt: rng.range(-5, 5), val: rng.pick([63, 85, 110]),
@@ -2196,24 +2196,32 @@ reg('letterPaper', {
     // 素材插槽：立绘「印」在信纸上 —— 字压在图上、纸的格子线再压上来，
     // 所以它跟着这张纸一起展开、倾斜、折起，而不是浮在画面中间
     const inset = Math.min(pw, ph) * 0.028;
-    const sheetFilled = env.slot('photo', vis[0][0] + inset, vis[0][1] + inset, vis[1][0] - inset * 2, vis[1][1] - inset * 2, { tone: 'print', alpha: a0 * 0.95, fit: 'contain', paper: C.fill });
+    // 照片只占纸面的一侧（横排占右边 / 竖排占下边），另一边留给字 —— 绝不压在脸上
+    const vw = vis[1][0] - inset * 2, vh = vis[1][1] - inset * 2;
+    const photoW = tate ? vw : vw * 0.46;
+    const photoH = tate ? vh * 0.44 : vh;
+    const photoX = vis[0][0] + inset + (tate ? 0 : vw - photoW);
+    const photoY = vis[0][1] + inset + (tate ? vh - photoH : 0);
+    const sheetFilled = env.slot('photo', photoX, photoY, photoW, photoH, { tone: 'print', alpha: a0 * 0.95, fit: 'cover', paper: C.fill });
     // 印上去之后再盖一层很淡的纸色：格子线、字仍然是「这张纸上的东西」（想更淡/更浓，选中素材调「不透明度」）
     if (sheetFilled) env.rect(vis[0][0], vis[0][1], vis[1][0], vis[1][1], C.fill, a0 * 0.08, false);
     const t0 = env.cut.text.trim();
     let bb = null;
     const mT = ph * 0.1, mS = pw * 0.06;
     if (tate) {
-      const top = y0 + mT, bot = y0 + ph - mT;
-      // double border rules top & bottom, vertical line rules
-      env.rect(x0 + mS, top - lw * 4, pw - mS * 2, lw * 2.5, ruleC, a0, false);
-      env.rect(x0 + mS, bot + lw * 1.5, pw - mS * 2, lw * 2.5, ruleC, a0, false);
+      const top = y0 + mT, bot = sheetFilled ? y0 + ph * 0.5 : y0 + ph - mT;
+      // double border rules top & bottom（有素材时不画，避免压在照片上）
+      if (!sheetFilled) {
+        env.rect(x0 + mS, top - lw * 4, pw - mS * 2, lw * 2.5, ruleC, a0, false);
+        env.rect(x0 + mS, bot + lw * 1.5, pw - mS * 2, lw * 2.5, ruleC, a0, false);
+      }
       const fb = fitBlock(strip(t0), p.font, port ? pw * 0.6 : third * 0.9, (bot - top) * 0.92, { vertical: true, lead: 1.55, track: 0.08 }, 3);
       const size = Math.min(fb.size, u * (port ? 0.17 : 0.13));
       const pitch = size * 1.55;
       const nl = fb.text.split('\n').length;
       const base = W / 2 - nl / 2 * pitch;                // left edge of the lyric block sits on a rule
       const iMin = Math.ceil((x0 + mS - base) / pitch), iMax = Math.floor((x0 + pw - mS - base) / pitch);
-      for (let i = iMin; i <= iMax; i++) env.line([[base + i * pitch, top], [base + i * pitch, bot]], ruleC, lw, a0 * 0.75, false);
+      if (!sheetFilled) for (let i = iMin; i <= iMax; i++) env.line([[base + i * pitch, top], [base + i * pitch, bot]], ruleC, lw, a0 * 0.75, false);
       bb = J.mainDraw(env, { text: fb.text, font: p.font, size, x: W / 2, y: top + size * 0.35, vertical: true, align: 'left', lead: 1.55, track: 0.08, color: C.text, noHold: plateHold(env) });
       const a2 = J.clamp((k - 0.6) / 0.4) * out;
       const ctxT = deckCopy(env);
@@ -2223,14 +2231,16 @@ reg('letterPaper', {
       }
       if (p.sign && a2 > 0.01 && base - 1.5 * pitch > x0 + mS) env.draw({ text: 'No.' + lineNo(env), font: p.font, size: ls, vertical: true, align: 'left', x: base - 1.5 * pitch, y: bot - ls * 5, color: C.text, alpha: a2 * 0.7, ghost: false });
     } else {
-      const left = x0 + pw * 0.1, right = x0 + pw * 0.9;
+      const left = x0 + pw * 0.1, right = sheetFilled ? x0 + pw * 0.44 : x0 + pw * 0.9;
       const top = y0 + ph * 0.1, bot = y0 + ph * 0.92;
       const fb = fitBlock(t0, p.font, right - left, (bot - top) * 0.46, { lead: 1.7, track: 0.04 }, port ? 3 : 2);
       const size = Math.min(fb.size, u * 0.15);
       const pitch = size * 1.7;
       const nRow = Math.max(3, Math.floor((bot - top) / pitch));
-      for (let i = 0; i <= nRow; i++) env.line([[left - pw * 0.03, top + i * pitch], [right + pw * 0.03, top + i * pitch]], ruleC, lw, a0 * 0.75, false);
-      env.line([[left - pw * 0.03, top - lw * 5], [right + pw * 0.03, top - lw * 5]], ruleC, lw * 2.5, a0, false);
+      if (!sheetFilled) {
+        for (let i = 0; i <= nRow; i++) env.line([[left - pw * 0.03, top + i * pitch], [right + pw * 0.03, top + i * pitch]], ruleC, lw, a0 * 0.75, false);
+        env.line([[left - pw * 0.03, top - lw * 5], [right + pw * 0.03, top - lw * 5]], ruleC, lw * 2.5, a0, false);
+      }
       const nl = fb.text.split('\n').length;
       const r0 = Math.max(0, Math.floor(nRow / 2 - nl / 2));
       bb = J.mainDraw(env, { text: fb.text, font: p.font, size, x: left, y: top + (r0 + nl / 2) * pitch - size * 0.12, align: 'left', lead: 1.7, track: 0.04, color: C.text, noHold: plateHold(env) });
@@ -2262,7 +2272,7 @@ const MON_E = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', '
 const ROKUYO = ['大安', '赤口', '先勝', '友引', '先負', '仏滅'];
 reg('calendar', {
   name: 'カレンダー', tags: ['pop', 'editorial', 'calm'], w: 0.7, ae: 'center', treat: 'safe', fits: n => n >= 1 && n <= 16,
-  slot: true, slots: ['photo'],
+  
   enterBias: { pop: 1.3, cut: 1.3, zoom: 1.2 },
   plan: (rng, cut, st) => ({
     font: rng.pick(fontsOf(st, ['display', 'serif'])), variant: rng.pick(['month', 'himekuri']), month: rng.int(0, 11), off: rng.int(0, 6), day: rng.int(3, 27), days: rng.pick([30, 31]),

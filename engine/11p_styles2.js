@@ -107,4 +107,22 @@ const at = rest.indexOf('tcg');
 const nextOrder = at >= 0 ? rest.slice(0, at + 1).concat(added, rest.slice(at + 1)) : added.concat(rest);
 J.STYLE_ORDER.length = 0;
 for (const k of nextOrder) J.STYLE_ORDER.push(k);
+
+/* ---------- 多色渐变（3~4 段） ---------- */
+const MULTI = [
+  ['candyRainbow', '糖果彩虹', '粉→黄→蓝 三段', ['#FFC2E2', '#FFE9A8', '#A9C4FF'], '#2A2350', '#FF4D8D', '#5AB0FF'],
+  ['sunsetStrip', '日落色带', '橙→粉→紫 三段', ['#FFD9A8', '#FFB3C9', '#B79BFF'], '#3A1D2E', '#FF6B35', '#7C3AED'],
+  ['mintCandy', '薄荷彩虹', '青→蓝→紫 三段', ['#C9FFF0', '#BBD8FF', '#DCC2FF'], '#123A46', '#00B8A9', '#7048E8'],
+  ['peachSorbet', '蜜桃冰沙', '杏→粉→紫 四段', ['#FFE3B8', '#FFC9D6', '#E9C4FF', '#C9D6FF'], '#4A2A18', '#FF6B5A', '#8B5CF6'],
+];
+for (const [k, name, desc, stops, fg, acc, acc2] of MULTI) {
+  if (J.STYLES[k]) continue;
+  const mid = stops[Math.floor(stops.length / 2)];
+  const light = { bg: mid, fg, sub: J.mix(fg, mid, 0.42), accent: acc, accent2: acc2, ink: fg, dim: J.mix(mid, fg, 0.07), ghostA: acc, ghostB: acc2, bgGrad: stops.slice() };
+  const d1 = J.mix(stops[0], '#0B0B12', 0.8), d2 = J.mix(stops[stops.length - 1], '#0B0B12', 0.72);
+  const dark = { bg: J.mix(d1, d2, 0.5), fg: '#FFFFFF', sub: J.mix('#FFFFFF', d1, 0.4), accent: acc, accent2: acc2, ink: '#FFFFFF', dim: J.mix(d1, '#FFFFFF', 0.06), ghostA: acc, ghostB: acc2, bgGrad: [d1, J.mix(d1, d2, 0.5), d2] };
+  const baseBias = J.STYLES.tcg ? JSON.parse(JSON.stringify(J.STYLES.tcg.bias)) : {};
+  J.STYLES[k] = { name, desc, moods: ['pop', 'emotional'], schemes: [light, light, dark], fonts: FONTS.round, texture: { grain: 0.26, paper: 0, scan: 0 }, ghost: 0.34, bias: baseBias, decor: { twinkle: 1.5, sparks: 1.3, shapes: 1.2, lightLeak: 1.1, confetti: 1 }, hud: false, glow: 1.2 };
+  J.STYLE_ORDER.push(k);
+}
 })();

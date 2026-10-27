@@ -2364,6 +2364,25 @@ function bindMediaCard() {
   if (cp) cp.onchange = () => { S.beatCfg.pulse = cp.checked; };
   const cy = $('#cfgLayout');
   if (cy) cy.onchange = () => { S.beatCfg.layout = cy.value; };
+
+  // 自定义配色：三个颜色 → 生成一套「自定义」风格
+  const ca = $('#cApply');
+  if (ca) ca.onclick = () => {
+    const bg = ($('#cBg') || {}).value || '#FFD9EC';
+    const fg = ($('#cFg') || {}).value || '#2A2350';
+    const acc = ($('#cAcc') || {}).value || '#FF4D8D';
+    const base = J.STYLES.tcg || J.STYLES[J.STYLE_ORDER[0]];
+    const acc2 = J.mix(acc, bg, 0.3);
+    const light = { bg, fg, sub: J.mix(fg, bg, 0.42), accent: acc, accent2: acc2, ink: fg, dim: J.mix(bg, fg, 0.07), ghostA: acc, ghostB: acc2, bgGrad: [bg, J.mix(bg, acc, 0.22)] };
+    const darkBg = J.mix(bg, '#0B0B12', 0.84);
+    const dark = { bg: darkBg, fg: '#FFFFFF', sub: J.mix('#FFFFFF', bg, 0.45), accent: acc, accent2: acc2, ink: '#FFFFFF', dim: J.mix(darkBg, '#FFFFFF', 0.06), ghostA: acc, ghostB: acc2, bgGrad: [J.mix(bg, '#0B0B12', 0.9), J.mix(acc, '#0B0B12', 0.55)] };
+    J.STYLES.custom = Object.assign({}, base, { name: '自定义', desc: '你自己调的三个颜色', schemes: [light, light, dark] });
+    if (J.STYLE_ORDER.indexOf('custom') < 0) J.STYLE_ORDER.unshift('custom');
+    S.project.style = 'custom';
+    buildStyleGrid();
+    replan();
+    toast('已套用自定义配色 ' + bg + ' / ' + fg + ' / ' + acc);
+  };
 }
 
 

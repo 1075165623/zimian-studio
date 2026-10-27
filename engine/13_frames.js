@@ -93,6 +93,27 @@ function dots(env, x, y, w, h, step, r, col, a) {
   ctx.restore();
 }
 
+/* 版面四周的「版式标记」：细线 + 刻度 + 英文小字 + 小方块 —— 让画面不只剩一张照片 */
+function marginalia(env, a, C, sc, tag) {
+  const { W, H } = env, u = U(env) / 1080;
+  const pad = U(env) * 0.032, ink = C.text, acc = sc.accent;
+  const lw = Math.max(1, u * 1.1);
+  env.line([[pad, H * 0.13], [pad, H * 0.87]], ink, lw, a * 0.24, false);
+  env.line([[W - pad, H * 0.13], [W - pad, H * 0.87]], ink, lw, a * 0.24, false);
+  for (let i = 0; i < 6; i++) {
+    const y = H * 0.13 + (H * 0.74) * i / 5;
+    env.line([[pad - u * 4, y], [pad, y]], ink, lw, a * 0.3, false);
+    env.line([[W - pad, y], [W - pad + u * 4, y]], ink, lw, a * 0.3, false);
+  }
+  const mono = 'mono', s1 = Math.max(9, u * 15);
+  env.draw({ text: 'TCG-PV', font: mono, size: s1, track: 0.34, x: pad + u * 7, y: H * 0.075, align: 'left', color: ink, alpha: a * 0.55, ghost: false });
+  env.draw({ text: (tag || 'FRAME') + ' ' + lineNo(env), font: mono, size: s1, track: 0.22, x: W - pad - u * 7, y: H * 0.075, align: 'right', color: ink, alpha: a * 0.55, ghost: false });
+  env.draw({ text: J.fmtTime(env.cut.start), font: mono, size: Math.max(8, u * 12), x: pad + u * 7, y: H * 0.94, align: 'left', color: ink, alpha: a * 0.4, ghost: false });
+  env.draw({ text: 'PV / 2026', font: mono, size: Math.max(8, u * 12), x: W - pad - u * 7, y: H * 0.94, align: 'right', color: ink, alpha: a * 0.4, ghost: false });
+  env.rect(pad + u * 5, H * 0.895, u * 9, u * 9, acc, a * 0.7, false);
+  env.rect(W - pad - u * 14, H * 0.895, u * 9, u * 9, ink, a * 0.3, false);
+}
+
 function base(env, d = 0, len = 0.4) {
   const out = 1 - J.E.inCubic(env.pOut);
   const a = clamp(tin(env, d, len) * 1.7) * out;
@@ -128,6 +149,7 @@ J.register('layout', 'bigPicture', {
     // 装裱是「整张照片放进去」，不裁切 —— 人像不会被切掉头
     env.slot('photo', px, py, pw, ph, { tone: 'photo', alpha: a, fit: 'contain', paper: C.fill });
     env.line([[px, py + ph + pad * 0.5], [px + pw, py + ph + pad * 0.5]], C.line, Math.max(1, u * 1.4), a * 0.5, false);
+    marginalia(env, a, C, sc, 'PRINT');
     const fb = fit(env, env.cut.text, p.font, pw * 0.92, band * 0.66, 1, U(env) * 0.085);
     const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: px, y: py + ph + band * 0.52, align: 'left', color: C.text });
     env.draw({ text: 'No.' + lineNo(env), font: p.mono, size: U(env) * 0.019, x: px + pw, y: py + ph + band * 0.76, align: 'right', color: C.text, alpha: a * 0.55, ghost: false });
@@ -160,6 +182,7 @@ J.register('layout', 'tapePhoto', {
     const fb = fit(env, env.cut.text, p.font, pw * 0.94, band * 0.7, 1, fw * 0.085);
     const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: -pw / 2, y: -fh / 2 + pad + ph + band * 0.55, align: 'left', color: C.text });
     env.draw({ text: '— ' + lineNo(env), font: p.mono, size: fw * 0.028, x: pw / 2, y: -fh / 2 + pad + ph + band * 0.62, align: 'right', color: C.text, alpha: a * 0.6, ghost: false });
+    marginalia(env, a, C, sc, 'TAPE');
     if (p.tape) {
       tape(env, -fw / 2 + fw * 0.14, -fh / 2 + fw * 0.01, fw * 0.3, fw * 0.075, -38, a, J.rgba(sc.accent, 0.55));
       tape(env, fw / 2 - fw * 0.12, -fh / 2 - fw * 0.01, fw * 0.26, fw * 0.07, 34, a, J.rgba(sc.accent2, 0.5));
@@ -234,6 +257,7 @@ J.register('layout', 'screenFrame', {
       for (let yy = sy; yy < sy + sh; yy += Math.max(3, u * 5)) ctx.fillRect(sx, yy, sw, Math.max(1, u * 1.4));
       ctx.restore();
     }
+    marginalia(env, a, C, sc, 'SCREEN');
     // 控制台条：字在这里
     const bandY = sy + sh + fh * 0.02, bandH = fh * 0.085;
     env.rect(sx, bandY, sw, bandH, J.mix(bezC, '#000000', 0.25), a, false);
@@ -263,6 +287,7 @@ J.register('layout', 'comicPanel', {
     env.rect(m, m, W - m * 2, H - m * 2, '#0C0C10', a, false);
     env.rect(m + gut, m + gut, pw, ph, C.fill, a, false);
     env.slot('photo', m + gut * 2, m + gut * 2, pw - gut * 2, ph - gut * 2, { tone: 'photo', alpha: a });
+    marginalia(env, a, C, sc, 'PANEL');
     // 说明框：压在右下角的白框，黑边
     const bwd = Math.min(W * 0.46, U(env) * 0.72), bhd = U(env) * 0.2;
     const bx = p.side > 0 ? W - m - bwd - gut * 2 : m + gut * 2, by = H - m - bhd - gut * 2;
@@ -303,6 +328,7 @@ J.register('layout', 'posterWall', {
     const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: -iw / 2, y: -ph / 2 + pad + ih + band * 0.58, align: 'left', color: C.text });
     env.draw({ text: lineNo(env) + ' / ' + env.cut.layout.toUpperCase(), font: 'mono', size: pw * 0.024, x: iw / 2, y: -ph / 2 + pad + ih + band * 0.64, align: 'right', color: C.text, alpha: a * 0.55, ghost: false });
     tape(env, 0, -ph / 2 + ph * 0.005, pw * 0.34, ph * 0.032, -3, a, J.rgba(sc.accent, 0.45));
+    marginalia(env, a, C, sc, 'POSTER');
     ctx.restore();
     return bb;
   },
@@ -331,6 +357,7 @@ J.register('layout', 'albumFrame', {
     env.draw({ text: 'SIDE A · ' + lineNo(env), font: 'mono', size: S * 0.032, x: -S * 0.45, y: S / 2 - bandH * 0.62, align: 'left', color: sc.fg, alpha: a * 0.75, ghost: false });
     env.line([[-S * 0.45, -S * 0.455], [S * 0.45, -S * 0.455]], sc.fg, Math.max(1, u * 1.2), a * 0.35, false);
     ctx.restore();
+    marginalia(env, a, C, sc, 'ALBUM');
     // 歌词在左边，不压封面
     const tw = port ? W * 0.8 : W * 0.34, th = port ? H * 0.16 : H * 0.4;
     const tx = port ? W * 0.1 : W * 0.06, ty = port ? H * 0.66 : H * 0.5 - th / 2;
@@ -404,6 +431,7 @@ J.register('layout', 'windowFrame', {
     env.rect(x + ww / 2 - bw / 2, y, bw, wh, frameC, a, false);
     if (p.bars > 1) env.rect(x, y + wh / 2 - bw / 2, ww, bw, frameC, a, false);
     env.line([[x, y], [x + ww, y], [x + ww, y + wh], [x, y + wh], [x, y]], frameC, bw, a, false);
+    marginalia(env, a, C, sc, 'WINDOW');
     // 字在窗台
     const sy = y + wh + u * 10, sh = H * p.stool - u * 20;
     const fb = fit(env, env.cut.text, p.font, ww, sh * 0.72, 1, H * 0.075);

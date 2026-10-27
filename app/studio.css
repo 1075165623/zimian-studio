@@ -598,3 +598,9 @@ body.lib-open{overflow:hidden}
 .mi-slot .mi-acts .btn{height:23px}
 .mi-slot .tip{margin:6px 0 2px;color:#6B5B95}
 .media-insp .btn:disabled{opacity:.42;cursor:not-allowed}
+
+/* 自定义配色行（风格格子下面） */
+.style-custom{display:flex;align-items:center;gap:5px;margin-top:7px;padding:5px 6px;border:1px dashed #D7CFEA;border-radius:8px;background:#FBF9FF}
+.style-custom .sc-t{font-size:9.5px;color:#6B5B95;margin-right:auto;letter-spacing:.02em}
+.style-custom input[type=color]{width:20px;height:18px;padding:0;border:1px solid #D7CFEA;border-radius:4px;background:#fff;cursor:pointer}
+.style-custom .btn{height:20px;line-height:18px;padding:0 7px;font-size:10px}
