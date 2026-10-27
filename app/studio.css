@@ -630,7 +630,9 @@ input[type=range]::-webkit-slider-thumb{
 }
 .pet[hidden]{display:none}
 .pet.dragging{cursor:grabbing}
-.pet .pet-ink{display:block;filter:drop-shadow(0 8px 14px rgba(16,24,40,.22));transform-origin:50% 92%}
+.pet .pet-ink{display:block;filter:drop-shadow(0 10px 16px rgba(16,24,40,.22));transform-origin:50% 96%}
+.pet .pet-img{display:block;width:100%;height:auto;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.pet .pet-fallback[hidden]{display:none}
 .pet .pet-svg{display:block;width:100%;height:auto;overflow:visible}
 .pet .pet-bob{animation:petBob 3.6s ease-in-out infinite;transform-origin:50% 92%}
 @keyframes petBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3.5px)}}

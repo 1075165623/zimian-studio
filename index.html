@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F7F8FA">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNGOTczMTYiLz48dGV4dCB4PSIzMiIgeT0iNDYiIGZvbnQtc2l6ZT0iMzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJzZXJpZiI+5a2XPC90ZXh0Pjwvc3ZnPg==">
-<link rel="stylesheet" href="app/studio.css?v=20261027e">
+<link rel="stylesheet" href="app/studio.css?v=20261027f">
 </head>
 <body>
 
@@ -533,6 +533,8 @@
       <div class="ch-body">
         <label class="check"><input type="checkbox" id="petOn" checked> 显示宠物</label>
         <div class="slider"><label>大小 <output id="oPetSize">100%</output></label><input type="range" id="petSize" min="60" max="170" value="100"></div>
+        <div class="slider"><label>捏的音量 <output id="oPetVol">70%</output></label><input type="range" id="petVol" min="0" max="100" value="70"></div>
+        <label class="check"><input type="checkbox" id="petMute"> 静音（不听她的声音）</label>
         <label class="check"><input type="checkbox" id="petQuiet"> 安静模式（不主动说话）</label>
         <div class="row-btns">
           <button class="btn tiny" id="btnPetPinch">捏一下</button>
@@ -556,62 +558,62 @@
 </footer>
 
 <!-- 引擎 -->
-<script src="vendor/mp4-muxer.min.js?v=20261027e"></script>
-<script src="engine/01_util.js?v=20261027e"></script>
-<script src="engine/02_fonts.js?v=20261027e"></script>
-<script src="engine/02b_lang.js?v=20261027e"></script>
-<script src="engine/03_text.js?v=20261027e"></script>
-<script src="engine/04_styles.js?v=20261027e"></script>
-<script src="engine/05_anim.js?v=20261027e"></script>
-<script src="engine/05b_registry.js?v=20261027e"></script>
-<script src="engine/06_layouts.js?v=20261027e"></script>
-<script src="engine/07_decor.js?v=20261027e"></script>
-<script src="engine/08_planner.js?v=20261027e"></script>
-<script src="engine/08b_omakase.js?v=20261027e"></script>
-<script src="engine/09_render.js?v=20261027e"></script>
-<script src="engine/10_audio.js?v=20261027e"></script>
-<script src="engine/11_export.js?v=20261027e"></script>
-<script src="engine/11p_bgcamB.js?v=20261027e"></script>
-<script src="engine/11p_decor.js?v=20261027e"></script>
-<script src="engine/11p_decorB.js?v=20261027e"></script>
-<script src="engine/11p_enter.js?v=20261027e"></script>
-<script src="engine/11p_enterB.js?v=20261027e"></script>
-<script src="engine/11p_exit.js?v=20261027e"></script>
-<script src="engine/11p_exitB.js?v=20261027e"></script>
-<script src="engine/11p_fxB.js?v=20261027e"></script>
-<script src="engine/11p_horror1.js?v=20261027e"></script>
-<script src="engine/11p_horror2.js?v=20261027e"></script>
-<script src="engine/11p_horror3.js?v=20261027e"></script>
-<script src="engine/11p_kinetic1.js?v=20261027e"></script>
-<script src="engine/11p_kinetic2.js?v=20261027e"></script>
-<script src="engine/11p_kinetic3.js?v=20261027e"></script>
-<script src="engine/11p_layoutsA.js?v=20261027e"></script>
-<script src="engine/11p_layoutsB.js?v=20261027e"></script>
-<script src="engine/11p_layoutsC.js?v=20261027e"></script>
-<script src="engine/11p_layoutsD.js?v=20261027e"></script>
-<script src="engine/11p_looks.js?v=20261027e"></script>
-<script src="engine/11p_styles.js?v=20261027e"></script>
-<script src="engine/11p_styles2.js?v=20261027e"></script>
-<script src="engine/11p_treattrans.js?v=20261027e"></script>
-<script src="engine/11p_typo1.js?v=20261027e"></script>
-<script src="engine/11p_typo2.js?v=20261027e"></script>
-<script src="engine/11p_typo3.js?v=20261027e"></script>
-<script src="engine/11q_sets.js?v=20261027e"></script>
-<script src="engine/11r_shapes.js?v=20261027e"></script>
-<script src="engine/11s_garnish.js?v=20261027e"></script>
-<script src="engine/11z_more.js?v=20261027e"></script>
-<script src="engine/12_slot.js?v=20261027e"></script>
-<script src="engine/13_frames.js?v=20261027e"></script>
-<script src="engine/14_spec.js?v=20261027e"></script>
+<script src="vendor/mp4-muxer.min.js?v=20261027f"></script>
+<script src="engine/01_util.js?v=20261027f"></script>
+<script src="engine/02_fonts.js?v=20261027f"></script>
+<script src="engine/02b_lang.js?v=20261027f"></script>
+<script src="engine/03_text.js?v=20261027f"></script>
+<script src="engine/04_styles.js?v=20261027f"></script>
+<script src="engine/05_anim.js?v=20261027f"></script>
+<script src="engine/05b_registry.js?v=20261027f"></script>
+<script src="engine/06_layouts.js?v=20261027f"></script>
+<script src="engine/07_decor.js?v=20261027f"></script>
+<script src="engine/08_planner.js?v=20261027f"></script>
+<script src="engine/08b_omakase.js?v=20261027f"></script>
+<script src="engine/09_render.js?v=20261027f"></script>
+<script src="engine/10_audio.js?v=20261027f"></script>
+<script src="engine/11_export.js?v=20261027f"></script>
+<script src="engine/11p_bgcamB.js?v=20261027f"></script>
+<script src="engine/11p_decor.js?v=20261027f"></script>
+<script src="engine/11p_decorB.js?v=20261027f"></script>
+<script src="engine/11p_enter.js?v=20261027f"></script>
+<script src="engine/11p_enterB.js?v=20261027f"></script>
+<script src="engine/11p_exit.js?v=20261027f"></script>
+<script src="engine/11p_exitB.js?v=20261027f"></script>
+<script src="engine/11p_fxB.js?v=20261027f"></script>
+<script src="engine/11p_horror1.js?v=20261027f"></script>
+<script src="engine/11p_horror2.js?v=20261027f"></script>
+<script src="engine/11p_horror3.js?v=20261027f"></script>
+<script src="engine/11p_kinetic1.js?v=20261027f"></script>
+<script src="engine/11p_kinetic2.js?v=20261027f"></script>
+<script src="engine/11p_kinetic3.js?v=20261027f"></script>
+<script src="engine/11p_layoutsA.js?v=20261027f"></script>
+<script src="engine/11p_layoutsB.js?v=20261027f"></script>
+<script src="engine/11p_layoutsC.js?v=20261027f"></script>
+<script src="engine/11p_layoutsD.js?v=20261027f"></script>
+<script src="engine/11p_looks.js?v=20261027f"></script>
+<script src="engine/11p_styles.js?v=20261027f"></script>
+<script src="engine/11p_styles2.js?v=20261027f"></script>
+<script src="engine/11p_treattrans.js?v=20261027f"></script>
+<script src="engine/11p_typo1.js?v=20261027f"></script>
+<script src="engine/11p_typo2.js?v=20261027f"></script>
+<script src="engine/11p_typo3.js?v=20261027f"></script>
+<script src="engine/11q_sets.js?v=20261027f"></script>
+<script src="engine/11r_shapes.js?v=20261027f"></script>
+<script src="engine/11s_garnish.js?v=20261027f"></script>
+<script src="engine/11z_more.js?v=20261027f"></script>
+<script src="engine/12_slot.js?v=20261027f"></script>
+<script src="engine/13_frames.js?v=20261027f"></script>
+<script src="engine/14_spec.js?v=20261027f"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
-<script src="app/names_zh.js?v=20261027e"></script>
-<script src="app/labels_zh.js?v=20261027e"></script>
-<script src="app/local_fonts.js?v=20261027e"></script>
-<script src="app/mov_muxer.js?v=20261027e"></script>
-<script src="app/studio.js?v=20261027e"></script>
-<script src="app/pet.js?v=20261027e"></script>
-<script src="app/catalog.js?v=20261027e"></script>
-<script src="app/ai_ref.js?v=20261027e"></script>
+<script src="app/names_zh.js?v=20261027f"></script>
+<script src="app/labels_zh.js?v=20261027f"></script>
+<script src="app/local_fonts.js?v=20261027f"></script>
+<script src="app/mov_muxer.js?v=20261027f"></script>
+<script src="app/studio.js?v=20261027f"></script>
+<script src="app/pet.js?v=20261027f"></script>
+<script src="app/catalog.js?v=20261027f"></script>
+<script src="app/ai_ref.js?v=20261027f"></script>
 </body>
 </html>

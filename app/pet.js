@@ -13,7 +13,8 @@
 
 const $ = s => document.querySelector(s);
 const KEY = 'studio.pet.v1';
-const BASE_W = 138;                 // 100% 时的宽度（px）
+const BASE_W = 150;                 // 100% 时的宽度（px）
+const ART = 'app/pet/girl.png';     // 立绘（抠好透明底）
 
 const LINES = {
   pinch: ['别捏我！', '你干什么！', '不要碰我！', '哼，我要生气了！', '呜…不许捏脸', '再捏就咬你了哦', '喂！很痒的'],
@@ -22,11 +23,71 @@ const LINES = {
   drag: ['放我下来…', '我自己会走！', '这里视野不错'],
 };
 
-const state = { on: true, size: 100, quiet: false, x: null, y: null };
+const state = { on: true, size: 100, quiet: false, vol: 70, mute: false, x: null, y: null };
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}') || {}); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
 
 const pick = a => a[Math.floor(Math.random() * a.length)];
+
+/* ───────── 音效（纯 WebAudio 合成，不带音频文件） ───────── */
+let ac = null;
+function audio() {
+  if (ac !== null) return ac;
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = false; }
+  return ac;
+}
+function sfxPinch() {
+  if (state.mute) return;
+  const a = audio(); if (!a) return;
+  if (a.state === 'suspended') { try { a.resume(); } catch (e) {} }
+  const t0 = a.currentTime + 0.001;
+  const vol = (state.vol == null ? 70 : state.vol) / 100 * 0.55;
+  if (vol <= 0.001) return;
+  const out = a.createGain();
+  out.gain.setValueAtTime(vol, t0);
+  out.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.3);
+  out.connect(a.destination);
+
+  // ①「吱」：三角波快速上滑再回落，像被捏了一下
+  const base = 700 + Math.random() * 260;
+  const o = a.createOscillator(); o.type = 'triangle';
+  o.frequency.setValueAtTime(base, t0);
+  o.frequency.exponentialRampToValueAtTime(base * 2.05, t0 + 0.055);
+  o.frequency.exponentialRampToValueAtTime(base * 1.15, t0 + 0.2);
+  const g1 = a.createGain();
+  g1.gain.setValueAtTime(0.0001, t0);
+  g1.gain.linearRampToValueAtTime(1, t0 + 0.012);
+  g1.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.22);
+  o.connect(g1); g1.connect(out);
+  o.start(t0); o.stop(t0 + 0.24);
+
+  // ②「噗」：一小段带通噪声，做捏住的那一下手感
+  const len = Math.max(1, Math.floor(a.sampleRate * 0.1));
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4);
+  const nz = a.createBufferSource(); nz.buffer = buf;
+  const bp = a.createBiquadFilter(); bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(1500, t0);
+  bp.frequency.exponentialRampToValueAtTime(700, t0 + 0.09);
+  bp.Q.value = 1.2;
+  const g2 = a.createGain(); g2.gain.value = 0.55;
+  nz.connect(bp); bp.connect(g2); g2.connect(out);
+  nz.start(t0);
+
+  // ③「咚」：一点点低频，让声音有体积
+  const o3 = a.createOscillator(); o3.type = 'sine';
+  o3.frequency.setValueAtTime(190, t0);
+  o3.frequency.exponentialRampToValueAtTime(95, t0 + 0.13);
+  const g3 = a.createGain();
+  g3.gain.setValueAtTime(0.0001, t0);
+  g3.gain.linearRampToValueAtTime(0.5, t0 + 0.008);
+  g3.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.16);
+  o3.connect(g3); g3.connect(out);
+  o3.start(t0); o3.stop(t0 + 0.18);
+
+  setTimeout(() => { try { out.disconnect(); } catch (e) {} }, 600);
+}
 
 /* ───────── 小人 ───────── */
 const HAIR = '#3B4A7E', HAIR_D = '#303E6C', SKIN = '#FFE3D0', DRESS = '#2B3358';
@@ -94,7 +155,13 @@ function build() {
   root.id = 'petRoot';
   // 关键定位写成内联：万一样式表是旧缓存（还没有 .pet 规则），她也照样站在右下角
   root.style.cssText = 'position:fixed;z-index:70;right:14px;bottom:32px;cursor:grab;touch-action:none;user-select:none;';
-  root.innerHTML = `<div class="pet-bubble" id="petBubble" aria-live="polite"></div><div class="pet-ink">${SVG}</div>`;
+  root.innerHTML = `<div class="pet-bubble" id="petBubble" aria-live="polite"></div><div class="pet-ink"><img class="pet-img" alt="" draggable="false" src="${ART}"><div class="pet-fallback" hidden>${SVG}</div></div>`;
+  const imgEl = root.querySelector('.pet-img');
+  if (imgEl) imgEl.addEventListener('error', () => {            // 图片没加载上（老缓存 / 单文件版）就用内联 SVG 顶上
+    imgEl.remove();
+    const fb = root.querySelector('.pet-fallback');
+    if (fb) fb.hidden = false;
+  });
   document.body.appendChild(root);
   bubbleEl = root.querySelector('#petBubble');
   bodyEl = root.querySelector('.pet-ink');
@@ -169,6 +236,7 @@ function say(text, ms) {
 
 function pinch() {
   if (!root || root.hidden) return;
+  sfxPinch();
   root.classList.remove('pinch');
   void root.offsetWidth;
   root.classList.add('pinch');
@@ -247,6 +315,21 @@ function bindPanel() {
     applyAll(); syncSum(); save();
   });
   quiet.addEventListener('change', () => { state.quiet = quiet.checked; save(); });
+  const vol = $('#petVol'), mute = $('#petMute');
+  if (vol) {
+    vol.value = state.vol == null ? 70 : state.vol;
+    const o = $('#oPetVol'); if (o) o.textContent = vol.value + '%';
+    vol.addEventListener('input', () => {
+      state.vol = +vol.value || 0;
+      if (o) o.textContent = state.vol + '%';
+      save();
+      if (!mute || !mute.checked) sfxPinch();        // 拖的时候顺带试听
+    });
+  }
+  if (mute) {
+    mute.checked = !!state.mute;
+    mute.addEventListener('change', () => { state.mute = mute.checked; save(); });
+  }
   const p = $('#btnPetPinch'); if (p) p.onclick = pinch;
   const h = $('#btnPetHome'); if (h) h.onclick = () => { state.x = null; state.y = null; save(); place(); say('回家啦～', 2000); };
 }
