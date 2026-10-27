@@ -14,6 +14,7 @@ function Find-Git {
   $cmd = Get-Command git -ErrorAction SilentlyContinue
   if ($cmd) { return $cmd.Source }
   $cands = @()
+  $cands += Join-Path $env:LOCALAPPDATA 'dsh-portablegit\git\cmd\git.exe'
   $cands += Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop" -Directory -ErrorAction SilentlyContinue |
     Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName 'resources\app\git\cmd\git.exe' }
   $cands += 'C:\Program Files\Git\bin\git.exe'
@@ -30,6 +31,9 @@ if (-not $git) {
   Write-Host ''
   exit 1
 }
+# 便携版 git 可能不在系统 PATH 里：凭证助手（GCM）要靠 PATH 找到 git
+$gitCmdDir = Split-Path $git -Parent
+if ($env:PATH -notlike "*$gitCmdDir*") { $env:PATH = "$gitCmdDir;$env:PATH" }
 
 function Run($args_) {
   # 原生命令的 stderr 在 PowerShell 5.1 里会被当成终止错误，这里临时放宽
