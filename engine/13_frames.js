@@ -670,4 +670,47 @@ J.register('layout', 'polaroidStack', {
     return null;
   },
 });
+/* ======================================================================
+   12  refPanel — 「大字号背景 + 人物 + 右侧胶囊条」：照参考图那种版式
+   大字在最后面，人物压在大字上，字永远不挡脸。
+   ====================================================================== */
+J.register('layout', 'refPanel', {
+  name: '大字背景', tags: ['pop', 'emotional', 'graphic'], w: 0.9, ae: 'center', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 24,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), side: rng.pick([1, 1, -1]), rail: rng.chance(0.8), caps: rng.chance(0.75), sign: rng.chance(0.5) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    decorFull(env, a, sc);
+    const acc = sc.accent, acc2 = sc.accent2 || sc.accent;
+    // ① 背后的大字：整句铺开，超出画面裁掉
+    ctx.save();
+    ctx.globalAlpha = a * 0.85;
+    const big = Math.min(W * 0.5, H * 0.42);
+    J.mainDraw(env, { text: env.cut.text, font: p.font, size: big, x: W * 0.5, y: H * 0.5, lead: 0.92, track: 0.02, color: J.mix(acc, sc.bg, 0.35), plain: true });
+    ctx.restore();
+    // ② 人物：左侧竖幅，压在大字上
+    const pw = Math.min(W * 0.5, H * 0.96), ph = Math.min(H * 0.94, pw * 1.5);
+    const px = p.side > 0 ? W * 0.04 : W - pw - W * 0.04, py = H * 0.5 - ph / 2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+    env.slot('photo', px, py, pw, ph, { tone: 'photo', alpha: a, fit: 'contain', paper: sc.bg });
+    ctx.restore();
+    // 轮廓光
+    ctx.save(); ctx.globalAlpha = a * 0.55; ctx.strokeStyle = acc2; ctx.lineWidth = Math.max(2, u * 4);
+    ctx.strokeRect(px + u * 3, py + u * 3, pw - u * 6, ph - u * 6); ctx.restore();
+    // ③ 右侧胶囊条 + 方块
+    if (p.rail) {
+      const rw = W * 0.07, rx = p.side > 0 ? W - rw - W * 0.05 : W * 0.05, ry = H * 0.06, rh = H * 0.88;
+      env.rrect(rx, ry, rw, rh, rw / 2, J.rgba(acc, 0.45), a, false);
+      for (let i = 0; i < 7; i++) {
+        const sy = ry + rh * (0.08 + i * 0.13), ss = rw * 0.42;
+        env.rrect(rx + (rw - ss) / 2, sy, ss, ss, ss * 0.18, J.rgba(sc.bg, 0.9), a, false);
+      }
+    }
+    // ④ 小号英文 + 签名
+    if (p.caps) env.draw({ text: 'MOST IS WHEN YOU TALK ABOUT SOME ZODIAC COMPATIBILITY.', font: 'mono', size: Math.max(9, u * 14), track: 0.1, x: px + pw * 0.1, y: py + ph * 0.12, align: 'left', color: inkOn(sc, sc.bg), alpha: a * 0.55, ghost: false });
+    if (p.sign) env.draw({ text: 'T.' + lineNo(env) + '  ·  TCG-PV', font: 'mono', size: Math.max(10, u * 16), track: 0.2, x: W * 0.46, y: H * 0.93, align: 'left', color: acc2, alpha: a * 0.8, ghost: false });
+    return null;
+  },
+});
 })();

@@ -604,3 +604,8 @@ body.lib-open{overflow:hidden}
 .style-custom .sc-t{font-size:9.5px;color:#6B5B95;margin-right:auto;letter-spacing:.02em}
 .style-custom input[type=color]{width:20px;height:18px;padding:0;border:1px solid #D7CFEA;border-radius:4px;background:#fff;cursor:pointer}
 .style-custom .btn{height:20px;line-height:18px;padding:0 7px;font-size:10px}
+/* AI 参考按钮：挪到靠左，粉色强调 */
+#btnAiRef{background:linear-gradient(#FF6FA5,#FF4D8D);border:1px solid #FF3D7F;color:#fff;font-weight:600;box-shadow:0 2px 8px rgba(255,77,141,.28)}
+#btnAiRef:hover{filter:brightness(1.04)}
+.tb-right{display:flex;align-items:center;gap:6px}
+.tb-right #btnAiRef{order:-1;margin-right:6px}

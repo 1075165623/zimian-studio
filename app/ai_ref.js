@@ -43,6 +43,7 @@ function buildPrompt(keys) {
     '输出字段：{"layout":"<从下列 key 里选一个最接近的>","imageRatio":0-1,"textZone":"left|right|top|bottom|corner|center","decor":["线条","色块","网点","竖排英文","编号","胶带","贴纸"],"palette":["#rrggbb","#rrggbb","#rrggbb"],"note":"一句中文说明"}',
     '可选 layout key：' + keys.join(', '),
     '判断标准：图占多大、字在哪一侧、装饰是什么类型、整体明暗。',
+    '如果参考图是「人物 + 背后超大号文字 + 侧边竖条/胶囊」这一类，选 refPanel。',
   ].join('\n');
 }
 
