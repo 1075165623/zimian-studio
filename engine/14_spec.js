@@ -64,8 +64,15 @@ J.drawSpec = (env, spec) => {
     ctx.restore();
   }
 
-  // ② 素材框
+  // ② 素材：整幅铺满（bleed）或矩形框
   const s = spec.subject || {};
+  const bleed = spec.mode === 'bleed' || !!s.full;
+  if (bleed) {
+    env.slot('photo', 0, 0, W, H, { tone: 'photo', alpha: a, fit: 'cover' });
+    ctx.save(); ctx.globalAlpha = a * (spec.scrim == null ? 0.42 : spec.scrim);
+    ctx.fillStyle = (pal[0] || sc.bg); ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
+  if (!bleed) {
   const sx = W * (s.x == null ? 0.06 : s.x), sy = H * (s.y == null ? 0.04 : s.y);
   const sw = W * (s.w == null ? 0.46 : s.w), sh = H * (s.h == null ? 0.92 : s.h);
   ctx.save();
@@ -77,6 +84,7 @@ J.drawSpec = (env, spec) => {
     ctx.strokeRect(sx + u * 4, sy + u * 4, sw - u * 8, sh - u * 8); ctx.restore();
   }
 
+  }
   // ③ 竖条 / 胶囊
   (spec.rails || []).forEach(r => {
     const rx = W * r.x, ry = H * (r.y == null ? 0.05 : r.y), rw = W * r.w, rh = H * (r.h == null ? 0.9 : r.h);
