@@ -2039,6 +2039,8 @@ function paintSlot(slot) {
   const live = c => c.inLayout && !c.orphan && c.line === cut.line && t >= c.start - 0.03 && t <= c.start + c.dur + 0.03;
   let m = S.media.find(c => live(c) && (c.slotName || 'photo') === slot.name);
   if (!m) m = S.media.find(live);                                 // 版式换了、插槽名对不上：这一行的素材顶上
+  // 兜底：这一行找不到绑定（换版式 / 行被删过），只要有一张「融在版式里」的素材盖住当前时间，就画进这一格
+  if (!m) m = S.media.find(c => c.inLayout && !c.orphan && t >= c.start - 0.03 && t <= c.start + c.dur + 0.03);
   if (!m) return false;
   const lt = t - m.start;
   const img = sourceOf(m, lt);

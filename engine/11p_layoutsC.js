@@ -2202,7 +2202,7 @@ reg('letterPaper', {
     const photoH = tate ? vh * 0.44 : vh;
     const photoX = vis[0][0] + inset + (tate ? 0 : vw - photoW);
     const photoY = vis[0][1] + inset + (tate ? vh - photoH : 0);
-    const sheetFilled = env.slot('photo', photoX, photoY, photoW, photoH, { tone: 'print', alpha: a0 * 0.95, fit: 'cover', paper: C.fill });
+    const sheetFilled = env.slot('photo', photoX, photoY, photoW, photoH, { tone: 'print', alpha: a0 * 0.95, fit: 'contain', paper: C.fill });
     // 印上去之后再盖一层很淡的纸色：格子线、字仍然是「这张纸上的东西」（想更淡/更浓，选中素材调「不透明度」）
     if (sheetFilled) env.rect(vis[0][0], vis[0][1], vis[1][0], vis[1][1], C.fill, a0 * 0.08, false);
     const t0 = env.cut.text.trim();
