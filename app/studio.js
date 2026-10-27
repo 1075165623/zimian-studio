@@ -39,7 +39,7 @@ const S = {
   mediaSeq: 0,
   autoKey: false,     // 自动记录关键帧
   kfEase: 'inout',    // 新关键帧默认缓动
-  beatCfg: { len: 'auto', inAnim: 'auto', pulse: true, layout: 'slot', videoSpan: true },   // 导入时的自动落位设置（默认：融进版式；视频默认按原片长铺开）
+  beatCfg: { len: 'auto', inAnim: 'auto', pulse: true, layout: 'slot', videoSpan: false },   // 导入：图片/视频默认进版式；想整段铺开再勾「视频按原片长铺开」
   mediaSel: -1,       // 当前选中的素材下标
   tlPps: 60,          // 时间线缩放：每秒占多少像素（8~600）
   tlScroll: 0,        // 时间线横向滚动偏移（像素）
@@ -465,7 +465,7 @@ function seek(t) {
    · 每张图片素材各占一条图片轨道：越靠上的轨道盖住下面的 */
 const TL = {
   labelW: 54, rulerH: 24, laneH: 34, textMin: 34, textMax: 64, audioH: 26, pad: 6,
-  maxLane: 12, sel: null, hot: null,
+  maxLane: 12, sel: null, hot: null, multi: [],
 };
 
 function tlLanes() {
@@ -600,7 +600,7 @@ function drawTimelineRaw() {
     if (!G.seen(xa, xb)) continue;
     const bw = Math.max(2, xb - xa);
     const y = G.textTop + 2, bh = Math.max(10, G.textH - 4);
-    const sel = !!(TL.sel && TL.sel.kind === 'text' && TL.sel.i === i);
+    const sel = !!(TL.sel && TL.sel.kind === 'text' && TL.sel.i === i) || tlHasSel('text', i);
     const hot = !!(TL.hot && TL.hot.kind === 'text' && TL.hot.i === i);
     const manual = (T.lineDurs && T.lineDurs[i] != null) || (T.lineTimes && T.lineTimes[i] != null) || (T.lineEnds && T.lineEnds[i] != null);
     const inter = !!ln.interlude;
@@ -650,7 +650,7 @@ function drawTimelineRaw() {
     if (!G.seen(xa, xb)) return;
     const bw = Math.max(3, xb - xa);
     const y = G.laneTop(lane) + 3, bh = TL.laneH - 6;
-    const sel = S.mediaSel === i || !!(TL.sel && TL.sel.kind === 'media' && TL.sel.i === i);
+    const sel = S.mediaSel === i || (TL.sel && TL.sel.kind === 'media' && TL.sel.i === i) || tlHasSel('media', i);
     const bound = !!(m.inLayout && !m.orphan);        // 融进版式：时间由那一句歌词决定
     const kc = bound ? '#C4B5FD' : (TC.kinds[m.kind || 'image'] || TC.kinds.image);
     const img = m.img;
@@ -737,6 +737,19 @@ function drawTimelineRaw() {
       ctx.fillText(a.name || '音频', Math.max(xa, TL.labelW) + 7, (y0 + y1) / 2 + .5);
       ctx.restore();
     }
+  }
+
+  // ── 框选矩形 ──
+  if (tlMarquee) {
+    const x0 = Math.min(tlMarquee.x0, tlMarquee.x1), x1 = Math.max(tlMarquee.x0, tlMarquee.x1);
+    const y0 = Math.min(tlMarquee.y0, tlMarquee.y1);
+    let y1 = Math.max(tlMarquee.y0, tlMarquee.y1);
+    if (y1 - y0 < 6) y1 = y0 + 6;                 // 只横向拖时也画成一条可见的选区
+    ctx.save();
+    ctx.fillStyle = 'rgba(76,111,255,.16)'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.strokeStyle = '#8FA8FF'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 3]);
+    ctx.strokeRect(Math.round(x0) + .5, Math.round(y0) + .5, x1 - x0, y1 - y0);
+    ctx.setLineDash([]); ctx.restore();
   }
 
   // ── 时间标尺（钉在顶部） ──
@@ -885,18 +898,22 @@ function tlHit(G, x, y) {
    节拍吸附单独用「拍点」开关（默认关），不会再把拖动死死拽到节拍上。
    磁吸范围按屏幕像素算（素材 9px，拍点 7px），缩放到多大都稳定。 */
 let tlSnapGuide = null, tlSnapLabel = '', tlAlt = false;
+let tlMarquee = null;                 // 框选矩形（画布坐标）
 function snapCands(excl) {
+  const ex = Array.isArray(excl) ? excl : (excl ? [excl] : []);
+  const skipText = i => ex.some(s => s.kind === 'text' && s.i === i);
+  const skipMedia = i => ex.some(s => s.kind === 'media' && s.i === i);
   const c = [{ t: 0, k: '片段头' }, { t: S.t, k: '播放头' }];
   if (S.plan) {
     c.push({ t: S.plan.duration, k: '片段尾' });
     (S.plan.lines || []).forEach((ln, i) => {
-      if (excl && excl.kind === 'text' && excl.i === i) return;
+      if (skipText(i)) return;
       c.push({ t: ln.start, k: '文字' });
       c.push({ t: ln.visEnd != null ? ln.visEnd : ln.end, k: '文字' });
     });
   }
   S.media.forEach((m, i) => {
-    if (excl && excl.kind === 'media' && excl.i === i) return;
+    if (skipMedia(i)) return;
     c.push({ t: m.start, k: '素材' });
     c.push({ t: m.start + m.dur, k: '素材' });
   });
@@ -930,6 +947,32 @@ function magSnapSpan(start, dur, excl) {
   }
   if (best) { tlSnapGuide = best.t; tlSnapLabel = best.k; return free(best.s); }
   return free(start);
+}
+
+/* ── 时间线多选：框选 / Ctrl 点选 / Delete 批量删除 ── */
+const tlHasSel = (kind, i) => TL.multi.some(s => s.kind === kind && s.i === i);
+function tlSetSelection(list, primary) {
+  TL.multi = (list || []).filter(s => s && (s.kind === 'text' || s.kind === 'media'));
+  if (primary && TL.multi.some(s => s.kind === primary.kind && s.i === primary.i)) TL.sel = { kind: primary.kind, i: primary.i };
+  else TL.sel = TL.multi.length ? Object.assign({}, TL.multi[TL.multi.length - 1]) : null;
+  let pm = TL.sel && TL.sel.kind === 'media' ? TL.sel.i : -1;
+  if (pm < 0) { const rev = TL.multi.filter(s => s.kind === 'media'); if (rev.length) pm = rev[rev.length - 1].i; }
+  S.mediaSel = (pm >= 0 && S.media[pm]) ? pm : -1;
+  syncMediaList(); drawTimeline(); syncMediaInsp();
+}
+function marqueePick(G, r) {
+  const out = [];
+  (G.P.lines || []).forEach((ln, i) => {
+    const xa = G.X(ln.start), xb = G.X(ln.visEnd != null ? ln.visEnd : ln.end);
+    if (xb >= r.x0 && xa <= r.x1 && G.textBot >= r.y0 && G.textTop <= r.y1) out.push({ kind: 'text', i });
+  });
+  S.media.forEach((m, i) => {
+    const lane = J.clamp(m.lane | 0, 0, Math.max(0, G.lanes - 1));
+    const xa = G.X(m.start), xb = G.X(m.start + m.dur);
+    const ya = G.laneTop(lane), yb = ya + TL.laneH;
+    if (xb >= r.x0 && xa <= r.x1 && yb >= r.y0 && ya <= r.y1) out.push({ kind: 'media', i });
+  });
+  return out;
 }
 
 /* 手动拖文字块时，先把其他行的当前时间冻结住：拖一行不会带着后面的行一起跑。
@@ -986,9 +1029,18 @@ function bindTimeline() {
     const hit = tlHit(G, p.x, p.y);
     try { cv.setPointerCapture(e.pointerId); } catch (err) {}
 
+    if (hit && (hit.kind === 'text' || hit.kind === 'media') && (e.ctrlKey || e.metaKey)) {
+      const list = TL.multi.slice();
+      const at = list.findIndex(s => s.kind === hit.kind && s.i === hit.i);
+      if (at >= 0) list.splice(at, 1); else list.push({ kind: hit.kind, i: hit.i });
+      tlSetSelection(list, at >= 0 ? (list[list.length - 1] || null) : { kind: hit.kind, i: hit.i });
+      pause(); drawTimeline();
+      return;
+    }
     if (hit && hit.kind === 'kf') {
       const km = S.media[hit.i];
       S.mediaSel = hit.i; TL.sel = { kind: 'media', i: hit.i };
+      TL.multi = [{ kind: 'media', i: hit.i }];
       syncMediaList();
       pause();
       const refs = [];
@@ -997,6 +1049,11 @@ function bindTimeline() {
       seek(km.start + hit.t);
     } else if (hit && (hit.kind === 'text' || hit.kind === 'media')) {
       const i = hit.i;
+      if (!tlHasSel(hit.kind, i)) tlSetSelection([{ kind: hit.kind, i }], { kind: hit.kind, i });
+      else {
+        TL.sel = { kind: hit.kind, i };
+        if (hit.kind === 'media') { S.mediaSel = i; syncMediaList(); syncMediaInsp(); }
+      }
       let base;
       if (hit.kind === 'text') {
         const ln = S.plan.lines[i];
@@ -1005,22 +1062,30 @@ function bindTimeline() {
         pause();
       } else {
         const m = S.media[i];
-        S.mediaSel = i;
-        syncMediaList();
         pause();
         if (m.inLayout && !m.orphan) {           // 融进版式：也能拖 —— 松手时自动吸附到落点那一句（素材落在哪行就绑哪行）
-          TL.sel = { kind: 'media', i };
           syncMediaInsp();
         }
         base = { start: m.start, dur: m.dur, lane: m.lane | 0 };
       }
+      // 多选后拖动其中一条：整组一起平移（只对自由层素材，版式里的仍然单独拖）
+      const gSel = hit.kind === 'media' && hit.edge === 'body'
+        ? TL.multi.filter(s => s.kind === 'media').map(s => S.media[s.i]).filter(mm => mm && !mm.inLayout)
+        : [];
+      const allMediaSel = hit.kind === 'media' ? TL.multi.filter(s => s.kind === 'media').length : 0;
+      const group = gSel.length > 1 && gSel.length === allMediaSel ? gSel.map(mm => ({ m: mm, start: mm.start, lane: mm.lane | 0 })) : null;
       TL.sel = { kind: hit.kind, i };
-      drag = { hit, x0: p.x, y0: p.y, t0: G.unX(p.x), pps: G.pps, laneH: TL.laneH, base, moved: false, lane0: base.lane | 0, slot: hit.kind === 'media' && !!S.media[i].inLayout && !S.media[i].orphan };
+      drag = { hit, x0: p.x, y0: p.y, t0: G.unX(p.x), pps: G.pps, laneH: TL.laneH, base, moved: false, lane0: base.lane | 0, group, slot: hit.kind === 'media' && !!S.media[i].inLayout && !S.media[i].orphan };
       cv.style.cursor = 'grabbing';
       if (hit.kind === 'text') seek(base.start + 0.01);
-    } else if (hit) {
+    } else if (hit && hit.kind === 'ruler') {
       drag = { scrub: true };
       pause(); seek(G.unX(p.x));
+    } else if (hit) {
+      // 空白处：按住拖 = 框选；不拖 = 跳播放头
+      drag = { marquee: true, x0: p.x, y0: p.y, x1: p.x, y1: p.y, moved: false };
+      tlMarquee = null;
+      pause();
     }
     drawTimeline();
   });
@@ -1055,6 +1120,13 @@ function bindTimeline() {
       for (const k of KPROPS) km.kf[k].sort((a, b) => a.t - b.t);
       seek(km.start + nt);
       S.need = true; drawTimeline(); syncMediaInsp();
+      return;
+    }
+    if (drag.marquee) {
+      if (Math.abs(p.x - drag.x0) > 3 || Math.abs(p.y - drag.y0) > 3) drag.moved = true;
+      drag.x1 = p.x; drag.y1 = p.y;
+      tlMarquee = drag.moved ? { x0: drag.x0, y0: drag.y0, x1: p.x, y1: p.y } : null;
+      drawTimeline();
       return;
     }
 
@@ -1095,10 +1167,21 @@ function bindTimeline() {
       const m = S.media[h.i];
       if (!m) { drag = null; return; }
       if (h.edge === 'body') {
-        m.start = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'media', i: h.i }), 0, Math.max(0, G.dur - 0.2));
-        // 上下拖动换轨道
-        m.lane = J.clamp(drag.lane0 + Math.round(dy / drag.laneH), 0, TL.maxLane);
-        if (drag.slot) snapSlotLive(m);              // 融在版式里的：拖着就直接吸到落点那一句
+        const laneDelta = Math.round(dy / drag.laneH);
+        if (drag.group && drag.group.length > 1) {
+          const ex = drag.group.map(g => ({ kind: 'media', i: S.media.indexOf(g.m) })).filter(x => x.i >= 0);
+          const snapped = magSnapSpan(b.start + dt, b.dur, ex);
+          const delta = snapped - b.start;
+          for (const g of drag.group) {
+            g.m.start = J.clamp(g.start + delta, 0, Math.max(0, G.dur - 0.2));
+            g.m.lane = J.clamp(g.lane + laneDelta, 0, TL.maxLane);
+          }
+        } else {
+          m.start = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'media', i: h.i }), 0, Math.max(0, G.dur - 0.2));
+          // 上下拖动换轨道
+          m.lane = J.clamp(drag.lane0 + laneDelta, 0, TL.maxLane);
+          if (drag.slot) snapSlotLive(m);              // 融在版式里的：拖着就直接吸到落点那一句
+        }
       } else if (h.edge === 'right') {
         m.dur = J.clamp(magSnapSpan(b.start + b.dur + dt, 0, { kind: 'media', i: h.i }) - m.start, 0.3, Math.max(0.3, G.dur - m.start));
       } else {
@@ -1112,6 +1195,24 @@ function bindTimeline() {
   });
 
   const end = e => {
+    if (drag && drag.marquee) {
+      const G = tlGeom();
+      if (drag.moved && G) {
+        const r = { x0: Math.min(drag.x0, drag.x1), y0: Math.min(drag.y0, drag.y1), x1: Math.max(drag.x0, drag.x1), y1: Math.max(drag.y0, drag.y1) };
+        const list = marqueePick(G, r);
+        tlSetSelection(list, list.length ? list[list.length - 1] : null);
+        toast(list.length ? '框选了 ' + list.length + ' 段 · Delete 删除选中的素材 / Ctrl+点击 追加' : '框选没有选中任何东西');
+      } else {
+        tlSetSelection([], null);
+        if (G) seek(G.unX(local(e).x));
+      }
+      tlMarquee = null;
+      drag = null;
+      cv.style.cursor = 'default';
+      drawTimeline();
+      try { cv.releasePointerCapture(e.pointerId); } catch (err) {}
+      return;
+    }
     if (drag && (drag.moved || drag.kfDrag)) setTimeout(commit, 60);
     if (drag && drag.hit) {
       const h = drag.hit;
@@ -1123,6 +1224,7 @@ function bindTimeline() {
     }
     drag = null;
     tlSnapGuide = null; tlSnapLabel = '';
+    tlMarquee = null;
     cv.style.cursor = 'default';
     drawTimeline();
     syncMediaInsp();
@@ -1330,6 +1432,8 @@ function restoreState(str) {
     S.media = d.media.map(rehydrate).filter(Boolean);
     S.mediaSel = Math.min(d.sel, S.media.length - 1);
     TL.sel = S.mediaSel >= 0 ? { kind: 'media', i: S.mediaSel } : null;
+    TL.multi = S.mediaSel >= 0 ? [{ kind: 'media', i: S.mediaSel }] : [];
+    tlMarquee = null;
     p.timing.lineTimes = d.lt.lineTimes;
     p.timing.lineDurs = d.lt.lineDurs;
     p.timing.lineEnds = d.lt.lineEnds;
@@ -1771,8 +1875,9 @@ async function loadMediaFile(file, opt = {}) {
     S.media.push(m);
     S.mediaSel = S.media.length - 1;
     TL.sel = { kind: 'media', i: S.mediaSel };
+    TL.multi = [{ kind: 'media', i: S.mediaSel }];
     applyDefaultLook(m, S.media.length - 1);
-    // 视频默认「按原片长铺开」：不锁进一句歌词，trimEnd = 原片结尾，整段内容都能看到
+    // 视频整段铺开（可选项；默认关，视频会像图片一样先尝试嵌进版式）
     const spanVideo = a.kind === 'video' && S.beatCfg.videoSpan !== false && opt.videoSpan !== false;
     if (spanVideo) {
       m.inLayout = false; m.line = null; m.slotName = null;
@@ -1786,8 +1891,11 @@ async function loadMediaFile(file, opt = {}) {
     } else if (opt.line != null && opt.line >= 0) {
       // 「进版式」：指定了歌词行 → 直接融进那一行的版式插槽（时间 = 这一句；这一句满了就往后一句）
       if (!bindSlot(m, opt.line, { slot: opt.slot })) {
-        const nl = nextLineAfter(opt.line);
-        if (nl >= 0) bindSlot(m, nl, { slot: opt.slot });
+        // 视频：这一句放不了就退回自由层当背景（不模糊），不要跳到别的句子；图片仍按老规矩往后找空位
+        if (a.kind !== 'video') {
+          const nl = nextLineAfter(opt.line);
+          if (nl >= 0) bindSlot(m, nl, { slot: opt.slot });
+        }
       }
       S.mediaSel = S.media.length - 1;
     }
@@ -1836,7 +1944,7 @@ async function addImageFiles(files, opt = {}) {
         bound++;
         line = nextLineAfter(m.line);
         if (line < 0) lineDone = true;
-      } else if (m.kind === 'video') {
+      } else if (m.kind === 'video' && S.beatCfg.videoSpan !== false) {
         // 视频按原片长铺开：后面的图从视频结束处那一段歌词继续贴
         const c = S.plan ? J.cutAt(S.plan, m.start + m.dur + 0.01) : null;
         line = c && c.line >= 0 ? c.line : -1;
@@ -2092,6 +2200,26 @@ function fallbackScheme() {
    underlay = 压在歌词下面（默认，当背景用），overlay = 盖在歌词上面（当贴纸用））
    注意：这两个钩子拿到 ctx 的时候坐标系是「画布像素」，所以这里要自己把
    设计坐标（W×H）换算成画布像素。 */
+/* 嵌进版式的视频：在纸片后面铺一层同一帧的模糊视频（视频背景），
+   只做背景，不碰插槽里的画面；图片素材不铺。 */
+function paintSlotBackdrop(env, m, lt) {
+  const ctx = env.ctx, W = env.W, H = env.H;
+  const k = (ctx.canvas.width || W) / W || 1;
+  const img = sourceOf(m, lt);
+  if (!img) return;
+  const bf = blurBackdrop(m, img, W, H);
+  if (!bf) return;
+  const scheme = env.sc || fallbackScheme();
+  ctx.save();
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.globalAlpha = 0.84;
+  try { ctx.drawImage(bf, 0, 0, W, H); } catch (e) { ctx.restore(); return; }
+  ctx.globalAlpha = 0.30;
+  ctx.fillStyle = scheme.bg; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
 function paintMedia(env, t, front) {
   if (!S.media.length) return;
   const ctx = env.ctx, W = env.W, H = env.H;
@@ -2104,7 +2232,13 @@ function paintMedia(env, t, front) {
   // 轨道号小的在上面：倒着画，最后画的盖在最上层
   const list = S.media.slice().sort((a, b) => (b.lane | 0) - (a.lane | 0));
   for (const m of list) {
-    if (m.inLayout) continue;                       // 已经融进版式：由版式的插槽来画，绝不再当贴图压在卡片底下
+    if (m.inLayout && !m.orphan) {
+      // 视频嵌进版式时：背后铺一层它自己的模糊视频，纸片周围不再露出静态底图
+      if (!front && m.kind === 'video' && m.slotBg !== false && t >= m.start - 1e-4 && t <= m.start + m.dur + 1e-4) {
+        paintSlotBackdrop(env, m, t - m.start);
+      }
+      continue;                       // 已经融进版式：由版式的插槽来画，绝不再当贴图压在卡片底下
+    }
     if ((m.front === true) !== front) continue;
     if (t < m.start - 1e-4 || t > m.start + m.dur + 1e-4) continue;
     const lt = t - m.start;
@@ -2216,6 +2350,8 @@ function freeSlotName(line, layout, except) {
 function bindSlot(m, line, opts = {}) {
   const cut = cutOfLine(line);
   if (!cut) return null;
+  const lay = J.LAYOUTS[cut.layout];
+  if (!lay || !lay.slot) return null;              // 这一句没有能嵌素材的版式：别硬绑进去（否则卡片里永远是空的）
   const name = opts.slot || freeSlotName(line, cut.layout, m);
   if (!name) return null;
   m.inLayout = true;
@@ -2322,7 +2458,7 @@ function paintSlot(slot) {
   let m = S.media.find(c => live(c) && (c.slotName || 'photo') === slot.name);
   if (!m) m = S.media.find(live);                                 // 版式换了、插槽名对不上：这一行的素材顶上
   // 兜底：这一行找不到绑定（换版式 / 行被删过），只要有一张「融在版式里」的素材盖住当前时间，就画进这一格
-  if (!m) m = S.media.find(c => c.inLayout && t >= c.start - 0.03 && t <= c.start + c.dur + 0.03);
+  if (!m) m = S.media.find(c => c.inLayout && !c.orphan && t >= c.start - 0.03 && t <= c.start + c.dur + 0.03);
   if (!m) return false;
   const lt = t - m.start;
   const img = sourceOf(m, lt);
@@ -2402,7 +2538,8 @@ function syncMediaList() {
     box.innerHTML = '';
     S.media.forEach((m, i) => {
       const item = document.createElement('div');
-      item.className = 'media-item' + (S.mediaSel === i ? ' on' : '');
+      const multi = tlHasSel('media', i);
+      item.className = 'media-item' + ((S.mediaSel === i || multi) ? ' on' : '') + (multi ? ' multi' : '');
       item.dataset.i = i;
       item.innerHTML =
         '<span class="mi-thumb">' + (m.url ? '<img src="' + m.url + '" alt="">' : '▣') + '</span>' +
@@ -2428,6 +2565,7 @@ function selectMedia(i) {
   if (!m) return;
   S.mediaSel = i;
   TL.sel = { kind: 'media', i };
+  TL.multi = [{ kind: 'media', i }];
   syncMediaList();
   drawTimeline();
   if (S.playing) pause();
@@ -2441,8 +2579,12 @@ function removeMedia(i) {
   // 注意：不释放 url / 位图，素材数据还留在 S.assets 里，Ctrl+Z 才能把它完整找回来
   if (m.el && !m.el.paused) m.el.pause();
   S.media.splice(i, 1);
+  TL.multi = (TL.multi || [])
+    .filter(s => !(s.kind === 'media' && s.i === i))
+    .map(s => s.kind === 'media' && s.i > i ? { kind: 'media', i: s.i - 1 } : s);
   if (S.mediaSel >= S.media.length) S.mediaSel = S.media.length - 1;
   if (TL.sel && TL.sel.kind === 'media' && TL.sel.i === i) TL.sel = null;
+  if (!TL.multi.length) S.mediaSel = -1;
   syncMediaList();
   drawTimeline();
   S.need = true;
@@ -2517,6 +2659,8 @@ function syncMediaInsp() {
     const meta = $('#miVidMeta');
     if (meta) meta.textContent = sd > 0 ? '源 ' + sd.toFixed(1) + 's · 选段 ' + Math.max(0, b0 - a0).toFixed(1) + 's' : '—';
     const lp = $('#miLoop'); if (lp && lp.checked !== (m.loop !== false)) lp.checked = m.loop !== false;
+    const vb = $('#miVidBg');
+    if (vb) { vb.checked = m.slotBg !== false; vb.disabled = !(m.inLayout && !m.orphan); }
     const wb = $('#miVidWhole'); if (wb) wb.disabled = !(sd > 0);
   }
   // 关键帧
@@ -2672,6 +2816,17 @@ function bindMediaCard() {
   act('#miFront', m => { m.front = !m.front; toast(m.front ? '这个素材盖在歌词上面（贴纸）' : '这个素材压到歌词下面（背景）'); });
   act('#miUp', m => { m.lane = J.clamp((m.lane | 0) - 1, 0, TL.maxLane); toast('上移一层（更靠前）'); });
   act('#miDown', m => { m.lane = J.clamp((m.lane | 0) + 1, 0, TL.maxLane); toast('下移一层（更靠后）'); });
+  const timeAll = $('#miTimeAll');
+  if (timeAll) timeAll.onclick = () => {
+    const m = cur(); if (!m) return;
+    unbindSlot(m);
+    m.start = 0;
+    m.dur = Math.max(0.3, S.plan ? S.plan.duration : 10);
+    m.loop = true; m.front = false; m.react = 0;
+    autoFit(m, 'cover');
+    S.need = true; replan(); drawTimeline(); syncMediaList(); syncMediaInsp(); commit();
+    toast((m.kind === 'video' ? '视频' : '图片') + '已铺满整首时间线（压在文字后面）');
+  };
 
   // ── 关键帧 ──
   const kb = (id, fn) => { const el = $(id); if (el) el.onclick = () => { const m = cur(); if (!m) return; fn(m); }; };
@@ -2701,6 +2856,8 @@ function bindMediaCard() {
   if (ps) ps.onchange = () => { const id = ps.value; ps.value = ''; const m = cur(); if (m && id) applyPreset(m, id); };
   const lp = $('#miLoop');
   if (lp) lp.onchange = () => { const m = cur(); if (m) { m.loop = lp.checked; S.need = true; commit(); } };
+  const vb = $('#miVidBg');
+  if (vb) vb.onchange = () => { const m = cur(); if (m) { m.slotBg = vb.checked; S.need = true; commit(); } };
 
   // ── 导入时自动卡拍的设置 ──
   const cl = $('#cfgLen'), ci = $('#cfgIn'), cp = $('#cfgPulse');
@@ -3651,9 +3808,23 @@ function fitTimeline() {
 
 /* 删除选中的素材（Delete / Backspace） */
 function deleteSelected() {
-  if (S.mediaSel >= 0 && S.media[S.mediaSel]) { removeMedia(S.mediaSel); return; }
-  if (TL.sel && TL.sel.kind === 'text') { toast('文字块删不了：想删这一句，到左栏「歌词文案」删掉那一行'); return; }
-  toast('先在时间线或素材列表里点一下要删的素材，再按 Delete（删错了 Ctrl+Z 撤销）');
+  const ids = [...new Set((TL.multi || []).filter(s => s.kind === 'media').map(s => s.i))]
+    .filter(i => S.media[i]).sort((a, b) => b - a);
+  if (!ids.length && S.mediaSel >= 0 && S.media[S.mediaSel]) ids.push(S.mediaSel);
+  if (ids.length) {
+    pause();
+    for (const i of ids) { const m = S.media[i]; if (m.el && !m.el.paused) m.el.pause(); }
+    for (const i of ids) S.media.splice(i, 1);
+    TL.multi = []; TL.sel = null; S.mediaSel = -1;
+    syncMediaList(); drawTimeline(); S.need = true; commit();
+    toast('已删除 ' + ids.length + ' 个素材 · 按 Ctrl+Z 可以撤销');
+    return;
+  }
+  if ((TL.multi || []).some(s => s.kind === 'text') || (TL.sel && TL.sel.kind === 'text')) {
+    toast('选中的文字块对应歌词行：要到左栏「歌词文案」删掉那一行');
+    return;
+  }
+  toast('先框选或点一下要删的素材，再按 Delete（删错了 Ctrl+Z 撤销）');
 }
 
 /* ───────────────────────── 小工具 ───────────────────────── */
