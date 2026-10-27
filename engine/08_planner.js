@@ -425,7 +425,7 @@ J.plan = (project, audio) => {
     const wantSlot = !!(project.slotLines && project.slotLines.indexOf(li) >= 0);
     // 第一镜：即使没素材，也优先用「有物件」的版式（信纸 / 明信片 / 卡带 / 月历…），
     // 一打开看到的是一张完整的构图，而不是几个被裁掉的大字。
-    const introPool = (li === 0 && slotPool.length) ? slotPool : null;
+    const introPool = (li === 0 && slotPool.length) ? slotPool.filter(k => !(J.LAYOUTS[k] && J.LAYOUTS[k].needsMaterial)) : null;
     units.forEach((u, k) => {
       const cs = bounds[k], ce = bounds[k + 1], dur = ce - cs;
       const halves = zones ? splitHalf(u.text, plan.lang) : null;               // 中央を空ける: 「花が」｜「咲いた」
@@ -891,7 +891,7 @@ function pickLayout(rng, st, en, n, dur, history, emph, recap, portrait, slotPoo
   }
   for (const k of J.LAYOUT_ORDER) {
     const L = J.LAYOUTS[k];
-    if (!en.layout[k] || !L.fits(n)) continue;
+    if (!en.layout[k] || !L.fits(n) || L.needsMaterial) continue;   // 「必须有素材」的版式只在 wantSlot 时用
     cands.push([k, weightOf(k, L)]);
   }
   if (!cands.length) return 'center';

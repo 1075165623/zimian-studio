@@ -259,16 +259,16 @@ input[type=range]::-webkit-slider-thumb{
 .tog input:focus-visible + i{box-shadow:0 0 0 3px var(--cs)}
 
 /* ─────────── 风格 ─────────── */
-.styles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.styles{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px}
 .st{
   border:1px solid var(--line);border-radius:10px;padding:5px 6px;cursor:pointer;background:#fff;
   transition:.12s;overflow:hidden;
 }
 .st:hover{border-color:var(--cl);transform:translateY(-1px)}
 .st.on{border-color:var(--c);box-shadow:0 0 0 2px var(--cs);background:#FDFBFF}
-.st-swatch{height:19px;border-radius:6px;display:flex;overflow:hidden;margin-bottom:5px;border:1px solid rgba(0,0,0,.05)}
+.st-swatch{height:13px;border-radius:4px;display:flex;overflow:hidden;margin-bottom:3px;border:1px solid rgba(0,0,0,.05)}
 .st-swatch i{flex:1}
-.st-name{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-name{font-size:9px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em}
 
 /* ─────────── 字体 ─────────── */
 .fonts{display:flex;flex-direction:column;gap:6px}

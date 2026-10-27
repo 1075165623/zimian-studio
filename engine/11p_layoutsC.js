@@ -1914,8 +1914,8 @@ reg('polaroid', {
     // frame size and positions
     let fw;
     if (port) fw = Math.min(W * (k === 1 ? 0.78 : 0.62), H * 0.78 / (k === 1 ? 1.2 : 1 + (k - 1) * 0.72) / 1.2);
-    else fw = Math.min(H * 0.8 / 1.2, W * 0.86 / (k === 1 ? 1 : k * 0.92));
-    const fh = fw * 1.2, iw = fw * 0.88;
+    else fw = Math.min(H * 0.9 / 1.2, W * 0.86 / (k === 1 ? 1 : k * 0.92));
+    const fh = fw * 1.2, iw = fw * 0.86;
     const pos = i => {
       if (k === 1) return [W / 2, H / 2];
       if (port) return [W / 2 + (i % 2 ? 1 : -1) * W * 0.07, H / 2 + (i - (k - 1) / 2) * fh * 0.72];
@@ -1923,6 +1923,9 @@ reg('polaroid', {
     };
     const imgC = p.img === 'accent' ? plateCol(sc, [sc.accent, sc.ink], C.fill, 1.8) : p.img === 'dusk' ? J.mix(darkest(sc), sc.accent, 0.35) : darkest(sc);
     const tc = onCol(sc, imgC);
+    // 背后两团柔光：卡片本身是竖的，四周不至于空荡荡
+    env.circle(W * 0.5, H * 0.5, H * 0.52, J.rgba(sc.accent, 0.09), null, 0, 1, false);
+    env.circle(W * 0.64, H * 0.3, H * 0.26, J.rgba(sc.accent2, 0.08), null, 0, 1, false);
     let bb = null;
     chunks.forEach((ch, i) => {
       const [x, y] = pos(i);
@@ -1947,12 +1950,14 @@ reg('polaroid', {
       env.circle(ix + iw * 0.72, iy + iw * 0.26, iw * 0.3, J.rgba(lightest(sc), 0.07 * dev), null, 0, a, false);
       env.circle(ix + iw * 0.72, iy + iw * 0.26, iw * 0.16, J.rgba(lightest(sc), 0.08 * dev), null, 0, a, false);
       if (p.tape) env.rect(-fw * 0.16, -fh / 2 - fw * 0.05, fw * 0.32, fw * 0.1, J.rgba(lightest(sc), 0.55), a, false);
-      const fb = fitBlock(ch, p.font, iw * 0.84, iw * 0.7, { lead: 1.1 }, 3);
-      const r = J.mainDraw(env, { text: fb.text, font: p.font, size: Math.min(fb.size, iw * 0.34), x: 0, y: iy + iw / 2, lead: 1.1, color: tc, alpha: 0.25 + 0.75 * dev, noHold: plateHold(env), mi: miAt(env, t + 0.15) });
-      // handwritten caption in the thick bottom border
+      // 歌词写在下面那条厚白边上 —— 不再压在照片中间
+      const bandY = iy + iw + fw * 0.025;
+      const bandH = Math.max(fw * 0.08, fh / 2 - bandY - fw * 0.03);
       const capA = J.clamp((env.lt - t - 0.5) / 0.4) * a;
       const cap = i === k - 1 ? (romajiOf(env) || J.fmtTime(env.cut.start)) : ('No.' + lineNo(env) + '-' + (i + 1));
-      if (capA > 0.01) env.draw({ text: cap.slice(0, 20), font: p.pen, size: Math.min(fw * 0.07, (fw * 0.84) / Math.max(6, cap.length * 0.62)), x: 0, y: iy + iw + (fh / 2 - iy - iw) * 0.5, rot: -2, color: C.text, alpha: capA * 0.85, ghost: false });
+      const fb = fitBlock(ch, p.font, iw * 0.96, bandH * 0.8, { lead: 1.02 }, 2);
+      const r = J.mainDraw(env, { text: fb.text, font: p.font, size: Math.min(fb.size, fw * 0.17), x: ix, y: bandY + bandH * 0.34, align: 'left', lead: 1.02, color: C.text, alpha: a, noHold: plateHold(env), mi: miAt(env, t + 0.15) });
+      if (capA > 0.01) env.draw({ text: cap.slice(0, 22), font: p.pen, size: fw * 0.042, x: 0, y: bandY + bandH * 0.94, color: C.text, alpha: capA * 0.55, ghost: false });
       ctx.restore();
       if (r) bb = J.unionBB(bb, box(x - fw / 2, yy - fh / 2, x + fw / 2, yy + fh / 2));
     });

@@ -1,0 +1,491 @@
+/* ============================================================
+   TCG-PV工厂 — 画面框版式（frames）
+   这一包全部是「素材优先」的构图：画面里一定有一个大物件（相框 / 胶片 / 屏幕 /
+   漫画格 / 海报 / 证件 / 拍立得堆），素材印在物件里，歌词只待在留白处（下沿 /
+   侧边 / 说明条），绝不压在照片中间。
+   全部带 slot: true → planner 会给「有素材的行」优先挑它们。
+   ============================================================ */
+(() => {
+'use strict';
+
+/* ---------- 小工具（各 pack 的 helper 都是局部的，这里自带一份） ---------- */
+const U = env => Math.min(env.W, env.H);
+const isPort = env => env.H > env.W * 1.08;
+const clamp = J.clamp;
+const lightest = sc => {
+  let best = null, bl = -1;
+  for (const c of [sc.paper, sc.bg, sc.fg, sc.sub, sc.accent2, sc.accent]) {
+    if (typeof c !== 'string') continue;
+    const l = J.lum(c);
+    if (l > bl) { bl = l; best = c; }
+  }
+  return best || '#ffffff';
+};
+const inkOn = (sc, col) => (J.contrast(sc.fg, col) >= J.contrast(sc.bg, col) ? sc.fg : sc.bg);
+const paper = sc => {
+  const fill = lightest(sc);
+  return { fill, text: inkOn(sc, fill), line: J.mix(fill, inkOn(sc, fill), 0.22), edge: J.contrast(fill, sc.bg) < 1.35 };
+};
+const tin = (env, d = 0, len = 0.4) => J.E.outCubic(clamp((env.lt - d) / Math.max(0.01, len)));
+const lineNo = env => ('0' + (Math.max(0, env.cut.line | 0) + 1)).slice(-2);
+
+const MC = document.createElement('canvas').getContext('2d');
+function wrapTo(text, font, size, maxW, maxLines) {
+  MC.font = J.fontCSS(font, size);
+  const lines = [];
+  let cur = '';
+  for (const ch of String(text || ' ')) {
+    if (ch === '\n') { lines.push(cur); cur = ''; continue; }
+    const test = cur + ch;
+    if (cur && MC.measureText(test).width > maxW) {
+      lines.push(cur); cur = ch;
+      if (lines.length >= maxLines) return lines;
+    } else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [' '];
+}
+/* 在 (maxW × maxH) 里找最大能放下的字号 */
+function fit(env, text, font, maxW, maxH, maxLines, maxSize) {
+  let size = Math.min(maxSize || 999, maxH / Math.max(1, maxLines) / 1.15);
+  let lines = wrapTo(text, font, size, maxW, maxLines);
+  for (let i = 0; i < 26; i++) {
+    const h = lines.length * size * 1.16;
+    if (h <= maxH && lines.length <= maxLines) break;
+    size *= 0.9;
+    if (size < 7) break;
+    lines = wrapTo(text, font, size, maxW, maxLines);
+  }
+  return { text: lines.join('\n'), size: Math.max(7, size), lines: lines.length };
+}
+function softShadow(env, x, y, w, h, r, a, d) {
+  const ctx = env.ctx;
+  ctx.save();
+  ctx.globalAlpha = a * 0.16;
+  ctx.fillStyle = '#101018';
+  J.roundPath(ctx, x + d * 0.2, y + d, w, h, r);
+  ctx.fill();
+  ctx.globalAlpha = a * 0.1;
+  J.roundPath(ctx, x + d * 0.5, y + d * 1.7, w, h, r);
+  ctx.fill();
+  ctx.restore();
+}
+/* 半透明胶带 */
+function tape(env, x, y, w, h, rot, a, tint) {
+  const ctx = env.ctx;
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot * J.DEG);
+  ctx.globalAlpha = a * 0.72;
+  ctx.fillStyle = tint || 'rgba(255,255,255,0.85)';
+  ctx.fillRect(-w / 2, -h / 2, w, h);
+  ctx.globalAlpha = a * 0.22;
+  ctx.fillStyle = 'rgba(255,255,255,1)';
+  ctx.fillRect(-w / 2, -h / 2, w, h * 0.35);
+  ctx.restore();
+}
+/* 齿孔 / 网点之类的点缀 */
+function dots(env, x, y, w, h, step, r, col, a) {
+  const ctx = env.ctx;
+  ctx.save();
+  ctx.globalAlpha = a; ctx.fillStyle = col;
+  for (let yy = y; yy < y + h; yy += step) for (let xx = x; xx < x + w; xx += step) {
+    ctx.beginPath(); ctx.arc(xx, yy, r, 0, J.TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function base(env, d = 0, len = 0.4) {
+  const out = 1 - J.E.inCubic(env.pOut);
+  const a = clamp(tin(env, d, len) * 1.7) * out;
+  return a <= 0.01 ? 0 : a;
+}
+const FONTS = {
+  display: st => st && st.fonts && st.fonts.display ? st.fonts.display : ['gothic_black'],
+  body: st => st && st.fonts && st.fonts.body ? st.fonts.body : ['gothic_med'],
+  mono: st => st && st.fonts && st.fonts.mono ? st.fonts.mono : ['mono'],
+};
+const pickFont = (rng, st, role) => rng.pick(FONTS[role](st));
+
+/* ======================================================================
+   1  bigPicture — 大幅装裱：整张照片配纸卡与下沿说明
+   ====================================================================== */
+J.register('layout', 'bigPicture', {
+  name: '装裱大幅', tags: ['emotional', 'calm', 'pop'], w: 0.9, ae: 'center', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 24,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), mono: pickFont(rng, st, 'mono'), pad: rng.range(0.022, 0.04), band: rng.range(0.14, 0.19) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params;
+    const a = base(env); if (!a) return null;
+    const C = paper(sc);
+    const m = U(env) * 0.045, band = H * p.band;
+    const x = m, y = m, w = W - m * 2, h = H - m * 2;
+    const ein = J.E.outCubic(clamp(env.lt / 0.45));
+    ctx.save();
+    ctx.translate(W / 2, H / 2); ctx.scale(0.965 + 0.035 * ein, 0.965 + 0.035 * ein); ctx.translate(-W / 2, -H / 2);
+    softShadow(env, x, y, w, h, U(env) * 0.006, a, u * 22);
+    env.rect(x, y, w, h, C.fill, a, false);
+    if (C.edge) env.line([[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]], C.line, Math.max(1, u * 1.4), a * 0.8, false);
+    const pad = U(env) * p.pad;
+    const px = x + pad, py = y + pad, pw = w - pad * 2, ph = h - pad * 2 - band;
+    // 装裱是「整张照片放进去」，不裁切 —— 人像不会被切掉头
+    env.slot('photo', px, py, pw, ph, { tone: 'photo', alpha: a, fit: 'contain', paper: C.fill });
+    env.line([[px, py + ph + pad * 0.5], [px + pw, py + ph + pad * 0.5]], C.line, Math.max(1, u * 1.4), a * 0.5, false);
+    const fb = fit(env, env.cut.text, p.font, pw * 0.92, band * 0.66, 1, U(env) * 0.085);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: px, y: py + ph + band * 0.52, align: 'left', color: C.text });
+    env.draw({ text: 'No.' + lineNo(env), font: p.mono, size: U(env) * 0.019, x: px + pw, y: py + ph + band * 0.76, align: 'right', color: C.text, alpha: a * 0.55, ghost: false });
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   2  tapePhoto — 胶带贴照：卡片占满画面，字写在卡片下沿
+   ====================================================================== */
+J.register('layout', 'tapePhoto', {
+  name: '胶带照片', tags: ['emotional', 'pop', 'calm'], w: 0.9, ae: 'labels', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 20,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), mono: pickFont(rng, st, 'mono'), tilt: rng.range(-5, 5), tape: rng.chance(0.85), band: rng.range(0.12, 0.16) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const ein = J.E.outCubic(clamp(env.lt / 0.4));
+    const fw = Math.min(W * 0.8, H * 0.74), fh = Math.min(H * 0.92, fw * 1.28);
+    const band = fh * p.band;
+    const cx = W / 2, cy = H / 2;
+    const rot = p.tilt + (1 - ein) * 9;
+    ctx.save();
+    ctx.translate(cx, cy + (1 - ein) * H * 0.03); ctx.rotate(rot * J.DEG);
+    softShadow(env, -fw / 2, -fh / 2, fw, fh, u * 4, a, u * 26);
+    env.rect(-fw / 2, -fh / 2, fw, fh, C.fill, a, false);
+    const pad = fw * 0.045;
+    const pw = fw - pad * 2, ph = fh - pad * 2 - band;
+    env.slot('photo', -pw / 2, -fh / 2 + pad, pw, ph, { tone: 'photo', alpha: a });
+    const fb = fit(env, env.cut.text, p.font, pw * 0.94, band * 0.7, 1, fw * 0.085);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: -pw / 2, y: -fh / 2 + pad + ph + band * 0.55, align: 'left', color: C.text });
+    env.draw({ text: '— ' + lineNo(env), font: p.mono, size: fw * 0.028, x: pw / 2, y: -fh / 2 + pad + ph + band * 0.62, align: 'right', color: C.text, alpha: a * 0.6, ghost: false });
+    if (p.tape) {
+      tape(env, -fw / 2 + fw * 0.14, -fh / 2 + fw * 0.01, fw * 0.3, fw * 0.075, -38, a, J.rgba(sc.accent, 0.55));
+      tape(env, fw / 2 - fw * 0.12, -fh / 2 - fw * 0.01, fw * 0.26, fw * 0.07, 34, a, J.rgba(sc.accent2, 0.5));
+    }
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   3  filmStripFrame — 胶片：横向一条，齿孔包边，字写在片基上
+   ====================================================================== */
+J.register('layout', 'filmStripFrame', {
+  name: '胶片框', tags: ['emotional', 'pop', 'glitch'], w: 0.85, ae: 'labels', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 22,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), tilt: rng.range(-2.5, 2.5), val: rng.int(100, 999) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params;
+    const a = base(env); if (!a) return null;
+    const stripH = H * 0.72, baseH = stripH * 0.2, photoH = stripH * 0.6;
+    const cx = W / 2, cy = H * 0.47;
+    const rot = p.tilt + (1 - J.E.outCubic(clamp(env.lt / 0.45))) * 4;
+    const filmC = '#14141A', holeC = J.mix(filmC, sc.bg, 0.55);
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(rot * J.DEG);
+    softShadow(env, -W * 0.56, -stripH / 2, W * 1.12, stripH, u * 6, a, u * 24);
+    env.rect(-W * 0.56, -stripH / 2, W * 1.12, stripH, filmC, a, false);
+    // 齿孔
+    const holeW = W * 0.018, holeH = stripH * 0.075;
+    for (let i = -12; i <= 12; i++) {
+      const hx = -W * 0.56 + W * 0.035 + i * W * 0.045;
+      if (hx > W * 0.56) break;
+      if (hx < -W * 0.56) continue;
+      env.rect(hx, -stripH / 2 + stripH * 0.035, holeW, holeH, holeC, a, false);
+      env.rect(hx, stripH / 2 - stripH * 0.035 - holeH, holeW, holeH, holeC, a, false);
+    }
+    // 画面
+    const px = -W * 0.42, py = -photoH / 2, pw = W * 0.84, ph = photoH;
+    env.slot('photo', px, py, pw, ph, { tone: 'photo', alpha: a });
+    // 片基上的字
+    const fb = fit(env, env.cut.text, p.font, W * 0.52, baseH * 0.62, 1, U(env) * 0.062);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: px, y: ph / 2 - baseH * 0.12, align: 'left', color: paper(sc).fill });
+    env.draw({ text: 'KODAK ' + p.val + '  ·  ' + lineNo(env) + 'A', font: 'mono', size: U(env) * 0.019, x: px + pw, y: ph / 2 - baseH * 0.2, align: 'right', color: J.mix(filmC, '#FFFFFF', 0.6), alpha: a * 0.8, ghost: false });
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   4  screenFrame — 荧幕：显示器外框，字在屏幕下面的控制台条
+   ====================================================================== */
+J.register('layout', 'screenFrame', {
+  name: '荧幕', tags: ['pop', 'glitch', 'emotional'], w: 0.85, ae: 'center', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 20,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), bezel: rng.pick(['ink', 'accent', 'dark']), scan: rng.chance(0.6) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const fw = Math.min(W * 0.9, H * 1.36), fh = fw * 0.66;
+    const cx = W / 2, cy = H * 0.44;
+    const bezC = p.bezel === 'accent' ? sc.accent : p.bezel === 'dark' ? J.mix(sc.bg, '#000000', 0.35) : sc.ink;
+    const bezT = J.contrast('#FFFFFF', bezC) > J.contrast('#111111', bezC) ? '#FFFFFF' : '#111111';
+    const ein = J.E.outCubic(clamp(env.lt / 0.45));
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(0.96 + 0.04 * ein, 0.96 + 0.04 * ein); ctx.translate(-cx, -cy);
+    softShadow(env, cx - fw / 2, cy - fh / 2, fw, fh, fw * 0.03, a, u * 24);
+    env.rrect(cx - fw / 2, cy - fh / 2, fw, fh, fw * 0.03, bezC, a, false);
+    const pad = fw * 0.028;
+    const sx = cx - fw / 2 + pad, sy = cy - fh / 2 + pad, sw = fw - pad * 2, sh = fh - pad * 2 - fh * 0.12;
+    env.rect(sx, sy, sw, sh, '#0A0A10', a, false);
+    env.slot('photo', sx + sw * 0.015, sy + sh * 0.02, sw * 0.97, sh * 0.96, { tone: 'photo', alpha: a });
+    if (p.scan) {
+      ctx.save(); ctx.globalAlpha = a * 0.16; ctx.fillStyle = '#000';
+      for (let yy = sy; yy < sy + sh; yy += Math.max(3, u * 5)) ctx.fillRect(sx, yy, sw, Math.max(1, u * 1.4));
+      ctx.restore();
+    }
+    // 控制台条：字在这里
+    const bandY = sy + sh + fh * 0.02, bandH = fh * 0.085;
+    env.rect(sx, bandY, sw, bandH, J.mix(bezC, '#000000', 0.25), a, false);
+    const fb = fit(env, env.cut.text, p.font, sw * 0.74, bandH * 0.72, 1, U(env) * 0.05);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: sx + sw * 0.03, y: bandY + bandH * 0.56, align: 'left', color: bezT });
+    env.circle(sx + sw * 0.94, bandY + bandH * 0.5, bandH * 0.22, J.rgba('#FF4D4D', 0.9), null, 0, a, false);
+    env.draw({ text: 'CH ' + lineNo(env), font: 'mono', size: bandH * 0.4, x: sx + sw * 0.9, y: bandY + bandH * 0.62, align: 'right', color: bezT, alpha: a * 0.7, ghost: false });
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   5  comicPanel — 漫画格：粗框 + 说明框，字绝不进格子
+   ====================================================================== */
+J.register('layout', 'comicPanel', {
+  name: '漫画格', tags: ['pop', 'graphic'], w: 0.85, ae: 'tile', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 18,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), tilt: rng.range(-2, 2), side: rng.chance(0.5) ? 1 : -1 }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const m = U(env) * 0.05, gut = U(env) * 0.012;
+    const pw = W - m * 2 - gut * 2, ph = H - m * 2 - gut * 2;
+    const rot = p.tilt + (1 - J.E.outCubic(clamp(env.lt / 0.4))) * 3;
+    ctx.save();
+    ctx.translate(W / 2, H / 2); ctx.rotate(rot * J.DEG); ctx.translate(-W / 2, -H / 2);
+    env.rect(m, m, W - m * 2, H - m * 2, '#0C0C10', a, false);
+    env.rect(m + gut, m + gut, pw, ph, C.fill, a, false);
+    env.slot('photo', m + gut * 2, m + gut * 2, pw - gut * 2, ph - gut * 2, { tone: 'photo', alpha: a });
+    // 说明框：压在右下角的白框，黑边
+    const bwd = Math.min(W * 0.46, U(env) * 0.72), bhd = U(env) * 0.2;
+    const bx = p.side > 0 ? W - m - bwd - gut * 2 : m + gut * 2, by = H - m - bhd - gut * 2;
+    env.rect(bx, by, bwd, bhd, C.fill, a, false);
+    env.line([[bx, by], [bx + bwd, by], [bx + bwd, by + bhd], [bx, by + bhd], [bx, by]], '#0C0C10', Math.max(2, u * 2.4), a, false);
+    const fb = fit(env, env.cut.text, p.font, bwd * 0.86, bhd * 0.68, 2, bhd * 0.42);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: bx + bwd * 0.07, y: by + bhd * 0.55, align: 'left', color: C.text, lead: 1.1 });
+    // 网点角
+    dots(env, m + gut * 2, m + gut * 2, U(env) * 0.16, U(env) * 0.1, Math.max(4, u * 9), Math.max(1, u * 1.6), '#FFFFFF', a * 0.22);
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   6  posterWall — 海报上墙：贴纸胶带 + 下沿手写
+   ====================================================================== */
+J.register('layout', 'posterWall', {
+  name: '海报上墙', tags: ['pop', 'emotional'], w: 0.9, ae: 'center', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 20,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), tilt: rng.range(-3, 3), band: rng.range(0.13, 0.17) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const ein = J.E.outCubic(clamp(env.lt / 0.42));
+    const wide = W / H > 1.35;
+    const pw = wide ? Math.min(W * 0.86, H * 1.22) : Math.min(W * 0.82, H * 0.64);
+    const ph = wide ? pw / 1.36 : Math.min(H * 0.92, pw * 1.3);
+    const cx = W / 2, cy = H * 0.48;
+    const rot = p.tilt + (1 - ein) * 6;
+    ctx.save();
+    ctx.translate(cx, cy + (1 - ein) * H * 0.04); ctx.rotate(rot * J.DEG);
+    softShadow(env, -pw / 2, -ph / 2, pw, ph, u * 3, a, u * 24);
+    env.rect(-pw / 2, -ph / 2, pw, ph, C.fill, a, false);
+    const pad = pw * 0.05, band = ph * p.band;
+    const iw = pw - pad * 2, ih = ph - pad * 2 - band;
+    env.slot('photo', -iw / 2, -ph / 2 + pad, iw, ih, { tone: 'photo', alpha: a });
+    const fb = fit(env, env.cut.text, p.font, iw, band * 0.72, 1, pw * 0.075);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: -iw / 2, y: -ph / 2 + pad + ih + band * 0.58, align: 'left', color: C.text });
+    env.draw({ text: lineNo(env) + ' / ' + env.cut.layout.toUpperCase(), font: 'mono', size: pw * 0.024, x: iw / 2, y: -ph / 2 + pad + ih + band * 0.64, align: 'right', color: C.text, alpha: a * 0.55, ghost: false });
+    tape(env, 0, -ph / 2 + ph * 0.005, pw * 0.34, ph * 0.032, -3, a, J.rgba(sc.accent, 0.45));
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   7  albumFrame — 专辑封面：方块封面 + 底部曲名条
+   ====================================================================== */
+J.register('layout', 'albumFrame', {
+  name: '专辑封面', tags: ['pop', 'emotional', 'calm'], w: 0.85, ae: 'ring', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 18,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), tilt: rng.range(-4, 4), side: rng.chance(0.5) ? 1 : -1 }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const port = isPort(env);
+    const S = port ? Math.min(W * 0.84, H * 0.52) : Math.min(H * 0.84, W * 0.5);
+    const cx = port ? W / 2 : W * 0.64, cy = port ? H * 0.34 : H * 0.5;
+    const rot = p.tilt + (1 - J.E.outCubic(clamp(env.lt / 0.45))) * 8;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(rot * J.DEG);
+    softShadow(env, -S / 2, -S / 2, S, S, u * 3, a, u * 26);
+    env.slot('photo', -S / 2, -S / 2, S, S, { tone: 'print', alpha: a });
+    // 底部曲名条
+    const bandH = S * 0.17;
+    env.rect(-S / 2, S / 2 - bandH, S, bandH, J.rgba(sc.bg, 0.82), a, false);
+    env.draw({ text: 'SIDE A · ' + lineNo(env), font: 'mono', size: S * 0.032, x: -S * 0.45, y: S / 2 - bandH * 0.62, align: 'left', color: sc.fg, alpha: a * 0.75, ghost: false });
+    env.line([[-S * 0.45, -S * 0.455], [S * 0.45, -S * 0.455]], sc.fg, Math.max(1, u * 1.2), a * 0.35, false);
+    ctx.restore();
+    // 歌词在左边，不压封面
+    const tw = port ? W * 0.8 : W * 0.34, th = port ? H * 0.16 : H * 0.4;
+    const tx = port ? W * 0.1 : W * 0.06, ty = port ? H * 0.66 : H * 0.5 - th / 2;
+    const fb = fit(env, env.cut.text, p.font, tw, th, port ? 2 : 3, U(env) * 0.1);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: tx, y: ty + th * 0.36, align: 'left', color: C.text, lead: 1.08 });
+    env.line([[tx, ty + th * 0.9], [tx + tw * 0.5, ty + th * 0.9]], C.text, Math.max(1, u * 1.6), a * 0.35, false);
+    return bb;
+  },
+});
+
+/* ======================================================================
+   8  circlePortrait — 圆形头像：大圆 + 环，字在右侧
+   ====================================================================== */
+J.register('layout', 'circlePortrait', {
+  name: '圆形头像', tags: ['emotional', 'calm', 'pop'], w: 0.85, ae: 'ring', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 22,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), dot: rng.chance(0.5), ring: rng.chance(0.7) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const port = isPort(env);
+    const R = Math.min(H * 0.36, W * 0.32);
+    const cx = port ? W / 2 : W * 0.3, cy = port ? H * 0.34 : H * 0.5;
+    const ein = J.E.outCubic(clamp(env.lt / 0.45));
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(0.92 + 0.08 * ein, 0.92 + 0.08 * ein); ctx.translate(-cx, -cy);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R + u * 10, 0, J.TAU);
+    ctx.globalAlpha = a * 0.16; ctx.fillStyle = '#101018'; ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, J.TAU); ctx.clip();
+    env.slot('photo', cx - R, cy - R, R * 2, R * 2, { tone: 'photo', alpha: a });
+    ctx.restore();
+    if (p.ring) {
+      ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = C.fill; ctx.lineWidth = Math.max(3, u * 8);
+      ctx.beginPath(); ctx.arc(cx, cy, R + u * 5, 0, J.TAU); ctx.stroke();
+      ctx.strokeStyle = sc.accent; ctx.lineWidth = Math.max(1.5, u * 2.4);
+      ctx.beginPath(); ctx.arc(cx, cy, R + u * 14, 0, J.TAU); ctx.stroke();
+      ctx.restore();
+    }
+    // 字在右侧 / 下方
+    const tw = port ? W * 0.78 : W * 0.42, th = port ? H * 0.22 : H * 0.34;
+    const tx = port ? W * 0.11 : W * 0.58, ty = port ? cy + R + H * 0.08 : H * 0.5 - th / 2;
+    const fb = fit(env, env.cut.text, p.font, tw, th, 2, U(env) * 0.11);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: tx, y: ty + th * 0.42, align: 'left', color: C.text, lead: 1.08 });
+    env.draw({ text: 'PORTRAIT ' + lineNo(env), font: 'mono', size: U(env) * 0.019, x: tx, y: ty + th * 0.86, align: 'left', color: C.text, alpha: a * 0.5, ghost: false });
+    if (p.dot) dots(env, port ? W * 0.08 : W * 0.55, port ? H * 0.79 : H * 0.72, tw, H * 0.12, Math.max(6, u * 13), Math.max(1, u * 2), sc.accent, a * 0.25);
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   9  windowFrame — 窗景：窗框 + 十字窗棂，字写在窗台
+   ====================================================================== */
+J.register('layout', 'windowFrame', {
+  name: '窗景', tags: ['emotional', 'calm'], w: 0.85, ae: 'center', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 20,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), bars: rng.pick([1, 1, 2]), stool: rng.range(0.13, 0.17) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const m = U(env) * 0.05;
+    const ww = W - m * 2, wh = H - m * 2 - H * p.stool;
+    const x = m, y = m;
+    softShadow(env, x - u * 8, y - u * 8, ww + u * 16, wh + u * 16, u * 3, a, u * 16);
+    env.rect(x - u * 8, y - u * 8, ww + u * 16, wh + u * 16, C.fill, a, false);
+    env.slot('photo', x, y, ww, wh, { tone: 'photo', alpha: a });
+    // 窗棂
+    const frameC = C.fill;
+    const bw = Math.max(3, u * 9);
+    env.rect(x + ww / 2 - bw / 2, y, bw, wh, frameC, a, false);
+    if (p.bars > 1) env.rect(x, y + wh / 2 - bw / 2, ww, bw, frameC, a, false);
+    env.line([[x, y], [x + ww, y], [x + ww, y + wh], [x, y + wh], [x, y]], frameC, bw, a, false);
+    // 字在窗台
+    const sy = y + wh + u * 10, sh = H * p.stool - u * 20;
+    const fb = fit(env, env.cut.text, p.font, ww, sh * 0.72, 1, H * 0.075);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: m, y: sy + sh * 0.5, align: 'left', color: C.text });
+    env.line([[m, sy + sh * 0.92], [W - m, sy + sh * 0.92]], C.text, Math.max(1, u * 1.4), a * 0.3, false);
+    return bb;
+  },
+});
+
+/* ======================================================================
+   10  idCard — 证件：卡面左边照片，右边字 + 条码
+   ====================================================================== */
+J.register('layout', 'idCard', {
+  name: '证件卡', tags: ['pop', 'graphic', 'glitch'], w: 0.8, ae: 'labels', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 16,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), tilt: rng.range(-4, 4), band: rng.pick(['accent', 'ink']) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const cw = Math.min(W * 0.84, H * 1.7), ch = cw * 0.56;
+    const cx = W / 2, cy = H * 0.5;
+    const rot = p.tilt + (1 - J.E.outCubic(clamp(env.lt / 0.45))) * 7;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(rot * J.DEG);
+    softShadow(env, -cw / 2, -ch / 2, cw, ch, cw * 0.02, a, u * 24);
+    env.rrect(-cw / 2, -ch / 2, cw, ch, cw * 0.02, C.fill, a, false);
+    const bandC = p.band === 'accent' ? sc.accent : sc.ink;
+    env.rect(-cw / 2, -ch / 2, cw, ch * 0.13, bandC, a, false);
+    env.draw({ text: 'TCG-PV  FACTORY  PASS', font: 'mono', size: ch * 0.055, track: 0.3, x: -cw * 0.44, y: -ch / 2 + ch * 0.085, align: 'left', color: inkOn(sc, bandC), alpha: a * 0.9, ghost: false });
+    const ph = ch * 0.56, pw = ph * 0.78;
+    const px = -cw * 0.44, py = -ch * 0.28;
+    env.rect(px - u * 3, py - u * 3, pw + u * 6, ph + u * 6, C.line, a, false);
+    env.slot('photo', px, py, pw, ph, { tone: 'photo', alpha: a });
+    const tx = px + pw + cw * 0.05, tw = cw * 0.42, th = ch * 0.34;
+    const fb = fit(env, env.cut.text, p.font, tw, th, 2, ch * 0.16);
+    const bb = J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: tx, y: py + th * 0.36, align: 'left', color: C.text, lead: 1.06 });
+    // 条码
+    const by = ch * 0.24, bw = cw * 0.4, bh = ch * 0.12;
+    for (let i = 0; i < 26; i++) {
+      const wbx = px + i * (bw / 26);
+      env.rect(wbx, by, Math.max(1, (bw / 26) * (i % 3 ? 0.45 : 0.8)), bh, C.text, a * (i % 4 ? 0.8 : 0.45), false);
+    }
+    env.draw({ text: 'No.' + lineNo(env) + '   ' + J.fmtTime(env.cut.start), font: 'mono', size: ch * 0.05, x: -cw * 0.44, y: ch * 0.42, align: 'left', color: C.text, alpha: a * 0.6, ghost: false });
+    ctx.restore();
+    return bb;
+  },
+});
+
+/* ======================================================================
+   11  polaroidStack — 拍立得堆：三张散开，最前面那张印素材
+   ====================================================================== */
+J.register('layout', 'polaroidStack', {
+  name: '拍立得堆', tags: ['emotional', 'pop', 'calm'], w: 0.9, ae: 'labels', slot: true, needsMaterial: true, slots: ['photo'], fits: n => n >= 1 && n <= 20,
+  plan: (rng, cut, st) => ({ font: pickFont(rng, st, 'display'), tilt: rng.range(-4, 4), spread: rng.range(0.045, 0.075) }),
+  render(env) {
+    const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
+    const a = base(env); if (!a) return null;
+    const fw = isPort(env) ? Math.min(W * 0.7, H * 0.46) : Math.min(W * 0.44, H * 0.66), fh = fw * 1.2;
+    const cx = W / 2, cy = H * 0.47;
+    const ein = J.E.outCubic(clamp(env.lt / 0.45));
+    const stack = [[-1, -8, 0.92], [1, 7, 0.96], [0, p.tilt, 1]];
+    stack.forEach((s, i) => {
+      const [dir, rot, k] = s;
+      const front = i === 2;
+      const ox = dir * fw * (isPort(env) ? p.spread : 0.5) * (1.06 - ein * 0.3);
+      const oy = dir * fh * 0.05 * (1 - ein * 0.4);
+      ctx.save();
+      ctx.translate(cx + ox, cy + oy + (1 - ein) * H * 0.05); ctx.rotate(rot * J.DEG); ctx.scale(k, k);
+      softShadow(env, -fw / 2, -fh / 2, fw, fh, u * 4, a, u * (front ? 26 : 16));
+      env.rect(-fw / 2, -fh / 2, fw, fh, C.fill, a, false);
+      const pad = fw * 0.05, iw = fw - pad * 2, ih = iw;
+      const iy = -fh / 2 + pad;
+      if (front) {
+        env.slot('photo', -iw / 2, iy, iw, ih, { tone: 'photo', alpha: a });
+        const fb = fit(env, env.cut.text, p.font, iw, fh - ih - pad * 2.4, 1, fw * 0.09);
+        J.mainDraw(env, { text: fb.text, font: p.font, size: fb.size, x: -iw / 2, y: iy + ih + (fh - ih - pad) * 0.5, align: 'left', color: C.text });
+      } else {
+        env.rect(-iw / 2, iy, iw, ih, J.mix(C.fill, sc.sub, 0.22), a * 0.9, false);
+      }
+      ctx.restore();
+    });
+    return null;
+  },
+});
+})();
