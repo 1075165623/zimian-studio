@@ -114,7 +114,7 @@ async function download() {
   const assets = collectAssets();
   const f = S.audioFile;
   const pack = JSON.parse(JSON.stringify(snap));
-  pack.app = 'TCG-PV工厂';
+  pack.app = '粉色大肥鱼-文字PV';
   pack.kind = 'project';
   pack.assets = assets.map(a => ({ id: a.id, kind: a.kind, iw: a.iw, ih: a.ih, total: a.total, file: 'img/' + a.id + '.png' }));
   pack.audio = f ? { name: f.name, file: 'audio/' + f.name } : null;
@@ -128,7 +128,7 @@ async function download() {
   const blob = new Blob([bytes], { type: 'application/zip' });
   const a = document.createElement('a');
   const d = new Date();
-  const name = 'TCG-PV工程_' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '_' +
+  const name = '粉色大肥鱼-文字PV工程_' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '_' +
     String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + '.zip';
   a.href = URL.createObjectURL(blob);
   a.download = name;

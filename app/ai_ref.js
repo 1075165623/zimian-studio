@@ -41,7 +41,7 @@ function buildPrompt(keys) {
   return [
     '你是文字 PV / 杂志排版的版式分析器。看这张参考图，只输出 JSON，不要解释。',
     '只输出这个 JSON（数值是 0~1 的比例，用不到的字段省略）：',
-    '{"bgText":{"size":0.42,"x":0.5,"y":0.5,"angle":0,"alpha":0.8},"subject":{"x":0.04,"y":0.04,"w":0.46,"h":0.92,"fit":"contain","outline":"#7FE3D4"},"rails":[{"x":0.9,"w":0.06,"h":0.88,"squares":7}],"lyric":{"zone":"bottom-left","w":0.4,"size":0.07},"decor":{"rules":true,"dots":true,"verticalText":"TCG-PV","caps":true,"sign":"T.01"},"palette":["#FFF6FA","#FF9FC2"]}',
+    '{"bgText":{"size":0.42,"x":0.5,"y":0.5,"angle":0,"alpha":0.8},"subject":{"x":0.04,"y":0.04,"w":0.46,"h":0.92,"fit":"contain","outline":"#7FE3D4"},"rails":[{"x":0.9,"w":0.06,"h":0.88,"squares":7}],"lyric":{"zone":"bottom-left","w":0.4,"size":0.07},"decor":{"rules":true,"dots":true,"verticalText":"TYPE","caps":true,"sign":"T.01"},"palette":["#FFF6FA","#FF9FC2"]}',
     '规则一：如果参考图是「整幅人物 + 背景虚化 + 文字在旁边」，写 "mode":"bleed"（此时不用 subject，可加 "scrim":0.35 控制压暗），文字只用 lyric.zone(caps 小字 + sign 签名) 定位。',
     '规则二：如果参考图是「一张卡片/相纸里放照片」，才写 subject 矩形框（x/y/w/h 都是 0~1 比例）。',
     '规则三：bgText 是背后那层超大号文字，没有就省略；rails 是竖向长条/胶囊。',

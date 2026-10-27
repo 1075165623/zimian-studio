@@ -82,7 +82,7 @@ function boot() {
   } else {
   Object.assign(p, {
     lyrics: SAMPLE,
-    style: 'tcg',                       // 默认：二次元渐层（TCG 糖果）
+    style: 'tcg',                       // 默认：二次元渐层（粉色糖果）
     lang: 'zh-Hans',
     aspect: '16:9',
     res: 1080,
@@ -148,7 +148,7 @@ function boot() {
   }
 
   // 效果库（app/catalog.js）用这几个入口；先挂上再生成，出问题也不会让整页卡死
-  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip, syncMediaList, syncMediaState, projectSnapshot };
+  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, importDrop, filesFromDrop, sortDropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip, syncMediaList, syncMediaState, projectSnapshot };
 
   replan();
   commit(); syncHistBtns();          // 历史的第 0 步：刚打开时的样子
@@ -1122,7 +1122,7 @@ function bindTimeline() {
     const G = tlGeom();
     const r = cv.getBoundingClientRect();
     const t = G ? G.unX(e.clientX - r.left) : S.t;
-    await dropFiles([...(e.dataTransfer.files || [])], { start: t });
+    await importDrop(e.dataTransfer, { start: t });
   });
 }
 
@@ -1297,9 +1297,15 @@ function syncHistBtns() {
 
 const IMG_EXT = /\.(png|jpe?g|webp|gif|avif|bmp|svg)$/i;
 const VID_EXT = /\.(mp4|webm|mov|m4v|ogv|mkv)$/i;
+const AUD_EXT = /\.(mp3|wav|m4a|aac|ogg|flac|opus|aiff?|wma)$/i;
+const SUB_EXT = /\.(srt|lrc|vtt|txt)$/i;
 const isImageFile = f => !!f && (/^image\//.test(f.type || '') || IMG_EXT.test(f.name || ''));
 const isVideoFile = f => !!f && (/^video\//.test(f.type || '') || VID_EXT.test(f.name || ''));
+const isAudioFile = f => !!f && (/^audio\//.test(f.type || '') || AUD_EXT.test(f.name || ''));
+const isSubFile = f => !!f && SUB_EXT.test(f.name || '');
 const isMediaFile = f => isImageFile(f) || isVideoFile(f);
+// 文件夹里只认真正能用的：图片 / 视频 / 音频 / srt·lrc·vtt（.txt 太容易误伤，拖文件夹时不算）
+const isFolderFile = f => isMediaFile(f) || isAudioFile(f) || /\.(srt|lrc|vtt)$/i.test(f.name || '');
 const isFileDrag = e => !!(e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files'));
 
 const KPROPS = ['x', 'y', 'scale', 'rot', 'opacity'];
@@ -1700,9 +1706,8 @@ async function loadMediaFile(file, opt = {}) {
       S.mediaSel = S.media.length - 1;
     }
     m.lane = freeLane(m);
-    syncMediaList();
     S.need = true;
-    drawTimeline();
+    if (!opt.batch) { syncMediaList(); drawTimeline(); }   // 批量导入时先不重画，全部读完再统一刷新
     return m;
   } catch (e) {
     console.error(e);
@@ -1714,16 +1719,30 @@ async function loadMediaFile(file, opt = {}) {
 /* 一次放进多张：默认排在播放头之后，一张接一张（起点吸附到拍点）
    「进版式」模式下：一张素材 = 一句歌词，时间自动等于那一句，并换上能放素材的版式 */
 async function addImageFiles(files, opt = {}) {
-  const list = [...files].filter(isMediaFile);
+  const list = sortDropFiles([...files]).filter(isMediaFile);
   if (!list.length) return 0;
+  const total = list.length;
   let t = Math.max(0, +(opt.start != null ? opt.start : S.t) || 0);
   let n = 0;
   const slotMode = opt.free !== true && S.beatCfg.layout === 'slot' && !!S.plan;
   let line = -1;
-  if (slotMode) { const c = J.cutAt(S.plan, t); if (c && c.line >= 0) line = c.line; }
+  if (slotMode) {
+    // 播放头落在前奏 / 间奏里时，从后面第一句歌词开始贴，而不是全部退成自由层
+    let c = J.cutAt(S.plan, t);
+    if (!c || c.line < 0) c = S.plan.cuts.find(q => q.line >= 0 && q.end > t);
+    if (c && c.line >= 0) line = c.line;
+  }
   let bound = 0;
-  for (const f of list) {
-    const m = await loadMediaFile(f, { start: t, after: n > 0, line: slotMode && line >= 0 ? line : -1 });
+  let skipped = 0;
+  const canBind = line >= 0;
+  for (let idx = 0; idx < total; idx++) {
+    if (slotMode && canBind && line < 0) { skipped = total - idx; break; }   // 歌词行用完了：别再堆到片尾
+    const f = list[idx];
+    if (total > 6 && (idx === 0 || (idx + 1) % 6 === 0)) {
+      toast('正在排入素材 ' + (idx + 1) + ' / ' + total + '…');
+      await new Promise(r => setTimeout(r, 0));      // 让进度提示先刷出来
+    }
+    const m = await loadMediaFile(f, { start: t, after: n > 0, batch: total > 1, line: slotMode && line >= 0 ? line : -1 });
     if (m) {
       n++;
       t = m.start + m.dur;
@@ -1735,12 +1754,17 @@ async function addImageFiles(files, opt = {}) {
     if (bound) replan();                 // 让这些行换成能放素材的版式（并重新贴合时间）
     S.need = true;
     syncMediaState();
+    drawTimeline();
     commit();
-    if (bound) {
+    const head = opt.folder ? '文件夹：' : '';
+    const capNote = opt.capped ? ' · 已到 ' + FOLDER_MAX + ' 个上限，先排这些' : '';
+    if (skipped) {
+      toast(head + '已排 ' + n + ' 个素材 · ' + skipped + ' 个没排（歌词行不够；把「版式」改成自由层就能按顺序全排）' + capNote);
+    } else if (bound) {
       const info = slotInfoOf(S.media[S.mediaSel] || null);
-      toast('已融入 ' + bound + ' 个版面位' + (info && info.has ? ' · ' + info.tid : '') + ' · 时长跟着这一句走');
+      toast(head + '已融入 ' + bound + ' 个版面位' + (info && info.has ? ' · ' + info.tid : '') + ' · 时长跟着这一句走' + capNote);
     } else {
-      toast('加入 ' + n + ' 个素材 · 已按拍点排好，选中后可以打关键帧 / 套动画');
+      toast(head + '加入 ' + n + ' 个素材 · 已按顺序排好' + capNote + ' · 选中后可以打关键帧 / 套动画');
     }
   }
   return n;
@@ -1754,11 +1778,112 @@ function nextLineAfter(line) {
   return best;
 }
 
+/* ─────────────────── 文件夹：整个拖进来，自动排进时间线 ───────────────────
+   浏览器拖放普通文件时只会给文件列表；文件夹必须通过 webkitGetAsEntry()
+   一层一层读。这里把所有文件递归读出来，按「相对路径」自然排序
+   （1、2、10 而不是 1、10、2），再交给 addImageFiles 一张接一张排。
+   图片 / GIF / 视频之外，文件夹里的音频与 srt / lrc 也会自动认出来。 */
+
+const FOLDER_MAX = 300;                 // 一次最多排多少个，防止误拖整个硬盘
+const DROP_PATH_KEY = '__dropPath';
+
+function isJunkName(n) {
+  n = String(n || '');
+  return !n || n[0] === '.' || /^~\$/i.test(n) || /^(thumbs\.db|desktop\.ini)$/i.test(n);
+}
+
+function readDirEntries(reader) {
+  return new Promise((resolve, reject) => {
+    const out = [];
+    const next = () => reader.readEntries(batch => {
+      if (!batch || !batch.length) return resolve(out);
+      out.push(...batch);
+      next();                              // readEntries 一次最多给 100 个，要反复读到空
+    }, reject);
+    next();
+  });
+}
+
+function fileOfEntry(en) {
+  return new Promise(resolve => {
+    try { en.file(f => resolve(f), () => resolve(null)); } catch (e) { resolve(null); }
+  });
+}
+
+async function walkEntry(en, out, depth) {
+  if (!en || out.length >= FOLDER_MAX || depth > 16) return;
+  if (en.isFile) {
+    const f = await fileOfEntry(en);
+    if (f && !isJunkName(f.name) && isFolderFile(f)) {
+      try { f[DROP_PATH_KEY] = en.fullPath || f.name; } catch (e) { /* File 不可写就退回按名字排 */ }
+      out.push(f);
+    }
+    return;
+  }
+  if (!en.isDirectory || isJunkName(en.name)) return;
+  let kids = [];
+  try { kids = await readDirEntries(en.createReader()); } catch (e) { return; }
+  for (const k of kids) {
+    if (out.length >= FOLDER_MAX) break;
+    await walkEntry(k, out, depth + 1);
+  }
+}
+
+const NAT_SORT = new Intl.Collator('zh-Hans-CN', { numeric: true, sensitivity: 'base' });
+const dropPath = f => f[DROP_PATH_KEY] || f.webkitRelativePath || f.name || '';
+function sortDropFiles(files) {
+  return [...files].sort((a, b) => NAT_SORT.compare(dropPath(a), dropPath(b)));
+}
+
+/* 从一次拖放里拿到文件：普通文件直接用，文件夹就递归读 */
+async function filesFromDrop(dt) {
+  const items = dt ? [...(dt.items || [])] : [];
+  const entries = [];
+  for (const it of items) {
+    if (it.kind !== 'file' || !it.webkitGetAsEntry) continue;
+    let en = null;
+    try { en = it.webkitGetAsEntry(); } catch (e) { en = null; }
+    if (en) entries.push(en);
+  }
+  const folder = entries.some(en => en.isDirectory);
+  if (!folder) return { files: [...((dt && dt.files) || [])], folder: false, capped: false };
+
+  const out = [];
+  for (const en of entries) {
+    await walkEntry(en, out, 0);
+    if (out.length >= FOLDER_MAX) break;
+  }
+  return { files: sortDropFiles(out), folder: true, capped: out.length >= FOLDER_MAX };
+}
+
+/* 拖放的统一入口：先读文件夹，再分派给 dropFiles */
+async function importDrop(dt, opt = {}) {
+  let got;
+  try { got = await filesFromDrop(dt); } catch (e) {
+    console.error(e);
+    toast('文件夹读不出来：' + (e && e.message || e) + '（用 Chrome / Edge 试试，或点「文件夹」按钮）');
+    return 0;
+  }
+  if (!got.files.length) {
+    toast(got.folder ? '这个文件夹里没有能用的素材（图片 / GIF / 视频 / 音频 / srt / lrc）' : '没有读到文件');
+    return 0;
+  }
+  if (got.folder) {
+    toast('文件夹：找到 ' + got.files.length + ' 个素材，正在按文件名顺序排进时间线…');
+    await new Promise(r => setTimeout(r, 40));      // 先把提示画出来，再开始解码
+  }
+  return dropFiles(got.files, Object.assign({}, opt, { folder: got.folder, capped: got.capped }));
+}
+
 /* 拖进来的文件：音频 / 字幕 / 图片 / 视频各归各位 */
 async function dropFiles(files, opt = {}) {
-  const all = [...files];
-  const audio = all.find(f => /^audio\//.test(f.type || '') || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name || ''));
-  const sub = all.find(f => /\.(srt|lrc|vtt|txt)$/i.test(f.name || ''));
+  const all = sortDropFiles([...files]);
+  const audio = all.find(isAudioFile);
+  // 文件夹里常混着 readme.txt / notes.txt：只在拖单个文件时把 .txt 当歌词，
+  // 拖文件夹时只认 srt / lrc / vtt，免得随手替换掉用户已经排好的歌词。
+  const sub = opt.folder
+    ? all.find(f => /\.(srt|lrc|vtt)$/i.test(f.name || ''))
+    : all.find(isSubFile);
   const imgs = all.filter(isMediaFile);
   if (audio) await loadAudioFile(audio);
   if (sub) await importSubFile(sub);
@@ -2190,7 +2315,7 @@ function syncMediaList() {
     if (!S.media.length) {
       const empty = document.createElement('p');
       empty.className = 'tip tight';
-      empty.textContent = '还没有素材。点上面的「选择」，或者把图片 / GIF / 视频直接拖进时间线或画面里。';
+      empty.textContent = '还没有素材。点上面的「选择」/「文件夹」，或者把图片、GIF、视频、整个文件夹直接拖进时间线或画面里。';
       box.appendChild(empty);
     }
   }
@@ -2739,7 +2864,7 @@ async function doExport() {
   const p = S.project;
   if (!window.VideoEncoder) {
     toast(!window.isSecureContext
-      ? '现在是用 http:// 打开的，浏览器不给导出视频。请用 https 网址访问，或把 dist/字面工房.html 下到本地双击打开'
+      ? '现在是用 http:// 打开的，浏览器不给导出视频。请用 https 网址访问，或把 dist/粉色大肥鱼-文字PV.html 下到本地双击打开'
       : '这个浏览器不支持视频编码，请用 Chrome 或 Edge 打开');
     return;
   }
@@ -2768,7 +2893,7 @@ async function doExport() {
       signal: ac.signal,
     });
     setBar(1, '写入文件…');
-    const name = 'TCG-PV_' + p.aspect.replace(':', 'x') + '_' + size[0] + 'p_' + String(p.seed).slice(-4) + '.mp4';
+    const name = '粉色大肥鱼-文字PV_' + p.aspect.replace(':', 'x') + '_' + size[0] + 'p_' + String(p.seed).slice(-4) + '.mp4';
     await J.saveFile(name, r.blob);
     setBar(1, '完成 · ' + Math.round((r.size || 0) / 1048576) + ' MB');
     toast('已导出 ' + name + (S.audio ? '（带音轨）' : ''));
@@ -2811,7 +2936,7 @@ async function exportPNG() {
       signal: ac.signal,
     });
     setBar(1, '写入文件…');
-    const name = 'TCG-PV_透明_' + p.aspect.replace(':', 'x') + '_' + size0(p) + 'p_' + String(p.seed).slice(-4) + '.zip';
+    const name = '粉色大肥鱼-文字PV_透明_' + p.aspect.replace(':', 'x') + '_' + size0(p) + 'p_' + String(p.seed).slice(-4) + '.zip';
     await J.saveFile(name, zip);
     setBar(1, '完成');
     toast('已导出透明 PNG 序列：' + name + '（含 back / front 两层，剪映可导入）');
@@ -2884,7 +3009,7 @@ async function exportMOV() {
     }
     setBar(0.97, '封装 MOV…');
     const mov = J.movFromPNG({ width: w, height: h, fps, frames });
-    const name = 'TCG-PV_透明_' + p.aspect.replace(':', 'x') + '_' + w + 'p_' + String(p.seed).slice(-4) + '.mov';
+    const name = '粉色大肥鱼-文字PV_透明_' + p.aspect.replace(':', 'x') + '_' + w + 'p_' + String(p.seed).slice(-4) + '.mov';
     await J.saveFile(name, mov);
     setBar(1, '完成 · ' + Math.round(mov.size / 1048576) + ' MB');
     toast('已导出透明视频 ' + name + '（带 Alpha，剪映直接导入）');
@@ -2967,6 +3092,20 @@ function bind() {
     e.target.value = '';
     if (files.length) await addImageFiles(files, { start: S.t });
   });
+  // 选择整个文件夹：里面的素材按文件名顺序自动排进时间线
+  const folderBtn = $('#btnPickFolder');
+  if (folderBtn) folderBtn.onclick = e => { e.stopPropagation(); pick('#fileFolder'); };
+  const folderInput = $('#fileFolder');
+  if (folderInput) folderInput.addEventListener('change', async e => {
+    let files = sortDropFiles([...(e.target.files || [])].filter(isFolderFile));
+    e.target.value = '';
+    if (!files.length) { toast('这个文件夹里没有能用的素材（图片 / GIF / 视频 / 音频 / srt / lrc）'); return; }
+    const capped = files.length > FOLDER_MAX;
+    if (capped) files = files.slice(0, FOLDER_MAX);
+    toast('文件夹：找到 ' + files.length + ' 个文件，正在按文件名顺序排进时间线…');
+    await new Promise(r => setTimeout(r, 40));
+    await dropFiles(files, { start: S.t, folder: true, capped });
+  });
   $('#dropMedia').addEventListener('dragenter', () => $('#dropMedia').classList.add('over'));
   $('#dropMedia').addEventListener('dragleave', () => $('#dropMedia').classList.remove('over'));
   $('#dropMedia').addEventListener('drop', () => $('#dropMedia').classList.remove('over'));
@@ -2984,12 +3123,12 @@ function bind() {
     setLyrics(cuesToLrc(S.lastCues, $('#autoInst').checked), $('#autoInst').checked ? '已按字幕空档插入间奏' : '已去掉自动间奏');
   });
 
-  // 拖进来（整页都能接：图片 / 音频 / srt / lrc）
+  // 拖进来（整页都能接：文件夹 / 图片 / 视频 / 音频 / srt / lrc）
   window.addEventListener('dragover', e => { if (isFileDrag(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
   window.addEventListener('drop', async e => {
     if (!isFileDrag(e)) return;
     e.preventDefault();
-    await dropFiles([...(e.dataTransfer.files || [])], { start: S.t });
+    await importDrop(e.dataTransfer, { start: S.t });
   });
   for (const id of ['#dropAudio', '#dropSub', '#dropMedia']) {
     const el = $(id);
@@ -3148,7 +3287,7 @@ function warnIfNoExport() {
   const el = document.createElement('div');
   el.className = 'insecure-bar';
   el.innerHTML = '<span>' + (insecure
-    ? '<b>预览模式</b>：现在是用 <code>http://</code> 打开的，浏览器不允许导出视频。要出片请用 https 网址，或把 <b>dist/字面工房.html</b> 下到本地双击打开。'
+    ? '<b>预览模式</b>：现在是用 <code>http://</code> 打开的，浏览器不允许导出视频。要出片请用 https 网址，或把 <b>dist/粉色大肥鱼-文字PV.html</b> 下到本地双击打开。'
     : '<b>这个浏览器不能导出视频</b>：请用 Chrome / Edge 最新版打开。') + '</span><button title="知道了">×</button>';
   el.querySelector('button').onclick = () => el.remove();
   document.body.appendChild(el);

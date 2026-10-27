@@ -279,9 +279,9 @@ const S = {
     },
     decor: { twinkle: 1.4, bokeh: 1.2, lightLeak: 1, constellation: 1, concentricSquares: 0.8, cropMarks: 0.5, glitchRects: 0.1, qrBlock: 0.1 }, hud: false, glow: 1.7, useGrad: true,
   },
-  /* ---------------------------------------------------------------- TCG-PV（本作默认） */
+  /* ---------------------------------------------------------------- 本作默认：粉色糖果 */
   tcg: {
-    name: 'TCG 糖果', desc: '二次元渐层：糖果色天空 + 圆体大字 + 星星闪片', moods: ['pop', 'emotional', 'calm'],
+    name: '粉色糖果', desc: '二次元渐层：糖果色天空 + 圆体大字 + 星星闪片', moods: ['pop', 'emotional', 'calm'],
     schemes: [
       { bg: '#EAD8F5', fg: '#2A2350', sub: '#6E5C9B', accent: '#FF4D8D', accent2: '#5AB0FF', ink: '#2A2350', dim: '#F3E6FF', ghostA: '#FF4D8D', ghostB: '#5AB0FF', bgGrad: ['#FFC2E2', '#A9C4FF'] },
       { bg: '#DDF6F0', fg: '#123A46', sub: '#3E7C86', accent: '#FF7A59', accent2: '#2E9BD6', ink: '#123A46', dim: '#E9FBF6', ghostA: '#FF7A59', ghostB: '#2E9BD6', bgGrad: ['#BFF7EA', '#B9D8FF'] },
@@ -310,7 +310,7 @@ for (const [k, v] of Object.entries(S)) {
   J.STYLES[k] = v;
   if (!J.STYLE_ORDER.includes(k)) J.STYLE_ORDER.push(k);
 }
-// 本作默认风格（TCG 糖果）排到第一位，风格格子第一眼就能看到
+// 本作默认风格（粉色糖果）排到第一位，风格格子第一眼就能看到
 if (J.STYLES.tcg && J.STYLE_ORDER.indexOf('tcg') > 0) {
   J.STYLE_ORDER.splice(J.STYLE_ORDER.indexOf('tcg'), 1);
   J.STYLE_ORDER.unshift('tcg');

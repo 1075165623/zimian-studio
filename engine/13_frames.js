@@ -1,5 +1,5 @@
 /* ============================================================
-   TCG-PV工厂 — 画面框版式（frames）
+   粉色大肥鱼-文字PV — 画面框版式（frames）
    这一包全部是「素材优先」的构图：画面里一定有一个大物件（相框 / 胶片 / 屏幕 /
    漫画格 / 海报 / 证件 / 拍立得堆），素材印在物件里，歌词只待在留白处（下沿 /
    侧边 / 说明条），绝不压在照片中间。
@@ -138,7 +138,7 @@ function decorFull(env, a, sc) {
   dots(env, W * 0.85, H * 0.12, W * 0.09, H * 0.18, Math.max(6, u * 11), Math.max(1, u * 1.6), acc, a * 0.3);
 
   // ③ 左右竖排大字（贯穿整幅，最显眼的一层）
-  const LW = 'TCGPVSTUDIO'.split(''), RW = 'LYRICMOVIE2026'.split('');
+  const LW = 'TYPEMOTION'.split(''), RW = 'LYRICMOVIE2026'.split('');
   LW.forEach((ch, i) => env.draw({ text: ch, font: mono, size: Math.max(10, u * 17), x: W * 0.032, y: H * 0.18 + i * u * 30, align: 'center', color: ink, alpha: a * 0.5, ghost: false }));
   RW.forEach((ch, i) => env.draw({ text: ch, font: mono, size: Math.max(10, u * 17), x: W * 0.968, y: H * 0.14 + i * u * 30, align: 'center', color: ink, alpha: a * 0.42, ghost: false }));
 
@@ -151,7 +151,7 @@ function decorFull(env, a, sc) {
       env.line([[x, yy], [x, yy + (k ? -1 : 1) * (i % 3 ? u * 5 : u * 11)]], ink, Math.max(1, u), a * 0.3, false);
     }
   });
-  env.draw({ text: 'TCG-PV  STUDIO  /  PV WORK', font: mono, size: s1, track: 0.34, x: W * 0.05, y: topY - u * 26, align: 'left', color: ink, alpha: a * 0.6, ghost: false });
+  env.draw({ text: 'TYPE  /  MOTION  /  PV WORK', font: mono, size: s1, track: 0.34, x: W * 0.05, y: topY - u * 26, align: 'left', color: ink, alpha: a * 0.6, ghost: false });
   env.draw({ text: 'SCENE ' + no + '   ' + J.fmtTime(env.cut.start), font: mono, size: s1, track: 0.12, x: W * 0.95, y: topY - u * 26, align: 'right', color: ink, alpha: a * 0.55, ghost: false });
 
   // ⑤ 幽灵大数字
@@ -169,7 +169,7 @@ function decorFull(env, a, sc) {
     env.line([[cx - r, cy], [cx + r, cy]], acc, Math.max(1, u * 1.6), a * 0.55, false);
     env.line([[cx, cy - r], [cx, cy + r]], acc, Math.max(1, u * 1.6), a * 0.55, false);
   });
-  env.draw({ text: 'DESIGNED IN TCG-PV  ·  ' + (env.cut.layout || '').toUpperCase(), font: mono, size: Math.max(8, u * 11), track: 0.28, x: W * 0.05, y: botY + u * 22, align: 'left', color: ink, alpha: a * 0.45, ghost: false });
+  env.draw({ text: 'TYPE & MOTION  ·  ' + (env.cut.layout || '').toUpperCase(), font: mono, size: Math.max(8, u * 11), track: 0.28, x: W * 0.05, y: botY + u * 22, align: 'left', color: ink, alpha: a * 0.45, ghost: false });
 }
 function decorKit(env, a, sc) {
   const { W, H, ctx } = env, u = U(env) / 1080;
@@ -193,18 +193,18 @@ function decorKit(env, a, sc) {
     const x = band + (W - band * 2) * i / 12;
     env.line([[x, ry], [x, ry - (i % 3 ? u * 5 : u * 10)]], ink, Math.max(1, u), a * 0.3, false);
   }
-  env.draw({ text: 'TCG-PV  STUDIO', font: mono, size: s1, track: 0.34, x: band, y: ry - u * 34, align: 'left', color: ink, alpha: a * 0.55, ghost: false });
+  env.draw({ text: 'TYPE  /  MOTION', font: mono, size: s1, track: 0.34, x: band, y: ry - u * 34, align: 'left', color: ink, alpha: a * 0.55, ghost: false });
   env.draw({ text: 'SCENE ' + no + ' / ' + J.fmtTime(env.cut.start), font: mono, size: s1, track: 0.1, x: W - band, y: ry - u * 34, align: 'right', color: ink, alpha: a * 0.5, ghost: false });
 
   // 左/右竖排英文（每个变体都有，保证两侧不空）
-  const LW = 'TCGPV·STUDIO'.split(''), RW = 'LYRIC·MOVIE·2026'.split('');
+  const LW = 'TYPE·MOTION'.split(''), RW = 'LYRIC·MOVIE·2026'.split('');
   LW.forEach((ch, i) => env.draw({ text: ch, font: mono, size: s1, x: band * 0.4, y: H * 0.26 + i * s1 * 1.5, align: 'center', color: ink, alpha: a * 0.42, ghost: false }));
   RW.forEach((ch, i) => env.draw({ text: ch, font: mono, size: Math.max(8, u * 12), x: W - band * 0.4, y: H * 0.2 + i * Math.max(8, u * 12) * 1.45, align: 'center', color: ink, alpha: a * 0.34, ghost: false }));
   // 底部细线 + 时间
   env.line([[band * 0.15, H - band * 0.55], [W - band * 0.15, H - band * 0.55]], ink, Math.max(1, u * 1.2), a * 0.25, false);
   if (v === 0 || v === 3) {
     // ② 左边缘竖排英文（一个字一格）
-    const word = (v === 0 ? 'TCGPV' : 'FRAME').split('');
+    const word = (v === 0 ? 'MOTION' : 'FRAME').split('');
     word.forEach((ch, i) => {
       env.draw({ text: ch, font: mono, size: s2, x: band * 0.42, y: H * 0.34 + i * s2 * 1.55, align: 'center', color: ink, alpha: a * 0.5, ghost: false });
     });
@@ -234,7 +234,7 @@ function decorKit(env, a, sc) {
   }
   // ⑦ 右下角：小方块 + 一行英文
   env.rect(W - band * 0.75, H - band * 0.75, u * 22, u * 22, ink, a * 0.22, false);
-  env.draw({ text: 'DESIGNED IN TCG-PV', font: mono, size: Math.max(8, u * 11), track: 0.3, x: band, y: H - band * 0.3, align: 'left', color: ink, alpha: a * 0.35, ghost: false });
+  env.draw({ text: 'TYPE & MOTION', font: mono, size: Math.max(8, u * 11), track: 0.3, x: band, y: H - band * 0.3, align: 'left', color: ink, alpha: a * 0.35, ghost: false });
   ctx.restore();
 }
 /* 版面四周的「版式标记」：细线 + 刻度 + 英文小字 + 小方块 —— 让画面不只剩一张照片 */
@@ -250,7 +250,7 @@ function marginalia(env, a, C, sc, tag) {
     env.line([[W - pad, y], [W - pad + u * 4, y]], ink, lw, a * 0.3, false);
   }
   const mono = 'mono', s1 = Math.max(9, u * 15);
-  env.draw({ text: 'TCG-PV', font: mono, size: s1, track: 0.34, x: pad + u * 7, y: H * 0.075, align: 'left', color: ink, alpha: a * 0.55, ghost: false });
+  env.draw({ text: 'STUDIO', font: mono, size: s1, track: 0.34, x: pad + u * 7, y: H * 0.075, align: 'left', color: ink, alpha: a * 0.55, ghost: false });
   env.draw({ text: (tag || 'FRAME') + ' ' + lineNo(env), font: mono, size: s1, track: 0.22, x: W - pad - u * 7, y: H * 0.075, align: 'right', color: ink, alpha: a * 0.55, ghost: false });
   env.draw({ text: J.fmtTime(env.cut.start), font: mono, size: Math.max(8, u * 12), x: pad + u * 7, y: H * 0.94, align: 'left', color: ink, alpha: a * 0.4, ghost: false });
   env.draw({ text: 'PV / 2026', font: mono, size: Math.max(8, u * 12), x: W - pad - u * 7, y: H * 0.94, align: 'right', color: ink, alpha: a * 0.4, ghost: false });
@@ -613,7 +613,7 @@ J.register('layout', 'idCard', {
     env.rrect(-cw / 2, -ch / 2, cw, ch, cw * 0.02, C.fill, a, false);
     const bandC = p.band === 'accent' ? sc.accent : sc.ink;
     env.rect(-cw / 2, -ch / 2, cw, ch * 0.13, bandC, a, false);
-    env.draw({ text: 'TCG-PV  FACTORY  PASS', font: 'mono', size: ch * 0.055, track: 0.3, x: -cw * 0.44, y: -ch / 2 + ch * 0.085, align: 'left', color: inkOn(sc, bandC), alpha: a * 0.9, ghost: false });
+    env.draw({ text: 'TYPE  /  MOTION  PASS', font: 'mono', size: ch * 0.055, track: 0.3, x: -cw * 0.44, y: -ch / 2 + ch * 0.085, align: 'left', color: inkOn(sc, bandC), alpha: a * 0.9, ghost: false });
     const ph = ch * 0.56, pw = ph * 0.78;
     const px = -cw * 0.44, py = -ch * 0.28;
     env.rect(px - u * 3, py - u * 3, pw + u * 6, ph + u * 6, C.line, a, false);
@@ -709,7 +709,7 @@ J.register('layout', 'refPanel', {
     }
     // ④ 小号英文 + 签名
     if (p.caps) env.draw({ text: 'MOST IS WHEN YOU TALK ABOUT SOME ZODIAC COMPATIBILITY.', font: 'mono', size: Math.max(9, u * 14), track: 0.1, x: px + pw * 0.1, y: py + ph * 0.12, align: 'left', color: inkOn(sc, sc.bg), alpha: a * 0.55, ghost: false });
-    if (p.sign) env.draw({ text: 'T.' + lineNo(env) + '  ·  TCG-PV', font: 'mono', size: Math.max(10, u * 16), track: 0.2, x: W * 0.46, y: H * 0.93, align: 'left', color: acc2, alpha: a * 0.8, ghost: false });
+    if (p.sign) env.draw({ text: 'T.' + lineNo(env) + '  ·  TYPE', font: 'mono', size: Math.max(10, u * 16), track: 0.2, x: W * 0.46, y: H * 0.93, align: 'left', color: acc2, alpha: a * 0.8, ghost: false });
     return null;
   },
 });

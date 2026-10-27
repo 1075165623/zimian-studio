@@ -1,5 +1,5 @@
 /* ============================================================
-   TCG-PV工厂 — 构图参数渲染器（spec → 画面）
+   粉色大肥鱼-文字PV — 构图参数渲染器（spec → 画面）
    一套参数就能画出任意参考图的骨架：大字 / 素材框 / 竖条 / 装饰 / 歌词位。
    25 个新「版式」全部是这里的预设（PRESETS），不再是 25 段硬编码。
    ============================================================ */
@@ -104,7 +104,7 @@ J.drawSpec = (env, spec) => {
     for (let i = 0; i <= 16; i++) { const x = band + (W - band * 2) * i / 16; env.line([[x, H * 0.085], [x, H * 0.085 - (i % 4 ? u * 5 : u * 11)]], fgCol, Math.max(1, u), a * 0.28, false); }
   }
   if (d.verticalText) {
-    (d.verticalText || 'TCG-PV').split('').forEach((ch, i) => env.draw({ text: ch, font: mono, size: Math.max(9, u * 15), x: band * 0.55, y: H * 0.2 + i * u * 28, align: 'center', color: fgCol, alpha: a * 0.45, ghost: false }));
+    (d.verticalText || 'TYPE').split('').forEach((ch, i) => env.draw({ text: ch, font: mono, size: Math.max(9, u * 15), x: band * 0.55, y: H * 0.2 + i * u * 28, align: 'center', color: fgCol, alpha: a * 0.45, ghost: false }));
   }
   if (d.dots) {
     const step = Math.max(6, u * 11);
@@ -125,7 +125,7 @@ J.drawSpec = (env, spec) => {
   else if (zone === 'center') { lx = W * 0.5 - tw / 2; lyy = H * 0.6; }
   const fb = fit(env, env.cut.text, 'gothic_black', tw, th, ly.lines || 2, U(env) * (ly.size || 0.075));
   J.mainDraw(env, { text: fb.text, font: 'gothic_black', size: fb.size, x: lx, y: lyy, align: 'left', lead: 1.06, color: ly.color || fgCol, noHold: true });
-  if (d.sign) env.draw({ text: d.sign + '  ·  TCG-PV', font: mono, size: Math.max(9, u * 14), track: 0.2, x: W * 0.5, y: H * 0.96, align: 'center', color: pal[1] || sc.accent, alpha: a * 0.7, ghost: false });
+  if (d.sign) env.draw({ text: d.sign + '  ·  TYPE', font: mono, size: Math.max(9, u * 14), track: 0.2, x: W * 0.5, y: H * 0.96, align: 'center', color: pal[1] || sc.accent, alpha: a * 0.7, ghost: false });
 };
 
 /* ---------- 25 个预设（15 + 25 = 40 个可放素材的版式） ---------- */
@@ -133,7 +133,7 @@ const R = (x, w, y, h, extra) => Object.assign({ x, y: y == null ? 0.05 : y, w, 
 const PRESETS = [
   ['specSplit', '左右分栏', { subject: R(0.03, 0.44), bgText: { size: 0.3, x: 0.72, y: 0.45, alpha: 0.5 }, lyric: { zone: 'bottom-right' }, decor: { rules: true, verticalText: 'SPLIT', caps: true }, palette: [] }],
   ['specSplitR', '右图左字', { subject: R(0.53, 0.44), bgText: { size: 0.26, x: 0.25, y: 0.4, alpha: 0.45 }, lyric: { zone: 'bottom-left' }, decor: { rules: true, verticalText: 'MIRROR' }, palette: [] }],
-  ['specBigType', '大字压人', { subject: R(0.04, 0.5), bgText: { size: 0.46, x: 0.62, y: 0.5, alpha: 0.8, angle: -6 }, rails: [{ x: 0.9, y: 0.06, w: 0.06, h: 0.88, squares: 7 }], lyric: { zone: 'bottom-left', size: 0.055 }, decor: { caps: true, sign: 'T.01', verticalText: 'TCGPV' }, palette: [] }],
+  ['specBigType', '大字压人', { subject: R(0.04, 0.5), bgText: { size: 0.46, x: 0.62, y: 0.5, alpha: 0.8, angle: -6 }, rails: [{ x: 0.9, y: 0.06, w: 0.06, h: 0.88, squares: 7 }], lyric: { zone: 'bottom-left', size: 0.055 }, decor: { caps: true, sign: 'T.01', verticalText: 'MOTION' }, palette: [] }],
   ['specStrip3', '三联竖条', { subject: R(0.05, 0.28, 0.06, 0.86), bgText: { size: 0.2, x: 0.5, y: 0.16, alpha: 0.35 }, rails: [{ x: 0.36, y: 0.12, w: 0.05, h: 0.76, squares: 5 }, { x: 0.59, y: 0.12, w: 0.05, h: 0.76, squares: 5 }], lyric: { zone: 'bottom-right', w: 0.34 }, decor: { rules: true }, palette: [] }],
   ['specPosterTop', '海报压顶', { subject: R(0.12, 0.76, 0.18, 0.6), bgText: { size: 0.18, x: 0.5, y: 0.06, alpha: 0.5 }, lyric: { zone: 'bottom-left', w: 0.6, size: 0.07 }, decor: { rules: true, caps: false, verticalText: 'POSTER' }, palette: [] }],
   ['specFullBleed', '满幅压字', { subject: R(0, 1, 0, 1, { fit: 'cover' }), bgText: false, lyric: { zone: 'bottom-left', w: 0.5, size: 0.1 }, decor: { rules: true, verticalText: 'FULL' }, palette: [] }],
@@ -151,7 +151,7 @@ const PRESETS = [
   ['specDuo', '双联', { subject: R(0.04, 0.44, 0.08, 0.8), bgText: { size: 0.1, x: 0.5, y: 0.92, alpha: 0.4 }, lyric: { zone: 'top-right', w: 0.34, size: 0.05 }, decor: { rules: true, verticalText: 'DIARY' }, palette: [] }],
   ['specBanner', '横幅标题', { subject: R(0.08, 0.84, 0.2, 0.5, { fit: 'cover' }), bgText: false, lyric: { zone: 'bottom-left', w: 0.7, size: 0.08 }, decor: { rules: true, blocks: [{ x: 0.08, y: 0.08, w: 0.84, h: 0.06 }] }, palette: [] }],
   ['specCorner', '角贴', { subject: R(0.34, 0.44, 0.2, 0.58), bgText: { size: 0.2, x: 0.12, y: 0.16, alpha: 0.35 }, lyric: { zone: 'bottom-left', w: 0.3, size: 0.055 }, decor: { rules: true, dots: true, caps: true }, palette: [] }],
-  ['specVertical', '竖排刊头', { subject: R(0.56, 0.4, 0.06, 0.88), bgText: { size: 0.12, x: 0.2, y: 0.5, alpha: 0.4 }, lyric: { zone: 'top-left', w: 0.44, size: 0.045 }, decor: { rules: true, verticalText: 'TCG-PV' }, palette: [] }],
+  ['specVertical', '竖排刊头', { subject: R(0.56, 0.4, 0.06, 0.88), bgText: { size: 0.12, x: 0.2, y: 0.5, alpha: 0.4 }, lyric: { zone: 'top-left', w: 0.44, size: 0.045 }, decor: { rules: true, verticalText: 'MASTHEAD' }, palette: [] }],
   ['specSticker', '贴纸叠图', { subject: R(0.28, 0.36, 0.24, 0.52), bgText: { size: 0.26, x: 0.5, y: 0.1, alpha: 0.45 }, lyric: { zone: 'bottom-left', w: 0.4, size: 0.06 }, decor: { rules: true, sign: 'T.03', verticalText: 'STICKER' }, palette: [] }],
   ['specBackCover', '封底', { subject: R(0.12, 0.3, 0.22, 0.5), bgText: { size: 0.14, x: 0.62, y: 0.3, alpha: 0.4 }, lyric: { zone: 'bottom-right', w: 0.4, size: 0.05 }, decor: { rules: true, blocks: [{ x: 0.12, y: 0.86, w: 0.76, h: 0.006, color: null }], sign: 'T.04' }, palette: [] }],
   ['specBleedText', '满幅压字二', { subject: R(0, 1, 0, 1, { fit: 'cover' }), bgText: { size: 0.34, x: 0.62, y: 0.66, alpha: 0.7, angle: 4 }, lyric: { zone: 'top-left', w: 0.44, size: 0.07 }, decor: { rules: true, verticalText: 'BLEED' }, palette: [] }],
