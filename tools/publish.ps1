@@ -32,8 +32,13 @@ if (-not $git) {
 }
 
 function Run($args_) {
+  # 原生命令的 stderr 在 PowerShell 5.1 里会被当成终止错误，这里临时放宽
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
   $out = & $git @args_ 2>&1
-  return @{ code = $LASTEXITCODE; out = $out }
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $prev
+  return @{ code = $code; out = $out }
 }
 
 if (-not (Test-Path (Join-Path $root '.git'))) {
