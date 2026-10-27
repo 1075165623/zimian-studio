@@ -78,12 +78,13 @@ function boot() {
   const p = J.defaultProject();
   Object.assign(p, {
     lyrics: SAMPLE,
-    style: 'noir',
+    style: 'tcg',                       // 默认：二次元渐层（TCG 糖果）
     lang: 'zh-Hans',
     aspect: '16:9',
     res: 1080,
     fps: 24,
-    seed: 20261026,
+    // 每次打开换一副编排：不再永远是同一张画面
+    seed: ((Date.now() ^ (Math.random() * 1e9)) >>> 0),
     extra: false,
     typo: true,
     kinetic: true,
@@ -138,7 +139,8 @@ function boot() {
 
   if (S.plan && S.plan.cuts.length) {
     const c = S.plan.cuts[0];
-    seek(J.clamp(c.start + (c.inDur || 0.4) + 0.12, 0, S.plan.duration - 0.1));
+    // 停在第一句排好版的中段（不是入场刚开始那一帧），一进来看到的是一张完整的画面
+    seek(J.clamp(c.start + (c.end - c.start) * 0.55, 0, S.plan.duration - 0.1));
   }
   requestAnimationFrame(tick);
   if (window.ResizeObserver) new ResizeObserver(() => { sizeCanvas(); S.need = true; }).observe($('#viewport'));
@@ -2682,7 +2684,7 @@ async function doExport() {
       signal: ac.signal,
     });
     setBar(1, '写入文件…');
-    const name = '字面_' + p.aspect.replace(':', 'x') + '_' + size[0] + 'p_' + String(p.seed).slice(-4) + '.mp4';
+    const name = 'TCG-PV_' + p.aspect.replace(':', 'x') + '_' + size[0] + 'p_' + String(p.seed).slice(-4) + '.mp4';
     await J.saveFile(name, r.blob);
     setBar(1, '完成 · ' + Math.round((r.size || 0) / 1048576) + ' MB');
     toast('已导出 ' + name + (S.audio ? '（带音轨）' : ''));
@@ -2725,7 +2727,7 @@ async function exportPNG() {
       signal: ac.signal,
     });
     setBar(1, '写入文件…');
-    const name = '字面_透明_' + p.aspect.replace(':', 'x') + '_' + size0(p) + 'p_' + String(p.seed).slice(-4) + '.zip';
+    const name = 'TCG-PV_透明_' + p.aspect.replace(':', 'x') + '_' + size0(p) + 'p_' + String(p.seed).slice(-4) + '.zip';
     await J.saveFile(name, zip);
     setBar(1, '完成');
     toast('已导出透明 PNG 序列：' + name + '（含 back / front 两层，剪映可导入）');
@@ -2798,7 +2800,7 @@ async function exportMOV() {
     }
     setBar(0.97, '封装 MOV…');
     const mov = J.movFromPNG({ width: w, height: h, fps, frames });
-    const name = '字面_透明_' + p.aspect.replace(':', 'x') + '_' + w + 'p_' + String(p.seed).slice(-4) + '.mov';
+    const name = 'TCG-PV_透明_' + p.aspect.replace(':', 'x') + '_' + w + 'p_' + String(p.seed).slice(-4) + '.mov';
     await J.saveFile(name, mov);
     setBar(1, '完成 · ' + Math.round(mov.size / 1048576) + ' MB');
     toast('已导出透明视频 ' + name + '（带 Alpha，剪映直接导入）');

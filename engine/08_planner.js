@@ -423,6 +423,9 @@ J.plan = (project, audio) => {
     let lineBgP = J.BG[lineBg] && J.BG[lineBg].plan ? J.BG[lineBg].plan(rng, st) : {};
     // 这一行有素材要「进版式」→ 只在能放素材的版式里挑（信纸 / 拍立得 / 明信片 …）
     const wantSlot = !!(project.slotLines && project.slotLines.indexOf(li) >= 0);
+    // 第一镜：即使没素材，也优先用「有物件」的版式（信纸 / 明信片 / 卡带 / 月历…），
+    // 一打开看到的是一张完整的构图，而不是几个被裁掉的大字。
+    const introPool = (li === 0 && slotPool.length) ? slotPool : null;
     units.forEach((u, k) => {
       const cs = bounds[k], ce = bounds[k + 1], dur = ce - cs;
       const halves = zones ? splitHalf(u.text, plan.lang) : null;               // 中央を空ける: 「花が」｜「咲いた」
@@ -432,7 +435,7 @@ J.plan = (project, audio) => {
       const Z = zoneOf(li), LW = Z ? Z.w : W, LH = Z ? Z.h : H;       // the frame this cut is laid out in
       const UU = U && !ovAny ? U : null;                              // per-line settings always win over 統一感
       const tech = cutTechOf(ov, k);                                  // このカットだけの指定
-      let layout = ov.layout && J.LAYOUTS[ov.layout] ? ov.layout : pickLayout(rng, st, en, nn, dur, history, emph, u.recap, LH > LW, wantSlot ? slotPool : null);
+      let layout = ov.layout && J.LAYOUTS[ov.layout] ? ov.layout : pickLayout(rng, st, en, nn, dur, history, emph, u.recap, LH > LW, wantSlot ? slotPool : introPool);
       if (UU) layout = UU.layout(li, layout, { nn, dur, emph, kime, rng, portrait: LH > LW, recap: u.recap });
       let enter = ov.enter && J.ENTER[ov.enter] ? ov.enter : pickEnter(rng, st, en, layout, dur, history, emph, nn);
       let exit = ov.exit && J.EXIT[ov.exit] ? ov.exit : pickExit(rng, st, en, layout, dur, k === units.length - 1, history);

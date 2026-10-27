@@ -1,11 +1,11 @@
-# 字面工房 STUDIO
+# TCG-PV工厂
 
 把歌词做成「文字 PV」风格的动态字幕：874 个手法、素材自动印进信纸 / 拍立得 / 明信片，
 在浏览器里直接排、直接预览、直接导出 MP4（WebCodecs）。
 
 - 在线地址：**https://1075165623.github.io/zimian-studio/**
 - 仓库：https://github.com/1075165623/zimian-studio
-- 本地使用：双击 `dist/字面工房.html`（单文件版，离线可用）
+- 本地使用：双击 `dist/TCG-PV工厂.html`（单文件版，离线可用）
 - 用法说明：[使用说明.md](使用说明.md)
 - 发布 / 更新：[部署说明.md](部署说明.md)
 

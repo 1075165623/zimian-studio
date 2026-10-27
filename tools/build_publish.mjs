@@ -1,7 +1,7 @@
 /* 字面工房 — 发布打包脚本
    把引擎 + 界面打成两种可以直接给人的东西：
      1) dist/site/                 静态站点（上传到任何静态空间 / GitHub Pages / Netlify…）
-     2) dist/字面工房.html          单文件版（所有 js/css 内联，双击就能用，方便微信/邮件直接发）
+     2) dist/TCG-PV工厂.html          单文件版（所有 js/css 内联，双击就能用，方便微信/邮件直接发）
    用法：node tools/build_publish.mjs
 */
 import fs from 'node:fs';
@@ -46,11 +46,11 @@ html = html.replace(/<script src="([^"]+)"><\/script>/g, (_, src) => {
   return '<script>/* ' + src + ' */\n' + js + '\n</script>';
 });
 
-w(path.join(DIST, '字面工房.html'), html);
+w(path.join(DIST, 'TCG-PV工厂.html'), html);
 
 /* ---------- 3. 报告 ---------- */
 const size = p => (fs.statSync(p).size / 1024).toFixed(0) + ' KB';
 const count = d => fs.readdirSync(d).length;
 console.log('site  →', SITE);
 console.log('        engine ' + count(path.join(SITE, 'engine')) + ' 个文件 / app ' + count(path.join(SITE, 'app')) + ' 个文件');
-console.log('single→', path.join(DIST, '字面工房.html'), '(内联 ' + inlined + ' 个脚本, ' + size(path.join(DIST, '字面工房.html')) + ')');
+console.log('single→', path.join(DIST, 'TCG-PV工厂.html'), '(内联 ' + inlined + ' 个脚本, ' + size(path.join(DIST, 'TCG-PV工厂.html')) + ')');

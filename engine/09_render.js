@@ -77,11 +77,24 @@ class Renderer {
     const key = plan.keyBg && J.KEY_BG && J.KEY_BG[plan.keyBg] ? plan.keyBg : null;   // 合成用: white-on-black, finished in keyFinish()
     if (key && !opt.transparent) { ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H); }
     else if (!opt.transparent) {
-      ctx.fillStyle = sc.bg; ctx.fillRect(0, 0, W, H);
+      // 背景：普通配色是一整块底色；带 bgGrad 的配色铺一层斜向渐变（二次元那种糖果色天空）
+      if (sc.bgGrad && sc.bgGrad.length >= 2) {
+        const gg = ctx.createLinearGradient(0, 0, W * 0.75, H);
+        for (let i = 0; i < sc.bgGrad.length; i++) gg.addColorStop(i / (sc.bgGrad.length - 1), sc.bgGrad[i]);
+        ctx.fillStyle = gg;
+      } else ctx.fillStyle = sc.bg;
+      ctx.fillRect(0, 0, W, H);
       const g = ctx.createRadialGradient(W / 2, H * 0.45, 0, W / 2, H / 2, Math.hypot(W, H) * 0.6);
-      const lift = J.lum(sc.bg) < 0.5 ? 'rgba(255,255,255,0.045)' : 'rgba(255,255,255,0.10)';
+      const isGrad = !!(sc.bgGrad && sc.bgGrad.length >= 2);
+      const lift = isGrad ? 'rgba(255,255,255,0.05)' : (J.lum(sc.bg) < 0.5 ? 'rgba(255,255,255,0.045)' : 'rgba(255,255,255,0.10)');
       g.addColorStop(0, lift); g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      // 渐层配色：左上角补一团强调色的柔光，二次元海报那种空气感
+      if (isGrad) {
+        const gg2 = ctx.createRadialGradient(W * 0.18, H * 0.12, 0, W * 0.18, H * 0.12, Math.hypot(W, H) * 0.62);
+        gg2.addColorStop(0, J.rgba(sc.accent, 0.16)); gg2.addColorStop(0.55, J.rgba(sc.accent2, 0.07)); gg2.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gg2; ctx.fillRect(0, 0, W, H);
+      }
       const paperAmt = (sc.paper ? 1 : st.texture.paper || 0) * (fx.texture ?? 0.6);
       if (paperAmt > 0.02) {
         ctx.globalCompositeOperation = J.lum(sc.bg) < 0.4 ? 'screen' : 'multiply';

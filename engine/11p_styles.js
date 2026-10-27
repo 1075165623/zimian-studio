@@ -279,11 +279,40 @@ const S = {
     },
     decor: { twinkle: 1.4, bokeh: 1.2, lightLeak: 1, constellation: 1, concentricSquares: 0.8, cropMarks: 0.5, glitchRects: 0.1, qrBlock: 0.1 }, hud: false, glow: 1.7, useGrad: true,
   },
+  /* ---------------------------------------------------------------- TCG-PV（本作默认） */
+  tcg: {
+    name: 'TCG 糖果', desc: '二次元渐层：糖果色天空 + 圆体大字 + 星星闪片', moods: ['pop', 'emotional', 'calm'],
+    schemes: [
+      { bg: '#EAD8F5', fg: '#2A2350', sub: '#6E5C9B', accent: '#FF4D8D', accent2: '#5AB0FF', ink: '#2A2350', dim: '#F3E6FF', ghostA: '#FF4D8D', ghostB: '#5AB0FF', bgGrad: ['#FFC2E2', '#A9C4FF'] },
+      { bg: '#DDF6F0', fg: '#123A46', sub: '#3E7C86', accent: '#FF7A59', accent2: '#2E9BD6', ink: '#123A46', dim: '#E9FBF6', ghostA: '#FF7A59', ghostB: '#2E9BD6', bgGrad: ['#BFF7EA', '#B9D8FF'] },
+      { bg: '#FFE8D2', fg: '#4A2B12', sub: '#8A5A38', accent: '#FF6B9A', accent2: '#FFB347', ink: '#4A2B12', dim: '#FFF4E4', ghostA: '#FF6B9A', ghostB: '#FFB347', bgGrad: ['#FFE3B8', '#FFC9DC'] },
+      { bg: '#3A2258', fg: '#FFF2FA', sub: '#D9BCE6', accent: '#FF6BD6', accent2: '#6BE0FF', ink: '#FFF2FA', dim: '#4A2E6E', ghostA: '#FF6BD6', ghostB: '#6BE0FF', bgGrad: ['#2A1650', '#7A2F8E'] },
+      { bg: '#F2F7FF', fg: '#1B2440', sub: '#4E5C80', accent: '#FF5A8A', accent2: '#3D7BFF', ink: '#1B2440', dim: '#FFFFFF', ghostA: '#FF5A8A', ghostB: '#3D7BFF', bgGrad: ['#FFFFFF', '#CFE2FF'] },
+    ],
+    fonts: { display: ['round', 'pop', 'gothic_black'], serif: ['mincho_bold'], body: ['round', 'gothic_bold'], mono: ['mono'] },
+    texture: { grain: 0.28, paper: 0, scan: 0 }, ghost: 0.34,
+    bias: {
+      layout: { polaroid: 2.6, letterPaper: 2.4, postcard: 2.2, stampSheet: 1.5, calendar: 1.4, vinyl: 1.3, magazine: 1.2, cassette: 1.2, gloss: 1.6, wave: 1.4, pill: 1.3, huge: 1.3, bubbles: 1.2, stickerBomb: 0.5, swissGrid: 0.3, justified: 0.4 },
+      enter: { pop: 1.9, drop: 1.5, blur: 1.3, spin: 1.2, zoom: 1.2, assemble: 0.5, scramble: 0.3, slice: 0.3 },
+      exit: { scatter: 1.5, shrink: 1.4, blur: 1.3, drift: 1.1, explode: 0.6, glitch: 0.3 },
+      treat: { softShadow: 1.5, outline: 1.3, glow: 1.2, gradientV: 1.2, emphasisDots: 1.1, halftone: 0.3, distressed: 0.2 },
+      bg: { bokehBg: 1.6, gradientSweep: 1.5, particlesBg: 1.4, sunburst: 1, splitH: 0.7, spotlight: 0.7, tvBars: 0.1, retroGrid: 0.3 },
+      cam: { dollyIn: 1.3, driftDiag: 1.2, handheld: 1.1, bounce: 0.5 },
+      fx: { lightSweep: 1.3, filmBurn: 0.6, strobe: 0.4, posterize: 0.2 },
+    },
+    decor: { twinkle: 1.6, sparks: 1.5, shapes: 1.3, lightLeak: 1.2, bokeh: 1.2, constellation: 0.8, petals: 1, confetti: 1.1, heartsStars: 1.2, glitchRects: 0.1 },
+    hud: false, glow: 1.15,
+  },
 };
 
 for (const [k, v] of Object.entries(S)) {
   if (J.STYLES[k]) continue;              // never overwrite a core style
   J.STYLES[k] = v;
   if (!J.STYLE_ORDER.includes(k)) J.STYLE_ORDER.push(k);
+}
+// 本作默认风格（TCG 糖果）排到第一位，风格格子第一眼就能看到
+if (J.STYLES.tcg && J.STYLE_ORDER.indexOf('tcg') > 0) {
+  J.STYLE_ORDER.splice(J.STYLE_ORDER.indexOf('tcg'), 1);
+  J.STYLE_ORDER.unshift('tcg');
 }
 })();

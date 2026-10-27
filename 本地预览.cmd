@@ -19,7 +19,7 @@ if defined LANIP echo   ¾ÖÓòÍø£º  http://%LANIP%:8099/     £¨Í¬Ò»ÍøÂçµÄÈË¶¼ÄÜ´ò¿
 echo.
 echo   Õâ¸ö´°¿Ú¹Øµô£¬·þÎñ¾ÍÍ£ÁË¡£
 echo   ×¢Òâ£º¾ÖÓòÍøÊÇ http£¬ÄÜ±à¼­¡¢ÄÜÔ¤ÀÀ£¬µ«²»ÄÜµ¼³öÊÓÆµ¡£
-echo         Òªµ¼³öÇëË«»÷ dist\×ÖÃæ¹¤·¿.html£¨±¾µØÎÄ¼þÊÇÔÊÐíµ¼³öµÄ£©¡£
+echo         Òªµ¼³öÇëË«»÷ dist\TCG-PV¹¤³§.html£¨±¾µØÎÄ¼þÊÇÔÊÐíµ¼³öµÄ£©¡£
 echo   ------------------------------------------------------------
 echo.
 
@@ -35,7 +35,7 @@ if not errorlevel 1 (
   py -3 -m http.server 8099 --bind 0.0.0.0
   goto done
 )
-echo   [x] Ã»ÕÒµ½ Python¡£×°Ò»¸ö Python 3£¬»òÕßÖ±½ÓÓÃ dist\×ÖÃæ¹¤·¿.html ·¢ÎÄ¼þ¡£
+echo   [x] Ã»ÕÒµ½ Python¡£×°Ò»¸ö Python 3£¬»òÕßÖ±½ÓÓÃ dist\TCG-PV¹¤³§.html ·¢ÎÄ¼þ¡£
 
 :done
 echo.
