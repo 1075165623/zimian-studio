@@ -574,6 +574,14 @@ input[type=range]::-webkit-slider-thumb{
 .kf-row select{flex:1 1 0;min-width:0;height:25px;font-size:11px;padding:0 4px}
 .media-insp .mi-row .mi-loop{flex-direction:row;align-items:center;gap:5px;font-size:10.5px;color:var(--ink-2);padding-top:12px}
 .media-insp .mi-row[hidden]{display:none}
+/* 视频片段：入点 / 出点 / 整段铺开 */
+.media-insp .vid-box{margin:7px 0;padding:8px;border:1px solid #E4D8F5;border-radius:10px;background:#FAF7FF}
+.media-insp .vid-box[hidden]{display:none}
+.media-insp .vid-box .kf-head b{color:#6D28D9}
+.media-insp .vid-box .kf-head span{flex:1;text-align:right;font-size:10px;color:#7A6A96;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:6px}
+.media-insp .vid-box .mi-loop{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink-2);margin-top:4px}
+.media-insp .vid-box .mi-row{margin-top:5px}
+.media-insp .vid-box .mi-acts{margin-top:6px}
 
 /* http:// 打开时（局域网预览）的提醒条 */
 .insecure-bar{

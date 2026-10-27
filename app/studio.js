@@ -39,11 +39,12 @@ const S = {
   mediaSeq: 0,
   autoKey: false,     // 自动记录关键帧
   kfEase: 'inout',    // 新关键帧默认缓动
-  beatCfg: { len: 'auto', inAnim: 'auto', pulse: true, layout: 'slot' },   // 导入时的自动落位设置（默认：融进版式）
+  beatCfg: { len: 'auto', inAnim: 'auto', pulse: true, layout: 'slot', videoSpan: true },   // 导入时的自动落位设置（默认：融进版式；视频默认按原片长铺开）
   mediaSel: -1,       // 当前选中的素材下标
   tlPps: 60,          // 时间线缩放：每秒占多少像素（8~600）
   tlScroll: 0,        // 时间线横向滚动偏移（像素）
   snap: true,         // 吸附开关（N）
+  snapBeat: false,    // 额外吸附节拍（默认关，主要吸附素材 / 文字块 / 播放头）
 };
 
 /* ───────────────────── 音频播放（WebAudio，导出不加任何处理） ───────────────────── */
@@ -105,12 +106,12 @@ function boot() {
     timing: { bpm: 96, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineDurs: {}, lineEnds: {}, lineScale: 1 },
   });
   p.fx = Object.assign(p.fx, { motion: 0.65, density: 0.5, decor: 0.45, glitch: 0.45, texture: 0.55, chroma: 0.34 });
-  // 文字层：英文仅描边 / 实心+描边叠层 / 形状图层（全部默认关，开了才改画面）
-  p.text = { outlineEn: false, stack: 0, shapes: { block: false, honey: false, dots: false, noise: false }, amt: 0.45, drift: 0.5 };
+  // 背景层：形状图层 + 英文仅描边 / 实心+描边叠层（全部默认关，开了才改画面）
+  p.text = { outlineEn: false, stack: 0, shapes: { block: false, honey: false, dots: false, noise: false }, amt: 0.45, size: 0.65, drift: 0.5 };
   p.more = true;
   }
   p.fx = Object.assign({}, J.defaultProject().fx, p.fx || {});
-  p.text = Object.assign({ outlineEn: false, stack: 0, shapes: {}, amt: 0.45, drift: 0.5 }, p.text || {});
+  p.text = Object.assign({ outlineEn: false, stack: 0, shapes: {}, amt: 0.45, size: 0.65, drift: 0.5 }, p.text || {});
 
   // 深链接：?style=mxMorning&aspect=9:16&seed=123&extra=1
   const q = new URLSearchParams(location.search);
@@ -622,6 +623,23 @@ function drawTimelineRaw() {
       ctx.restore();
     }
   }
+  // 空档里的装饰段：在文字轨上画成虚线块，提醒这里不是空白
+  for (const c of (G.P.cuts || [])) {
+    if (!c.ambient) continue;
+    const xa = G.X(c.start), xb = G.X(c.end);
+    if (!G.seen(xa, xb)) continue;
+    const bw = Math.max(2, xb - xa), y = G.textTop + 5, bh = Math.max(8, G.textH - 10);
+    ctx.fillStyle = '#232B3A';
+    roundRect(ctx, xa, y, bw, bh, 4); ctx.fill();
+    ctx.save(); ctx.strokeStyle = '#4A5875'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    roundRect(ctx, xa + .5, y + .5, Math.max(1, bw - 1), bh - 1, 4); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+    if (bw > 34) {
+      ctx.save(); ctx.beginPath(); ctx.rect(xa + 4, y, Math.max(0, bw - 8), bh); ctx.clip();
+      ctx.fillStyle = '#A9B6D0'; ctx.font = '600 10.5px system-ui,"Microsoft YaHei"'; ctx.textBaseline = 'middle';
+      ctx.fillText('✦ 装饰', xa + 7, y + bh / 2 + .5);
+      ctx.restore();
+    }
+  }
   ctx.restore();
 
   // ── 素材轨道（缩略图铺满块内，颜色按类型区分，下方画关键帧 ◆） ──
@@ -738,11 +756,21 @@ function drawTimelineRaw() {
   }
   ctx.restore();
 
-  // ── 吸附提示线（拖动时吸到目标的那一瞬间亮一条黄线） ──
+  // ── 吸附提示线（拖动时吸到目标的那一瞬间亮一条黄线，并标出吸到了什么） ──
   if (tlSnapGuide != null) {
     const gx = Math.round(G.X(tlSnapGuide)) + .5;
     ctx.strokeStyle = '#FFD84D'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 3]);
     ctx.beginPath(); ctx.moveTo(gx, TL.rulerH); ctx.lineTo(gx, H); ctx.stroke(); ctx.setLineDash([]);
+    if (tlSnapLabel) {
+      ctx.font = '600 9.5px system-ui,"Microsoft YaHei"'; ctx.textBaseline = 'middle';
+      const tw = ctx.measureText(tlSnapLabel).width + 10;
+      const tx = J.clamp(gx - tw / 2, TL.labelW + 2, W - tw - 2);
+      ctx.fillStyle = 'rgba(14,18,26,.88)';
+      roundRect(ctx, tx, TL.rulerH + 3, tw, 14, 4); ctx.fill();
+      ctx.fillStyle = '#FFD84D'; ctx.textAlign = 'center';
+      ctx.fillText(tlSnapLabel, tx + tw / 2, TL.rulerH + 10.5);
+      ctx.textAlign = 'left';
+    }
   }
 
   // ── 播放头 ──
@@ -853,44 +881,80 @@ function tlHit(G, x, y) {
   return { kind: 'ruler' };
 }
 
-/* 吸附：对齐到最近的节拍；没有 BPM 就对齐到 0.1s */
-/* 磁吸：拖动时只有「离目标 9 像素以内」才会吸过去，平时按帧（1/fps 秒）自由移动。
-   吸附目标：播放头、0、全曲结尾、拍点、其他素材 / 文字行的头尾。按住 Alt = 完全自由。 */
-let tlSnapGuide = null, tlAlt = false;
+/* 吸附：和剪映一样，优先吸素材 / 文字块的边缘，其次播放头 / 片头片尾；
+   节拍吸附单独用「拍点」开关（默认关），不会再把拖动死死拽到节拍上。
+   磁吸范围按屏幕像素算（素材 9px，拍点 7px），缩放到多大都稳定。 */
+let tlSnapGuide = null, tlSnapLabel = '', tlAlt = false;
 function snapCands(excl) {
-  const c = [0, S.t];
+  const c = [{ t: 0, k: '片段头' }, { t: S.t, k: '播放头' }];
   if (S.plan) {
-    c.push(S.plan.duration);
+    c.push({ t: S.plan.duration, k: '片段尾' });
     (S.plan.lines || []).forEach((ln, i) => {
       if (excl && excl.kind === 'text' && excl.i === i) return;
-      c.push(ln.start); c.push(ln.visEnd != null ? ln.visEnd : ln.end);
+      c.push({ t: ln.start, k: '文字' });
+      c.push({ t: ln.visEnd != null ? ln.visEnd : ln.end, k: '文字' });
     });
   }
   S.media.forEach((m, i) => {
     if (excl && excl.kind === 'media' && excl.i === i) return;
-    c.push(m.start, m.start + m.dur);
+    c.push({ t: m.start, k: '素材' });
+    c.push({ t: m.start + m.dur, k: '素材' });
   });
   return c;
 }
 /* start = 想要的起点；dur > 0 时头和尾都可以吸（整块平移）；dur = 0 时只吸这一个点（拖边缘） */
 function magSnapSpan(start, dur, excl) {
-  const fps = S.plan ? S.plan.fps : 24;
-  const fr = x => Math.round(x * fps) / fps;
-  tlSnapGuide = null;
-  if (!S.snap || tlAlt) return fr(start);
-  const G = tlGeom(), tol = 9 / (G ? G.pps : 60);
+  tlSnapGuide = null; tlSnapLabel = '';
+  const free = v => Math.round(v * 1000) / 1000;              // 不再强行对帧：可以拖到任意位置
+  if (!S.snap || tlAlt) return free(start);
+  const G = tlGeom(), pps = G ? G.pps : 60;
   const cands = snapCands(excl);
+  let best = null, bd = 9 / pps;
+  for (const e of (dur > 0 ? [0, dur] : [0])) {
+    for (const c of cands) {
+      const d = Math.abs(start + e - c.t);
+      if (d < bd) { bd = d; best = { s: c.t - e, t: c.t, k: c.k }; }
+    }
+  }
+  if (!best && S.snapBeat) {
+    const T = S.project.timing || {};
+    if (T.bpm > 0) {
+      const b = 60 / T.bpm, off = T.offset || 0;
+      bd = 7 / pps;
+      for (const e of (dur > 0 ? [0, dur] : [0])) {
+        const hit = off + Math.round((start + e - off) / b) * b;
+        const d = Math.abs(start + e - hit);
+        if (d < bd) { bd = d; best = { s: hit - e, t: hit, k: '拍点' }; }
+      }
+    }
+  }
+  if (best) { tlSnapGuide = best.t; tlSnapLabel = best.k; return free(best.s); }
+  return free(start);
+}
+
+/* 手动拖文字块时，先把其他行的当前时间冻结住：拖一行不会带着后面的行一起跑。
+   以前只改 project.timing，画面要等松手才重排，所以文字块看起来「拖不动」。 */
+function freezeTextTiming() {
+  if (!S.plan) return;
   const T = S.project.timing;
-  if (T.bpm > 0) {
-    const b = 60 / T.bpm, off = T.offset || 0;
-    for (const e of dur > 0 ? [start, start + dur] : [start]) cands.push(off + Math.round((e - off) / b) * b);
-  }
-  let best = null, bd = tol;
-  for (const e of dur > 0 ? [0, dur] : [0]) {
-    for (const c of cands) { const d = Math.abs(start + e - c); if (d < bd) { bd = d; best = { s: c - e, g: c }; } }
-  }
-  if (best) { tlSnapGuide = best.g; return best.s; }
-  return fr(start);
+  T.lineTimes = T.lineTimes || {};
+  T.lineEnds = T.lineEnds || {};
+  T.lineDurs = T.lineDurs || {};
+  (S.plan.lines || []).forEach((ln, i) => {
+    if (T.lineTimes[i] == null) T.lineTimes[i] = +(+ln.start).toFixed(3);
+    const e = ln.visEnd != null ? ln.visEnd : ln.end;
+    if (T.lineEnds[i] == null) T.lineEnds[i] = +(+e).toFixed(3);
+    if (T.lineDurs[i] == null) T.lineDurs[i] = +Math.max(0.35, e - ln.start).toFixed(3);
+  });
+}
+/* 拖动中的文字块：先直接改 plan.lines 让时间线立刻跟着走，再每 80ms 重排一次画面 */
+function queueTextReplan() {
+  if (queueTextReplan._t) return;
+  queueTextReplan._t = setTimeout(() => { queueTextReplan._t = 0; replan(); }, 80);
+}
+function flushTextReplan() {
+  if (queueTextReplan._t) { clearTimeout(queueTextReplan._t); queueTextReplan._t = 0; }
+  replan();
 }
 
 /* 导入时的自动落位：对齐拍点（这是「自动」，不是拖动） */
@@ -937,7 +1001,7 @@ function bindTimeline() {
       if (hit.kind === 'text') {
         const ln = S.plan.lines[i];
         const end = ln.visEnd != null ? ln.visEnd : ln.end;
-        base = { start: ln.start, end, dur: Math.max(0.3, end - ln.start), next: i + 1 < S.plan.lines.length ? S.plan.lines[i + 1].start : null, lane: 0 };
+        base = { start: ln.start, end, dur: Math.max(0.3, end - ln.start), lane: 0 };
         pause();
       } else {
         const m = S.media[i];
@@ -951,7 +1015,8 @@ function bindTimeline() {
         base = { start: m.start, dur: m.dur, lane: m.lane | 0 };
       }
       TL.sel = { kind: hit.kind, i };
-      drag = { hit, x0: p.x, y0: p.y, pps: G.pps, laneH: TL.laneH, base, moved: false, lane0: base.lane | 0, slot: hit.kind === 'media' && !!S.media[i].inLayout && !S.media[i].orphan };
+      drag = { hit, x0: p.x, y0: p.y, t0: G.unX(p.x), pps: G.pps, laneH: TL.laneH, base, moved: false, lane0: base.lane | 0, slot: hit.kind === 'media' && !!S.media[i].inLayout && !S.media[i].orphan };
+      cv.style.cursor = 'grabbing';
       if (hit.kind === 'text') seek(base.start + 0.01);
     } else if (hit) {
       drag = { scrub: true };
@@ -994,33 +1059,38 @@ function bindTimeline() {
     }
 
     tlAlt = e.altKey;
-    const G = tlGeom(); if (!G) return;
-    const dx = p.x - drag.x0, dy = p.y - drag.y0;
-    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) drag.moved = true;
-    const dt = dx / drag.pps;
+    let G = tlGeom(); if (!G) return;
+    const dy = p.y - drag.y0;
+    if (Math.abs(p.x - drag.x0) > 2 || Math.abs(dy) > 2) drag.moved = true;
+    // 拖到时间线边缘时自动滚动，长片也能一口气拖过去
+    const edge = 26;
+    const sl0 = scroll.scrollLeft;
+    if (p.x > G.vw - edge) scroll.scrollLeft += Math.min(22, p.x - (G.vw - edge));
+    else if (p.x < TL.labelW + edge) scroll.scrollLeft = Math.max(0, scroll.scrollLeft - Math.min(22, TL.labelW + edge - p.x));
+    if (scroll.scrollLeft !== sl0) G = tlGeom() || G;
+    const dt = G.unX(p.x) - drag.t0;
     const h = drag.hit, b = drag.base;
 
     if (h.kind === 'text') {
+      if (!drag.frozen) { freezeTextTiming(); drag.frozen = true; }
       const i = h.i;
       const T = S.project.timing;
+      const ln = S.plan.lines[i];
+      let s0 = b.start, e0 = b.end;
       if (h.edge === 'body') {
-        const s = Math.max(0, magSnapSpan(b.start + dt, b.dur, { kind: 'text', i }));
-        T.lineTimes[i] = s;
-        T.lineEnds[i] = s + b.dur;                 // 整块平移，长度不变
-        T.lineDurs[i] = b.dur;
+        s0 = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'text', i }), 0, Math.max(0, G.dur - 0.3));
+        e0 = s0 + b.dur;                       // 整块平移，长度不变
       } else if (h.edge === 'right') {
-        const e = Math.max(b.start + 0.3, magSnapSpan(b.start + b.dur + dt, 0, { kind: 'text', i }));
-        const cap = b.next != null ? Math.max(b.start + 0.3, b.next) : (G.dur || e);
-        T.lineEnds[i] = Math.min(e, cap);
-        T.lineDurs[i] = T.lineEnds[i] - b.start;
+        e0 = Math.max(b.start + 0.3, magSnapSpan(b.end + dt, 0, { kind: 'text', i }));
       } else {
-        const s = J.clamp(magSnapSpan(b.start + dt, 0, { kind: 'text', i }), 0, b.end - 0.3);
-        T.lineTimes[i] = s;
-        T.lineEnds[i] = b.end;
-        T.lineDurs[i] = b.end - s;
+        s0 = J.clamp(magSnapSpan(b.start + dt, 0, { kind: 'text', i }), 0, b.end - 0.3);
       }
-      clearTimeout(bindTimeline._t);
-      bindTimeline._t = setTimeout(replan, 90);
+      T.lineTimes[i] = +s0.toFixed(3);
+      T.lineEnds[i] = +e0.toFixed(3);
+      T.lineDurs[i] = +Math.max(0.3, e0 - s0).toFixed(3);
+      if (ln) { ln.start = s0; ln.visEnd = e0; ln.end = Math.max(e0, ln.end); }   // 时间线立刻跟着手走
+      queueTextReplan();
+      S.need = true;
     } else if (h.kind === 'media') {
       const m = S.media[h.i];
       if (!m) { drag = null; return; }
@@ -1039,7 +1109,6 @@ function bindTimeline() {
       S.need = true;
     }
     drawTimeline();
-    syncMediaInsp();
   });
 
   const end = e => {
@@ -1047,14 +1116,14 @@ function bindTimeline() {
     if (drag && drag.hit) {
       const h = drag.hit;
       if (h.kind === 'text') {
-        clearTimeout(bindTimeline._t);
-        replan();
+        if (drag.moved) flushTextReplan();          // 松手：用最终时间重排一次画面
       } else if (h.kind === 'media' && drag.moved && drag.slot) {
         dropSlotClip(S.media[h.i]);              // 松手：素材落在哪一句，就绑到哪一句
       }
     }
     drag = null;
-    tlSnapGuide = null;
+    tlSnapGuide = null; tlSnapLabel = '';
+    cv.style.cursor = 'default';
     drawTimeline();
     syncMediaInsp();
     try { cv.releasePointerCapture(e.pointerId); } catch (err) {}
@@ -1100,8 +1169,14 @@ function bindTimeline() {
   snapTag.onclick = () => {
     S.snap = !S.snap;
     snapTag.classList.toggle('off', !S.snap);
-    snapTag.textContent = S.snap ? '吸附' : '自由';
-    toast(S.snap ? '吸附：拖动会对齐节拍' : '不吸附，可以随便摆');
+    snapTag.textContent = S.snap ? '吸附素材' : '自由';
+    toast(S.snap ? '吸附：素材边缘 / 文字块 / 播放头' : '完全自由，不吸附（Alt 也可以临时关掉）');
+  };
+  const beatTag = $('#tlBeatTag');
+  if (beatTag) beatTag.onclick = () => {
+    S.snapBeat = !S.snapBeat;
+    beatTag.classList.toggle('off', !S.snapBeat);
+    toast(S.snapBeat ? '额外吸附节拍：拖动时也会吸到拍点' : '不再吸附节拍，只吸素材 / 文字块 / 播放头');
   };
 
   // 把图片直接拖到时间线上：落在哪一秒就从哪一秒开始
@@ -1697,8 +1772,19 @@ async function loadMediaFile(file, opt = {}) {
     S.mediaSel = S.media.length - 1;
     TL.sel = { kind: 'media', i: S.mediaSel };
     applyDefaultLook(m, S.media.length - 1);
-    // 「进版式」：指定了歌词行 → 直接融进那一行的版式插槽（时间 = 这一句；这一句满了就往后一句）
-    if (opt.line != null && opt.line >= 0) {
+    // 视频默认「按原片长铺开」：不锁进一句歌词，trimEnd = 原片结尾，整段内容都能看到
+    const spanVideo = a.kind === 'video' && S.beatCfg.videoSpan !== false && opt.videoSpan !== false;
+    if (spanVideo) {
+      m.inLayout = false; m.line = null; m.slotName = null;
+      m.loop = false;
+      m.trim = 0;
+      m.trimEnd = +(a.dur || m.dur).toFixed(3);
+      m.dur = J.clamp(a.dur || m.dur, 0.3, Math.max(0.3, planDur - m.start));
+      autoFit(m, 'fit');
+      m.blend = 0; m.react = 0; m.inM = 'fade';
+      S.mediaSel = S.media.length - 1;
+    } else if (opt.line != null && opt.line >= 0) {
+      // 「进版式」：指定了歌词行 → 直接融进那一行的版式插槽（时间 = 这一句；这一句满了就往后一句）
       if (!bindSlot(m, opt.line, { slot: opt.slot })) {
         const nl = nextLineAfter(opt.line);
         if (nl >= 0) bindSlot(m, nl, { slot: opt.slot });
@@ -1734,9 +1820,9 @@ async function addImageFiles(files, opt = {}) {
   }
   let bound = 0;
   let skipped = 0;
-  const canBind = line >= 0;
+  let lineDone = false;
   for (let idx = 0; idx < total; idx++) {
-    if (slotMode && canBind && line < 0) { skipped = total - idx; break; }   // 歌词行用完了：别再堆到片尾
+    if (slotMode && lineDone) { skipped = total - idx; break; }   // 歌词行用完了：别再堆到片尾
     const f = list[idx];
     if (total > 6 && (idx === 0 || (idx + 1) % 6 === 0)) {
       toast('正在排入素材 ' + (idx + 1) + ' / ' + total + '…');
@@ -1746,8 +1832,19 @@ async function addImageFiles(files, opt = {}) {
     if (m) {
       n++;
       t = m.start + m.dur;
-      if (m.inLayout) { bound++; line = nextLineAfter(m.line); }
-      else if (slotMode && line >= 0) line = nextLineAfter(line);
+      if (m.inLayout) {
+        bound++;
+        line = nextLineAfter(m.line);
+        if (line < 0) lineDone = true;
+      } else if (m.kind === 'video') {
+        // 视频按原片长铺开：后面的图从视频结束处那一段歌词继续贴
+        const c = S.plan ? J.cutAt(S.plan, m.start + m.dur + 0.01) : null;
+        line = c && c.line >= 0 ? c.line : -1;
+        if (line < 0) lineDone = true;
+      } else if (slotMode && line >= 0) {
+        line = nextLineAfter(line);
+        if (line < 0) lineDone = true;
+      }
     }
   }
   if (n) {
@@ -1898,9 +1995,13 @@ async function dropFiles(files, opt = {}) {
 /* ── 视频同步（预览用）和逐帧定位（导出用） ── */
 
 function videoTime(m, lt) {
-  const d = m.el.duration || 1;
-  const base = Math.max(0, lt) + (m.trim || 0);
-  return m.loop === false ? Math.min(base, Math.max(0, d - 0.04)) : base % d;
+  const a0 = S.assets[m.assetId] || {};
+  const d = (m.el && isFinite(m.el.duration) && m.el.duration > 0) ? m.el.duration : (a0.dur || 1);
+  const a = J.clamp(m.trim || 0, 0, Math.max(0, d - 0.05));
+  const b = J.clamp(m.trimEnd != null ? +m.trimEnd : d, a + 0.02, d);
+  const span = Math.max(0.02, b - a);
+  if (m.loop === false) return Math.min(b - 0.001, a + Math.max(0, lt));
+  return a + (Math.max(0, lt) % span);
 }
 
 /* 播放时让每个视频元素跟着时间线走；暂停时停在对应那一帧 */
@@ -2403,12 +2504,20 @@ function syncMediaInsp() {
   if (stip) stip.textContent = inSlot
     ? '它现在是这一页纸的一部分：大小 = 在纸里放大 / 缩小，位置 / 旋转 = 在纸里微调（都可以打关键帧）。'
     : '点「放进这一句」把它融进这一句的版式（立绘印在信纸 / 拍立得上，跟着纸一起动）。';
-  // 视频专属
+  // 视频专属：入点 / 出点 / 整段铺开
   const vr = $('#miVideoRow');
   if (vr) vr.hidden = m.kind !== 'video';
   if (m.kind === 'video') {
-    setVal('#miTrim', (+m.trim || 0).toFixed(2));
+    const av = S.assets[m.assetId] || {};
+    const sd = +av.dur || 0;
+    const a0 = J.clamp(+m.trim || 0, 0, Math.max(0, sd - 0.05));
+    const b0 = J.clamp(m.trimEnd != null ? +m.trimEnd : sd, a0 + 0.02, Math.max(a0 + 0.02, sd));
+    setVal('#miTrim', a0.toFixed(2));
+    setVal('#miTrimEnd', b0.toFixed(2));
+    const meta = $('#miVidMeta');
+    if (meta) meta.textContent = sd > 0 ? '源 ' + sd.toFixed(1) + 's · 选段 ' + Math.max(0, b0 - a0).toFixed(1) + 's' : '—';
     const lp = $('#miLoop'); if (lp && lp.checked !== (m.loop !== false)) lp.checked = m.loop !== false;
+    const wb = $('#miVidWhole'); if (wb) wb.disabled = !(sd > 0);
   }
   // 关键帧
   const ak = $('#miAutoKey'); if (ak && ak.checked !== S.autoKey) ak.checked = S.autoKey;
@@ -2502,7 +2611,60 @@ function bindMediaCard() {
   num('#miDur', (m, v) => { if (isFinite(v)) m.dur = J.clamp(v, 0.3, 600); });
   num('#miTrim', (m, v) => {
     const a = S.assets[m.assetId];
-    if (isFinite(v) && a && a.dur) m.trim = J.clamp(v, 0, Math.max(0, a.dur - 0.1));
+    if (isFinite(v) && a && a.dur) {
+      m.trim = J.clamp(v, 0, Math.max(0, a.dur - 0.1));
+      if (m.trimEnd == null) m.trimEnd = a.dur;
+      if (+m.trimEnd < m.trim + 0.2) m.trimEnd = Math.min(a.dur, m.trim + 0.2);
+    }
+  });
+  num('#miTrimEnd', (m, v) => {
+    const a = S.assets[m.assetId];
+    if (isFinite(v) && a && a.dur) {
+      m.trimEnd = J.clamp(v, (+m.trim || 0) + 0.2, a.dur);
+    }
+  });
+  const vidBtn = (sel, fn) => {
+    const el = $(sel); if (!el) return;
+    el.onclick = () => {
+      const m = cur(); if (!m || m.kind !== 'video') return;
+      const a = S.assets[m.assetId] || {};
+      const d = +a.dur || 0;
+      if (!(d > 0)) { toast('这个视频还没读出长度，换 mp4 / webm 试试'); return; }
+      const planDur = S.plan ? S.plan.duration : d;
+      fn(m, d, planDur);
+      S.mediaSel = S.media.indexOf(m);
+      S.need = true; replan(); drawTimeline(); syncMediaList(); syncMediaInsp(); commit();
+    };
+  };
+  vidBtn('#miVidIn', (m, d) => {
+    const src = (+m.trim || 0) + (S.t - m.start);
+    if (S.t < m.start - 0.02 || S.t > m.start + m.dur + 0.02) { toast('先把播放头挪到这个视频里，再取入点'); return; }
+    m.trim = J.clamp(src, 0, Math.max(0, d - 0.2));
+    if (+m.trimEnd < m.trim + 0.2) m.trimEnd = Math.min(d, m.trim + 0.2);
+    toast('视频入点 = ' + m.trim.toFixed(2) + 's');
+  });
+  vidBtn('#miVidOut', (m, d) => {
+    const src = (+m.trim || 0) + (S.t - m.start);
+    if (S.t < m.start - 0.02 || S.t > m.start + m.dur + 0.02) { toast('先把播放头挪到这个视频里，再取出点'); return; }
+    m.trimEnd = J.clamp(src, (+m.trim || 0) + 0.2, d);
+    toast('视频出点 = ' + m.trimEnd.toFixed(2) + 's');
+  });
+  vidBtn('#miVidWhole', (m, d, planDur) => {
+    unbindSlot(m);
+    m.trim = 0; m.trimEnd = d; m.loop = false;
+    // 整段视频放得下就自动挪到放得下的位置（优先保留原来的起点）
+    const st = Math.max(0, Math.min(m.start, planDur - d));
+    m.start = st;
+    m.dur = Math.max(0.3, Math.min(d, planDur - st));
+    autoFit(m, 'fit'); m.blend = 0; m.react = 0;
+    toast('已按原片长铺开：' + d.toFixed(1) + 's 完整放进来，不循环');
+  });
+  vidBtn('#miVidAll', (m, d, planDur) => {
+    unbindSlot(m);
+    m.start = 0; m.dur = Math.max(0.3, planDur);
+    m.trim = 0; m.trimEnd = d; m.loop = true;
+    autoFit(m, 'cover'); m.blend = 0; m.react = 0;
+    toast('已铺满整首：从 0 开始，视频比歌短就在选段里循环');
   });
   const act = (sel, fn) => { const el = $(sel); if (el) el.onclick = () => { const m = cur(); if (!m) return; fn(m); S.need = true; drawTimeline(); syncMediaList(); commit(); }; };
   act('#miFit', m => { autoFit(m, 'cover'); toast('铺满画面'); });
@@ -2545,6 +2707,14 @@ function bindMediaCard() {
   if (cl) cl.onchange = () => { S.beatCfg.len = cl.value; };
   if (ci) ci.onchange = () => { S.beatCfg.inAnim = ci.value; };
   if (cp) cp.onchange = () => { S.beatCfg.pulse = cp.checked; };
+  const cvsp = $('#cfgVideoSpan');
+  if (cvsp) {
+    cvsp.checked = S.beatCfg.videoSpan !== false;
+    cvsp.onchange = () => {
+      S.beatCfg.videoSpan = cvsp.checked;
+      toast(cvsp.checked ? '之后拖进来的视频会按原片长铺开（不锁进一句歌词）' : '之后拖进来的视频会融进歌词版式（时间跟着这一句）');
+    };
+  }
   const cy = $('#cfgLayout');
   if (cy) cy.onchange = () => { S.beatCfg.layout = cy.value; };
 
@@ -2744,9 +2914,9 @@ function updateSums() {
   const tl = S.project.text || {};
   const nShape = tl.shapes ? ['block', 'honey', 'dots', 'noise'].filter(k => tl.shapes[k]).length : 0;
   const tBits = [];
+  if (nShape) tBits.push('背景 ' + nShape + ' 种');
+  if (tl.stack) tBits.push('文字叠 ' + tl.stack + ' 层');
   if (tl.outlineEn) tBits.push('英文描边');
-  if (tl.stack) tBits.push('叠 ' + tl.stack + ' 层');
-  if (nShape) tBits.push(nShape + ' 种形状');
   $('#sumText').textContent = tBits.length ? tBits.join(' · ') : '关';
 }
 
@@ -3223,16 +3393,17 @@ function bind() {
   });
   fs('#fDisplay', 'display'); fs('#fSerif', 'serif'); fs('#fBody', 'body');
 
-  // 文字层：英文描边 / 叠层 / 形状图层（只影响画面，不用重排）
-  const TL = () => (S.project.text || (S.project.text = { outlineEn: false, stack: 0, shapes: {}, amt: 0.45, drift: 0.5 }));
+  // 背景层：形状图层 / 英文描边 / 叠层（只影响画面，不用重排）
+  const TL = () => (S.project.text || (S.project.text = { outlineEn: false, stack: 0, shapes: {}, amt: 0.45, size: 0.65, drift: 0.5 }));
   const shapeIds = { block: '#shBlock', honey: '#shHoney', dots: '#shDots', noise: '#shNoise' };
   const syncTextUI = () => {
     const t = TL();
     $('#tlOutlineEn').checked = !!t.outlineEn;
     $$('#segStack button').forEach(b => b.classList.toggle('on', (+b.dataset.v | 0) === (t.stack | 0)));
     for (const k in shapeIds) { const el = $(shapeIds[k]); if (el) el.checked = !!(t.shapes && t.shapes[k]); }
-    const amt = t.amt == null ? 0.45 : t.amt, drift = t.drift == null ? 0.5 : t.drift;
+    const amt = t.amt == null ? 0.45 : t.amt, drift = t.drift == null ? 0.5 : t.drift, size = t.size == null ? 0.65 : t.size;
     $('#shAmt').value = Math.round(amt * 100); $('#oShAmt').textContent = amt.toFixed(2);
+    $('#shSize').value = Math.round(size * 100); $('#oShSize').textContent = size.toFixed(2);
     $('#shDrift').value = Math.round(drift * 100); $('#oShDrift').textContent = drift.toFixed(2);
   };
   syncTextUI();
@@ -3254,6 +3425,7 @@ function bind() {
     const v = +$(id).value / 100; TL()[key] = v; $(out).textContent = v.toFixed(2); S.need = true;
   });
   shSl('#shAmt', 'amt', '#oShAmt');
+  shSl('#shSize', 'size', '#oShSize');
   shSl('#shDrift', 'drift', '#oShDrift');
 
   // 播放
@@ -3422,7 +3594,8 @@ function bindShortcuts() {
     if (mod && !shift && key === 'b') { e.preventDefault(); splitAtPlayhead(); return; }        // 分割 Ctrl+B
     if (mod && shift && key === 'b') { e.preventDefault(); toast('批量分割：先把要分的行在「逐行手法」里展开'); return; } // 批量分割
     if (!mod && !shift && key === 'a') { e.preventDefault(); toast('选择模式'); return; }       // 鼠标选择模式 A
-    if (!mod && !shift && key === 'n') { e.preventDefault(); S.snap = !S.snap; const st = $('#tlSnapTag'); if (st) { st.classList.toggle('off', !S.snap); st.textContent = S.snap ? '吸附' : '自由'; } toast(S.snap ? '吸附已开启' : '吸附已关闭'); return; } // 吸附 N
+    if (!mod && !shift && key === 'n') { e.preventDefault(); S.snap = !S.snap; const st = $('#tlSnapTag'); if (st) { st.classList.toggle('off', !S.snap); st.textContent = S.snap ? '吸附素材' : '自由'; } toast(S.snap ? '吸附已开启：素材 / 文字块 / 播放头' : '吸附已关闭'); return; } // 吸附 N
+    if (!mod && !shift && key === 'b') { e.preventDefault(); S.snapBeat = !S.snapBeat; const bt = $('#tlBeatTag'); if (bt) bt.classList.toggle('off', !S.snapBeat); toast(S.snapBeat ? '拍点吸附已开启' : '拍点吸附已关闭'); return; } // 拍点吸附 B
     if (mod && !shift && (key === '=' || key === '+')) { e.preventDefault(); S.tlPps = J.clamp(S.tlPps * 1.25, 8, 600); drawTimeline(); return; }  // 轨道放大
     if (mod && !shift && (key === '-' || key === '_')) { e.preventDefault(); S.tlPps = J.clamp(S.tlPps / 1.25, 8, 600); drawTimeline(); return; } // 轨道缩小
     if (shift && !mod && key === 'z') { e.preventDefault(); fitTimeline(); return; }            // 全局预览缩放 Shift+Z

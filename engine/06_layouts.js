@@ -144,6 +144,70 @@ const fontsOf = (st, roles) => { const f = roles.flatMap(r => st.fonts[r] || [])
 J.glyphCount = glyphCount; J.fontsOf = fontsOf; J.unionBB = unionBB;
 J.centerBB = (env, bb) => bb || { x0: env.W * 0.35, x1: env.W * 0.65, y0: env.H * 0.4, y1: env.H * 0.6, cx: env.W / 2, cy: env.H / 2, boxes: [] };
 
+/* 没有歌词的间隙 / 纯音乐：不写字，但画面一直在动 —— 轨道点、扫描线、均衡条、转动的环。
+   和版式同一套配色，随风格走；时间用 env.lt，所以暂停 / 拖动播放头时也能对上。 */
+function ambient(env) {
+  const { W, H, sc, ctx } = env, u = Math.min(W, H) / 1080, t = env.lt, dur = env.cut.dur || 1;
+  const a = J.clamp(t / 0.35) * J.clamp((dur - t) / 0.35);
+  if (a <= 0.003) return J.centerBB(env);
+  const acc = sc.accent, acc2 = sc.accent2 || sc.accent, ink = sc.fg;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  // ① 三层缓慢转动的虚线圆环
+  for (let k = 0; k < 3; k++) {
+    const r = Math.min(W, H) * (0.2 + k * 0.13) * (1 + 0.045 * Math.sin(t * 0.7 + k * 1.7));
+    ctx.globalAlpha = a * (0.26 - k * 0.055);
+    ctx.strokeStyle = k === 1 ? acc2 : acc;
+    ctx.lineWidth = Math.max(1, u * (2.6 - k * 0.5));
+    ctx.setLineDash([u * 7, u * 12]);
+    ctx.lineDashOffset = -t * u * 26 * (k % 2 ? -1 : 1);
+    ctx.beginPath(); ctx.arc(W * 0.5, H * 0.52, r, 0, J.TAU); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // ② 两个缓慢转动的空心方框
+  for (let k = 0; k < 2; k++) {
+    ctx.save();
+    ctx.translate(W * 0.5, H * 0.52);
+    ctx.rotate((t * (0.05 + k * 0.03) + k * 0.7) * (k ? -1 : 1));
+    ctx.globalAlpha = a * 0.12;
+    ctx.strokeStyle = k ? acc2 : ink; ctx.lineWidth = Math.max(1, u * 1.3);
+    const side = Math.min(W, H) * (0.42 + k * 0.16);
+    ctx.strokeRect(-side / 2, -side / 2, side, side);
+    ctx.restore();
+  }
+  // ③ 绕轨道漂浮的粒子
+  for (let i = 0; i < 30; i++) {
+    const ph = t * (0.22 + (i % 6) * 0.025) + i * 1.73;
+    const rr = Math.min(W, H) * (0.3 + 0.14 * Math.sin(i * 2.17));
+    const x = W * 0.5 + Math.cos(ph) * rr * 1.3;
+    const y = H * 0.52 + Math.sin(ph * 0.86 + i) * rr * 0.56;
+    const s = Math.max(1.2, u * (1.3 + (i % 4) * 0.65));
+    ctx.globalAlpha = a * (0.2 + 0.38 * (0.5 + 0.5 * Math.sin(ph * 2.1)));
+    ctx.fillStyle = i % 3 ? acc : acc2;
+    ctx.beginPath(); ctx.arc(x, y, s, 0, J.TAU); ctx.fill();
+  }
+  // ④ 一条很淡的扫描线
+  const sx = W * ((t * 0.06 + 0.06) % 1.08);
+  ctx.globalAlpha = a * 0.16; ctx.strokeStyle = acc2; ctx.lineWidth = Math.max(1, u * 2.2);
+  ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+  // ⑤ 底部均衡条
+  const bars = 28, bw = W / bars;
+  for (let i = 0; i < bars; i++) {
+    const hh = (0.018 + 0.075 * Math.abs(Math.sin(t * 1.35 + i * 0.53))) * H;
+    ctx.globalAlpha = a * 0.18; ctx.fillStyle = i % 4 ? acc : acc2;
+    ctx.fillRect(i * bw + bw * 0.24, H - hh, bw * 0.52, hh);
+  }
+  // ⑥ 细边框 + 四角标记，保持和杂志版式一个语感
+  const m = u * 54;
+  ctx.globalAlpha = a * 0.28; ctx.strokeStyle = ink; ctx.lineWidth = Math.max(1, u * 1.2);
+  ctx.strokeRect(m, m, W - m * 2, H - m * 2);
+  for (const [px, py, dx, dy] of [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]]) {
+    ctx.beginPath(); ctx.moveTo(px + dx * u * 18, py); ctx.lineTo(px, py); ctx.lineTo(px, py + dy * u * 18); ctx.stroke();
+  }
+  ctx.restore();
+  return J.centerBB(env);
+}
+
 J.LAYOUTS = {
   /* ------------------------------------------------ */
   center: {
@@ -650,10 +714,11 @@ J.LAYOUTS = {
   /* ------------------------------------------------ special: interlude */
   interlude: {
     name: '間奏', special: true, fits: () => false,
-    plan: (rng) => ({ variant: rng.pick(['counter', 'rings']) }),
+    plan: (rng) => ({ variant: rng.pick(['ambient', 'counter', 'rings']) }),
     render(env) {
       const { W, H, sc } = env, P = env.cut.params, lb = env.ltb;
       const fs = J.clamp(H * 0.022, 12, 22);
+      if (P.variant === 'ambient') return ambient(env);   // 纯音乐 / 空档：整幅装饰动画，不写字
       if (P.variant === 'quiet') {                        // [間奏]: nothing but the song title on long interludes
         if (P.showTitle && P.titleText) {
           const a = J.clamp(env.lt / 0.8) * J.clamp((env.cut.dur - env.lt) / 0.8);

@@ -254,19 +254,19 @@ J.computeTiming = (project, parsed, audio) => {
     if (beat && !(L.interlude && L.secs > 0)) d = Math.max(2, Math.round(d / beat)) * beat;
     return s + d;
   });
-  // 时间线上拖过的行尾（lineEnds）：文字块可以被剪短，下一行的起点不动
+  // 时间线上拖过的行尾（lineEnds）：文字块可以自由剪短 / 拉长，允许盖到下一句上
   if (T.lineEnds) {
     for (let i = 0; i < ends.length; i++) {
       if (T.lineEnds[i] == null) continue;
       const v = +T.lineEnds[i];
       if (!isFinite(v)) continue;
       const lo = starts[i] + 0.2;
-      const hi = i + 1 < starts.length ? Math.max(lo, starts[i + 1]) : Math.max(lo, ends[i], v);
-      ends[i] = J.clamp(v, lo, hi);
+      ends[i] = Math.max(lo, v);
     }
   }
-  let duration = (ends.length ? ends[ends.length - 1] : 3) + (T.tail ?? 0.9);
-  if (audio && audio.duration && T.useAudioLength !== false) duration = Math.max(audio.duration, ends.length ? ends[ends.length - 1] + 0.2 : 1);
+  const lastEnd = ends.length ? Math.max.apply(null, ends) : 3;
+  let duration = lastEnd + (T.tail ?? 0.9);
+  if (audio && audio.duration && T.useAudioLength !== false) duration = Math.max(audio.duration, lastEnd + 0.2);
   return { starts, ends, duration };
 };
 
@@ -340,6 +340,36 @@ J.plan = (project, audio) => {
   const nSchemes = st.schemes.length;
   const addEvent = (t, type, amp, dur) => plan.events.push({ t, type, amp, dur });
   const evOwner = new WeakMap(); Object.defineProperty(plan, 'evOwner', { value: evOwner });
+
+  /* 空档 / 纯音乐：不写歌词，铺一段会动的装饰（页面 / 环 / 粒子 / 均衡条） */
+  const addAmbientCut = (start, end, seed) => {
+    if (!(end - start > 0.4)) return null;
+    const r = J.rng(seed >>> 0);
+    let bg = pickBg(r, st, en, fx, bgHistory);
+    if (!bg || bg === 'none') bg = pickBg(r, st, en, fx, bgHistory);   // 空档尽量给一个会动的背景
+    if (bg && bg !== 'none') bgHistory.push(bg);
+    const bgP = J.BG[bg] && J.BG[bg].plan ? J.BG[bg].plan(r, st) : {};
+    const decor = pickDecor(r, st, en, Object.assign({}, fx, { decor: Math.max(0.7, fx.decor) }), 'interlude', history);
+    const cam = J.CAMERA.driftDiag ? 'driftDiag' : J.CAMERA.dollyIn ? 'dollyIn' : 'push';
+    const camP = J.CAMERA[cam] && J.CAMERA[cam].plan ? J.CAMERA[cam].plan(r, st) : {};
+    const cut = makeCut({
+      text: '', lineText: '', line: -1, start, end, layout: 'interlude', ambient: true,
+      enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.28, outDur: 0.28,
+      params: { variant: 'ambient', showTitle: false },
+      decor, scheme: schemeIdx, seed, bg, bgP, cam, camP,
+    });
+    plan.cuts.push(cut);
+    const dur = end - start, n = Math.max(1, Math.round(dur / 3));
+    for (let k = 0; k < n; k++) {
+      const pick = pickFx(r, st, en, fx, false, fxHistory, 'mid');
+      if (pick) {
+        const D2 = J.FXE[pick];
+        addEvent(start + dur * (k + 0.5) / n, pick, (D2.amp || 1) * 0.55, (D2.dur || 3) / 24);
+        fxHistory.push(pick);
+      }
+    }
+    return cut;
+  };
 
   // title card
   const firstStart = tm.starts.length ? tm.starts[0] : 0;
@@ -619,13 +649,26 @@ J.plan = (project, audio) => {
       }
       for (let q = evMark; q < plan.events.length; q++) evOwner.set(plan.events[q], cut);   // which cut each accent came from (for ロック)
     });
-    // interlude in long gaps
+    // 空档：不写字，但铺满会动的装饰（歌曲间隙不再是一片空）
     const nextStart = li < parsed.lines.length - 1 ? tm.starts[li + 1] : null;
-    if (nextStart != null && nextStart - visEnd > 1.3 && !parsed.lines[li + 1].interlude) {
-      const r2 = J.rng(J.h(lineSeed, 404));
-      plan.cuts.push(makeCut({ text: title || '', lineText: '', line: li, start: visEnd, end: nextStart, layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.3, outDur: 0.3, params: J.LAYOUTS.interlude.plan(r2), decor: pickDecor(r2, st, en, Object.assign({}, fx, { decor: 1 }), 'interlude'), scheme: schemeIdx, seed: J.h(lineSeed, 405) }));
+    if (nextStart != null && nextStart - visEnd > 0.45) {
+      addAmbientCut(visEnd + 0.01, nextStart - 0.01, J.h(lineSeed, 404));
     }
   });
+  // 前奏 / 纯音乐 / 片尾：没有歌词的时间也铺上装饰，别让画面空着
+  const firstStart2 = tm.starts.length ? tm.starts[0] : null;
+  const hasTitle = !!(title && firstStart2 != null && firstStart2 >= 1.1);
+  if (!hasTitle && firstStart2 != null && firstStart2 > 0.55) addAmbientCut(0.04, firstStart2 - 0.04, J.h(project.seed, 771));
+  if (!parsed.lines.length) {
+    const total = audio && audio.duration ? audio.duration : Math.max(8, tm.duration);
+    plan.duration = Math.max(plan.duration, total);
+    const segs = Math.min(24, Math.max(2, Math.ceil(total / 5)));
+    const seg = total / segs;
+    for (let s = 0; s < total - 0.2; s += seg) addAmbientCut(s + 0.02, Math.min(total - 0.02, s + seg), J.h(project.seed, 800 + Math.round(s * 10)));
+  } else {
+    const lastEnd = plan.cuts.reduce((a, c) => Math.max(a, c.end), 0);
+    if (tm.duration - lastEnd > 1.2) addAmbientCut(lastEnd + 0.02, tm.duration - 0.02, J.h(project.seed, 991));
+  }
   plan.cuts.sort((a, b) => a.start - b.start);
   plan.cuts.forEach((c, i) => {
     c.index = i;

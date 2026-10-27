@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F7F8FA">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNGOTczMTYiLz48dGV4dCB4PSIzMiIgeT0iNDYiIGZvbnQtc2l6ZT0iMzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJzZXJpZiI+5a2XPC90ZXh0Pjwvc3ZnPg==">
-<link rel="stylesheet" href="app/studio.css?v=202610272128">
+<link rel="stylesheet" href="app/studio.css?v=202610272215">
 </head>
 <body>
 
@@ -204,7 +204,8 @@
             </label>
           </div>
           <label class="check"><input type="checkbox" id="cfgPulse" checked> 踩拍律动（鼓点上弹一下 + 缓慢推近）</label>
-          <p class="tip tight">丢进来就行：整个文件夹可以直接拖，里面的素材会按文件名顺序（1、2、10…）一张接一张排进时间线；默认<b>融进这一句的版式</b>——立绘印在信纸 / 拍立得 / 明信片上，跟着这张纸一起入场、倾斜、退场；时长自动等于这一句歌词，一句一张，整片重排也跟着重新贴。想做背景 / 贴纸就选「自由层」。</p>
+          <label class="check"><input type="checkbox" id="cfgVideoSpan" checked> 视频按原片长铺开（不锁进一句歌词）</label>
+          <p class="tip tight">丢进来就行：整个文件夹可以直接拖，里面的素材会按文件名顺序（1、2、10…）一张接一张排进时间线；<b>图片默认融进这一句的版式</b>——立绘印在信纸 / 拍立得 / 明信片上，跟着这张纸一起入场、倾斜、退场；时长自动等于这一句歌词，一句一张，整片重排也跟着重新贴。想做背景 / 贴纸就选「自由层」。<b>视频</b>默认按原片长铺开，选中后可以在小面板里挑入点 / 出点、按原片长或铺满整首。</p>
         </div>
         <div class="media-list" id="mediaList"></div>
 
@@ -246,9 +247,19 @@
             <label>起点<input type="number" id="miStart" step="0.01" min="0" value="0"></label>
             <label>时长<input type="number" id="miDur" step="0.01" min="0.3" value="4"></label>
           </div>
-          <div class="mi-row" id="miVideoRow" hidden>
-            <label>视频入点（秒）<input type="number" id="miTrim" step="0.1" min="0" value="0"></label>
-            <label class="check mi-loop"><input type="checkbox" id="miLoop" checked> 不够长就循环</label>
+          <div class="vid-box" id="miVideoRow" hidden>
+            <div class="kf-head"><b>视频片段</b><span id="miVidMeta">—</span></div>
+            <div class="mi-row">
+              <label>入点（秒）<input type="number" id="miTrim" step="0.1" min="0" value="0"></label>
+              <label>出点（秒）<input type="number" id="miTrimEnd" step="0.1" min="0" value="0"></label>
+            </div>
+            <label class="check mi-loop"><input type="checkbox" id="miLoop" checked> 片段循环（不够长时在选段里循环）</label>
+            <div class="mi-acts">
+              <button class="btn tiny" id="miVidIn" title="把播放头所在位置设为入点">播放头=入点</button>
+              <button class="btn tiny" id="miVidOut" title="把播放头所在位置设为出点">播放头=出点</button>
+              <button class="btn tiny" id="miVidWhole" title="按原片长度铺开，不循环、不锁进版式">按原片长</button>
+              <button class="btn tiny" id="miVidAll" title="从片头铺满整首（不够长就循环）">铺满整首</button>
+            </div>
           </div>
           <div class="mi-kf">
             <div class="kf-head"><b>关键帧动画</b><label class="check tight"><input type="checkbox" id="miAutoKey"> 自动记录</label></div>
@@ -404,9 +415,10 @@
         <button class="tl-btn" id="btnZoomIn" title="轨道放大（Ctrl + +）">＋</button>
       </div>
       <button class="tl-add" id="btnAddMedia" title="导入图片 / GIF / 视频 / 整个文件夹（Ctrl+I，也可以直接拖进时间线）">＋ 素材</button>
-      <span class="tl-snap" id="tlSnapTag" title="吸附开关（N）">吸附</span>
+      <span class="tl-snap" id="tlSnapTag" title="吸附素材 / 文字块 / 播放头（N）">吸附素材</span>
+      <span class="tl-snap off" id="tlBeatTag" title="额外吸附节拍（B）">拍点</span>
       <span class="grow"></span>
-      <span class="tl-hint" id="tlHint">竖线 = 拍点 · 拖块：靠近拍点 / 邻块 / 播放头才会吸，平时逐帧自由（按住 Alt 完全不吸）· Alt+←/→ 微调 · ◆ 关键帧 · Ctrl+Z 撤销</span>
+      <span class="tl-hint" id="tlHint">拖动会吸素材边缘 / 文字块 / 播放头；要卡拍点再开「拍点」· 按住 Alt 完全自由 · 拖到两边自动滚动 · Ctrl+Z 撤销</span>
     </div>
 
     <div class="tl-grip" id="rzTl" title="拖动调整时间线高度 · 双击复位">
@@ -493,21 +505,11 @@
     <details class="card" data-tone="text" data-fold="text">
       <summary class="ch">
         <i class="ch-ico">▤</i>
-        <span class="ch-t">文字层</span>
+        <span class="ch-t">背景层</span>
         <span class="ch-s" id="sumText">关</span>
         <i class="ch-ar"></i>
       </summary>
       <div class="ch-body">
-        <label class="check"><input type="checkbox" id="tlOutlineEn"> 英文仅描边（大号拉丁字镂空）</label>
-        <div class="tl-row">
-          <span class="tl-lab">实心 + 描边叠层</span>
-          <div class="seg" id="segStack">
-            <button data-v="0" class="on">关</button>
-            <button data-v="1">1</button>
-            <button data-v="2">2</button>
-            <button data-v="3">3</button>
-          </div>
-        </div>
         <div class="tl-row tl-shapes">
           <span class="tl-lab">形状图层</span>
           <div class="chips">
@@ -517,9 +519,26 @@
             <label class="chip"><input type="checkbox" id="shNoise"><span>噪点</span></label>
           </div>
         </div>
-        <div class="slider"><label>多少 <output id="oShAmt">0.45</output></label><input type="range" id="shAmt" min="0" max="100" value="45"></div>
-        <div class="slider"><label>漂移 <output id="oShDrift">0.50</output></label><input type="range" id="shDrift" min="0" max="100" value="50"></div>
-        <p class="tip">形状图层垫在文字下面：勾一种就多 2–3 块，互相压着，按「漂移」慢慢飘。英文仅描边只管大号拉丁字，小标签照旧填色。</p>
+        <div class="slider"><label>数量 <output id="oShAmt">0.45</output></label><input type="range" id="shAmt" min="0" max="100" value="45"></div>
+        <div class="slider"><label>大小差异 <output id="oShSize">0.65</output></label><input type="range" id="shSize" min="0" max="100" value="65"></div>
+        <div class="slider"><label>运动幅度 <output id="oShDrift">0.50</output></label><input type="range" id="shDrift" min="0" max="100" value="50"></div>
+        <p class="tip">背景层垫在文字下面：色块 / 蜂窝 / 网点 / 噪点会按大小随机铺开，每一块有各自的漂移、旋转和呼吸，不再是一排同样大的方块。</p>
+        <details class="sub">
+          <summary class="sh"><span>文字描边 / 叠层（可选）</span><i class="ch-ar"></i></summary>
+          <div class="sb">
+            <label class="check"><input type="checkbox" id="tlOutlineEn"> 英文仅描边（大号拉丁字镂空）</label>
+            <div class="tl-row">
+              <span class="tl-lab">实心 + 描边叠层</span>
+              <div class="seg" id="segStack">
+                <button data-v="0" class="on">关</button>
+                <button data-v="1">1</button>
+                <button data-v="2">2</button>
+                <button data-v="3">3</button>
+              </div>
+            </div>
+            <p class="tip">只影响文字本身；和上面的背景形状互不干扰。</p>
+          </div>
+        </details>
       </div>
     </details>
 
@@ -579,64 +598,64 @@
 </footer>
 
 <!-- 引擎 -->
-<script src="vendor/mp4-muxer.min.js?v=202610272128"></script>
-<script src="engine/01_util.js?v=202610272128"></script>
-<script src="engine/02_fonts.js?v=202610272128"></script>
-<script src="engine/02b_lang.js?v=202610272128"></script>
-<script src="engine/03_text.js?v=202610272128"></script>
-<script src="engine/04_styles.js?v=202610272128"></script>
-<script src="engine/05_anim.js?v=202610272128"></script>
-<script src="engine/05b_registry.js?v=202610272128"></script>
-<script src="engine/06_layouts.js?v=202610272128"></script>
-<script src="engine/07_decor.js?v=202610272128"></script>
-<script src="engine/08_planner.js?v=202610272128"></script>
-<script src="engine/08b_omakase.js?v=202610272128"></script>
-<script src="engine/09_render.js?v=202610272128"></script>
-<script src="engine/10_audio.js?v=202610272128"></script>
-<script src="engine/11_export.js?v=202610272128"></script>
-<script src="engine/11p_bgcamB.js?v=202610272128"></script>
-<script src="engine/11p_decor.js?v=202610272128"></script>
-<script src="engine/11p_decorB.js?v=202610272128"></script>
-<script src="engine/11p_enter.js?v=202610272128"></script>
-<script src="engine/11p_enterB.js?v=202610272128"></script>
-<script src="engine/11p_exit.js?v=202610272128"></script>
-<script src="engine/11p_exitB.js?v=202610272128"></script>
-<script src="engine/11p_fxB.js?v=202610272128"></script>
-<script src="engine/11p_horror1.js?v=202610272128"></script>
-<script src="engine/11p_horror2.js?v=202610272128"></script>
-<script src="engine/11p_horror3.js?v=202610272128"></script>
-<script src="engine/11p_kinetic1.js?v=202610272128"></script>
-<script src="engine/11p_kinetic2.js?v=202610272128"></script>
-<script src="engine/11p_kinetic3.js?v=202610272128"></script>
-<script src="engine/11p_layoutsA.js?v=202610272128"></script>
-<script src="engine/11p_layoutsB.js?v=202610272128"></script>
-<script src="engine/11p_layoutsC.js?v=202610272128"></script>
-<script src="engine/11p_layoutsD.js?v=202610272128"></script>
-<script src="engine/11p_looks.js?v=202610272128"></script>
-<script src="engine/11p_styles.js?v=202610272128"></script>
-<script src="engine/11p_styles2.js?v=202610272128"></script>
-<script src="engine/11p_treattrans.js?v=202610272128"></script>
-<script src="engine/11p_typo1.js?v=202610272128"></script>
-<script src="engine/11p_typo2.js?v=202610272128"></script>
-<script src="engine/11p_typo3.js?v=202610272128"></script>
-<script src="engine/11q_sets.js?v=202610272128"></script>
-<script src="engine/11r_shapes.js?v=202610272128"></script>
-<script src="engine/11s_garnish.js?v=202610272128"></script>
-<script src="engine/11z_more.js?v=202610272128"></script>
-<script src="engine/12_slot.js?v=202610272128"></script>
-<script src="engine/13_frames.js?v=202610272128"></script>
-<script src="engine/14_spec.js?v=202610272128"></script>
+<script src="vendor/mp4-muxer.min.js?v=202610272215"></script>
+<script src="engine/01_util.js?v=202610272215"></script>
+<script src="engine/02_fonts.js?v=202610272215"></script>
+<script src="engine/02b_lang.js?v=202610272215"></script>
+<script src="engine/03_text.js?v=202610272215"></script>
+<script src="engine/04_styles.js?v=202610272215"></script>
+<script src="engine/05_anim.js?v=202610272215"></script>
+<script src="engine/05b_registry.js?v=202610272215"></script>
+<script src="engine/06_layouts.js?v=202610272215"></script>
+<script src="engine/07_decor.js?v=202610272215"></script>
+<script src="engine/08_planner.js?v=202610272215"></script>
+<script src="engine/08b_omakase.js?v=202610272215"></script>
+<script src="engine/09_render.js?v=202610272215"></script>
+<script src="engine/10_audio.js?v=202610272215"></script>
+<script src="engine/11_export.js?v=202610272215"></script>
+<script src="engine/11p_bgcamB.js?v=202610272215"></script>
+<script src="engine/11p_decor.js?v=202610272215"></script>
+<script src="engine/11p_decorB.js?v=202610272215"></script>
+<script src="engine/11p_enter.js?v=202610272215"></script>
+<script src="engine/11p_enterB.js?v=202610272215"></script>
+<script src="engine/11p_exit.js?v=202610272215"></script>
+<script src="engine/11p_exitB.js?v=202610272215"></script>
+<script src="engine/11p_fxB.js?v=202610272215"></script>
+<script src="engine/11p_horror1.js?v=202610272215"></script>
+<script src="engine/11p_horror2.js?v=202610272215"></script>
+<script src="engine/11p_horror3.js?v=202610272215"></script>
+<script src="engine/11p_kinetic1.js?v=202610272215"></script>
+<script src="engine/11p_kinetic2.js?v=202610272215"></script>
+<script src="engine/11p_kinetic3.js?v=202610272215"></script>
+<script src="engine/11p_layoutsA.js?v=202610272215"></script>
+<script src="engine/11p_layoutsB.js?v=202610272215"></script>
+<script src="engine/11p_layoutsC.js?v=202610272215"></script>
+<script src="engine/11p_layoutsD.js?v=202610272215"></script>
+<script src="engine/11p_looks.js?v=202610272215"></script>
+<script src="engine/11p_styles.js?v=202610272215"></script>
+<script src="engine/11p_styles2.js?v=202610272215"></script>
+<script src="engine/11p_treattrans.js?v=202610272215"></script>
+<script src="engine/11p_typo1.js?v=202610272215"></script>
+<script src="engine/11p_typo2.js?v=202610272215"></script>
+<script src="engine/11p_typo3.js?v=202610272215"></script>
+<script src="engine/11q_sets.js?v=202610272215"></script>
+<script src="engine/11r_shapes.js?v=202610272215"></script>
+<script src="engine/11s_garnish.js?v=202610272215"></script>
+<script src="engine/11z_more.js?v=202610272215"></script>
+<script src="engine/12_slot.js?v=202610272215"></script>
+<script src="engine/13_frames.js?v=202610272215"></script>
+<script src="engine/14_spec.js?v=202610272215"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
-<script src="app/names_zh.js?v=202610272128"></script>
-<script src="app/labels_zh.js?v=202610272128"></script>
-<script src="app/local_fonts.js?v=202610272128"></script>
-<script src="app/mov_muxer.js?v=202610272128"></script>
-<script src="app/zip.js?v=202610272128"></script>
-<script src="app/project_io.js?v=202610272128"></script>
-<script src="app/studio.js?v=202610272128"></script>
-<script src="app/pet.js?v=202610272128"></script>
-<script src="app/catalog.js?v=202610272128"></script>
-<script src="app/ai_ref.js?v=202610272128"></script>
+<script src="app/names_zh.js?v=202610272215"></script>
+<script src="app/labels_zh.js?v=202610272215"></script>
+<script src="app/local_fonts.js?v=202610272215"></script>
+<script src="app/mov_muxer.js?v=202610272215"></script>
+<script src="app/zip.js?v=202610272215"></script>
+<script src="app/project_io.js?v=202610272215"></script>
+<script src="app/studio.js?v=202610272215"></script>
+<script src="app/pet.js?v=202610272215"></script>
+<script src="app/catalog.js?v=202610272215"></script>
+<script src="app/ai_ref.js?v=202610272215"></script>
 </body>
 </html>
