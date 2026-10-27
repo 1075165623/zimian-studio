@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字面工房 STUDIO — 把歌词做成文字 PV</title>
+<meta name="description" content="歌词 → 文字 PV 风格的动态字幕：874 个手法、素材自动印进信纸 / 拍立得 / 明信片，浏览器里直接导出 MP4。">
+<meta property="og:title" content="字面工房 STUDIO — 把歌词做成文字 PV">
+<meta property="og:description" content="把歌词做成文字 PV 风格的动态字幕，素材会自动印进信纸 / 拍立得 / 明信片，直接在浏览器里导出 MP4。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#F7F8FA">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNGOTczMTYiLz48dGV4dCB4PSIzMiIgeT0iNDYiIGZvbnQtc2l6ZT0iMzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJzZXJpZiI+5a2XPC90ZXh0Pjwvc3ZnPg==">
+<link rel="stylesheet" href="app/studio.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">字面工房<span class="brand-sub">STUDIO</span></div>
+
+  <div class="tb-panels">
+    <button class="tb-ico" id="btnLeft" aria-pressed="true" title="显示 / 隐藏左栏（素材 · 风格）">
+      <svg viewBox="0 0 20 20" width="16" height="16"><rect x="2.5" y="3.5" width="15" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7.6 3.5v13" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="4" width="4.6" height="12" fill="currentColor" opacity=".18"/></svg>
+    </button>
+    <button class="tb-ico" id="btnRight" aria-pressed="true" title="显示 / 隐藏右栏（手法 · 手感）">
+      <svg viewBox="0 0 20 20" width="16" height="16"><rect x="2.5" y="3.5" width="15" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12.4 3.5v13" stroke="currentColor" stroke-width="1.4"/><rect x="12.9" y="4" width="4.1" height="12" fill="currentColor" opacity=".18"/></svg>
+    </button>
+  </div>
+
+  <span class="tb-div"></span>
+
+  <div class="tb-field">
+    <label for="bpm">BPM</label>
+    <input id="bpm" type="number" min="0" max="300" step="1" value="96">
+    <span class="tag-auto" id="bpmAuto" hidden>自动</span>
+  </div>
+
+  <div class="tb-field">
+    <label>画幅</label>
+    <div class="seg" id="segAspect">
+      <button data-v="16:9" class="on">16:9</button>
+      <button data-v="9:16">9:16</button>
+      <button data-v="1:1">1:1</button>
+      <button data-v="4:5">4:5</button>
+    </div>
+  </div>
+
+  <div class="tb-field">
+    <label for="selRes">分辨率</label>
+    <select id="selRes">
+      <option value="720">720p</option>
+      <option value="1080" selected>1080p</option>
+      <option value="1440">1440p</option>
+    </select>
+  </div>
+
+  <div class="tb-field">
+    <label for="selFps">帧率</label>
+    <select id="selFps">
+      <option value="24" selected>24</option>
+      <option value="30">30</option>
+      <option value="60">60</option>
+    </select>
+  </div>
+
+  <div class="grow"></div>
+
+  <button class="btn ghost" id="btnLib" title="看全部手法，点一下就套到当前这一行">效果库</button>
+  <button class="btn ghost" id="btnShuffleAll" title="换一整套编排（同样的字，不同的手法）">整片重排</button>
+  <button class="btn ghost" id="btnExportPNG" title="导出带透明通道的 MOV 视频，可导入剪映 / AE / PR 当透明素材（Alt+点击 = 导出 PNG 序列 zip）">透明 MOV</button>
+  <button class="btn primary" id="btnExport">导出视频</button>
+</header>
+
+<main class="shell" id="shell">
+
+  <!-- ═════════════ 左栏 ═════════════ -->
+  <aside class="panel left" id="panelLeft">
+
+    <!-- 声音与字幕 -->
+    <details class="card" data-tone="audio" data-fold="media" open>
+      <summary class="ch">
+        <i class="ch-ico">♪</i>
+        <span class="ch-t">声音与字幕</span>
+        <span class="ch-s" id="sumMedia">未导入</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+
+        <div class="drop" id="dropAudio" tabindex="0" role="button">
+          <input type="file" id="fileAudio" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden>
+          <span class="drop-ic">♫</span>
+          <span class="drop-tx"><b>拖入音频</b><small>mp3 / wav / m4a · 自动测 BPM 与拍点</small></span>
+          <span class="btn tiny" id="btnPickAudio">选择</span>
+        </div>
+
+        <div class="audio-card" id="audioCard" hidden>
+          <div class="ac-top">
+            <span class="ac-name" id="audioName"></span>
+            <button class="ac-x" id="btnAudioDel" title="移除音频">×</button>
+          </div>
+          <canvas class="wave" id="wave" height="36"></canvas>
+          <div class="ac-meta" id="audioMeta"></div>
+          <div class="ac-row">
+            <svg class="ac-vol" viewBox="0 0 16 16" width="14" height="14"><path d="M3 6h2.2L8.6 3.2v9.6L5.2 10H3z" fill="currentColor"/><path d="M10.6 5.6a3.2 3.2 0 0 1 0 4.8M12.3 3.9a5.6 5.6 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <input type="range" id="vol" min="0" max="100" value="80">
+          </div>
+        </div>
+
+        <div class="drop sub" id="dropSub" tabindex="0" role="button">
+          <input type="file" id="fileSub" accept=".srt,.lrc,.vtt,.txt" hidden>
+          <span class="drop-ic">≡</span>
+          <span class="drop-tx"><b>导入字幕 / 歌词</b><small>拖入 <b class="hint-strong">srt</b> 或 <b class="hint-strong">lrc</b> 字幕文件，自动转成时间标签卡点</small></span>
+          <span class="btn tiny" id="btnPickSub">选择</span>
+        </div>
+
+        <div class="sub-state" id="subState" hidden>
+          <span class="pill" id="subPill"></span>
+          <button class="link" id="btnSubClear">改回按节拍估算</button>
+        </div>
+
+        <details class="sub" id="foldRhythm" open>
+          <summary class="sh"><span>节奏微调</span><i class="ch-ar"></i></summary>
+          <div class="sb">
+            <div class="slider"><label>行时长 <output id="oLineLen">1.00×</output></label><input type="range" id="lineScale" min="60" max="160" value="100"></div>
+            <div class="slider"><label>起唱偏移 <output id="oOffset">0.40s</output></label><input type="range" id="offset" min="0" max="300" value="40"></div>
+            <label class="check"><input type="checkbox" id="snap" checked> 吸附节拍</label>
+            <label class="check"><input type="checkbox" id="autoInst" checked> 用字幕空档自动加间奏</label>
+            <p class="tip" id="rhythmTip">没有时间标签时，按 BPM 估算每句长短；导入 srt / lrc 后，句子起点以字幕为准，这两个滑杆只影响没有时间的行。</p>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- 图片素材（独立分区） -->
+    <details class="card" data-tone="media" data-fold="media2" open>
+      <summary class="ch">
+        <i class="ch-ico">▣</i>
+        <span class="ch-t">画面素材</span>
+        <span class="ch-s" id="sumMedia2">0 个</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="drop" id="dropMedia" tabindex="0" role="button">
+          <input type="file" id="fileMedia" accept="image/*,video/*,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg,.mp4,.webm,.mov,.m4v" multiple hidden>
+          <span class="drop-ic">＋</span>
+          <span class="drop-tx"><b>加入图片 / GIF / 视频</b><small>PNG JPG GIF · MP4 WebM · 拖到时间线或画面上，自动卡拍</small></span>
+          <span class="btn tiny" id="btnPickMedia">选择</span>
+        </div>
+        <div class="beat-cfg">
+          <div class="bc-title">智能融入（导入时自动套用）</div>
+          <div class="bc-row">
+            <label>版式
+              <select id="cfgLayout">
+                <option value="slot" selected>进版式（信纸 / 拍立得…）</option>
+                <option value="auto">自由层 · 自动适配</option>
+                <option value="cover">自由层 · 铺满画面</option>
+                <option value="fit">自由层 · 完整 + 模糊底</option>
+                <option value="card">自由层 · 卡片</option>
+                <option value="sticker">自由层 · 贴纸</option>
+              </select>
+            </label>
+          </div>
+          <div class="bc-row">
+            <label>每段长度
+              <select id="cfgLen">
+                <option value="auto" selected>自动</option>
+                <option value="1">1 拍</option>
+                <option value="2">2 拍</option>
+                <option value="4">4 拍</option>
+                <option value="8">8 拍</option>
+                <option value="line">跟歌词行</option>
+              </select>
+            </label>
+            <label>入场动作
+              <select id="cfgIn">
+                <option value="auto" selected>自动（轮换）</option>
+                <option value="none">无</option>
+                <option value="pop">弹入</option>
+                <option value="zoom">缩放冲入</option>
+                <option value="fade">淡入</option>
+                <option value="slideL">左滑入</option>
+                <option value="slideR">右滑入</option>
+                <option value="spin">旋转入</option>
+              </select>
+            </label>
+          </div>
+          <label class="check"><input type="checkbox" id="cfgPulse" checked> 踩拍律动（鼓点上弹一下 + 缓慢推近）</label>
+          <p class="tip tight">丢进来就行：默认<b>融进这一句的版式</b>——立绘印在信纸 / 拍立得 / 明信片上，跟着这张纸一起入场、倾斜、退场；时长自动等于这一句歌词，一句一张，整片重排也跟着重新贴。想做背景 / 贴纸就选「自由层」。</p>
+        </div>
+        <div class="media-list" id="mediaList"></div>
+
+        <div class="media-insp" id="mediaInsp" hidden>
+          <div class="mi-cap"><span>选中素材</span><b id="miSelName">—</b></div>
+          <div class="mi-smart">
+            <div class="kf-head"><b>智能融入</b></div>
+            <div class="bc-row">
+              <label>版式
+                <select id="miLayout">
+                  <option value="slot">进版式（融进画面）</option>
+                  <option value="auto">自由层 · 自动适配</option><option value="cover">自由层 · 铺满画面</option><option value="fit">自由层 · 完整 + 模糊底</option>
+                  <option value="card">自由层 · 卡片</option><option value="sticker">自由层 · 贴纸</option><option value="raw">自由层 · 原样</option>
+                </select>
+              </label>
+              <label>入场动作
+                <select id="miIn">
+                  <option value="none">无</option><option value="pop">弹入</option><option value="zoom">缩放冲入</option>
+                  <option value="fade">淡入</option><option value="slideL">左滑入</option><option value="slideR">右滑入</option><option value="spin">旋转入</option>
+                </select>
+              </label>
+            </div>
+            <div class="slider"><label>融合度（跟风格配色） <output id="oMiBlend">45%</output></label><input type="range" id="miBlend" min="0" max="100" value="45"></div>
+            <div class="slider"><label>踩拍律动 <output id="oMiReact">50%</output></label><input type="range" id="miReact" min="0" max="100" value="50"></div>
+          </div>
+          <div class="mi-slot" id="miSlotBox" hidden>
+            <div class="kf-head"><b>版面位</b><span id="miSlotInfo">—</span></div>
+            <div class="mi-acts">
+              <button class="btn tiny" id="miSlotBind" title="把这张素材放进播放头所在那一句的版式里">放进这一句</button>
+              <button class="btn tiny" id="miSlotReroll" title="给这一行换一个能放素材的版式（信纸 / 拍立得 / 明信片…）">换个版式</button>
+              <button class="btn tiny" id="miSlotFree" title="退出版面，改回自由层（浮在画面上）">改成自由层</button>
+            </div>
+            <p class="tip tight" id="miSlotTip">贴在纸上：大小 / 微移 / 微转仍然可以打关键帧，只是作用在纸面里。</p>
+          </div>
+          <div class="slider"><label>大小 <output id="oMiScale">30%</output></label><input type="range" id="miScale" min="2" max="300" value="30"></div>
+          <div class="slider"><label>不透明度 <output id="oMiOpacity">100%</output></label><input type="range" id="miOpacity" min="0" max="100" value="100"></div>
+          <div class="slider"><label>旋转 <output id="oMiRot">0°</output></label><input type="range" id="miRot" min="-180" max="180" value="0"></div>
+          <div class="mi-row">
+            <label>起点<input type="number" id="miStart" step="0.01" min="0" value="0"></label>
+            <label>时长<input type="number" id="miDur" step="0.01" min="0.3" value="4"></label>
+          </div>
+          <div class="mi-row" id="miVideoRow" hidden>
+            <label>视频入点（秒）<input type="number" id="miTrim" step="0.1" min="0" value="0"></label>
+            <label class="check mi-loop"><input type="checkbox" id="miLoop" checked> 不够长就循环</label>
+          </div>
+          <div class="mi-kf">
+            <div class="kf-head"><b>关键帧动画</b><label class="check tight"><input type="checkbox" id="miAutoKey"> 自动记录</label></div>
+            <div class="kf-row">
+              <button class="btn tiny" id="kfPrev" title="跳到上一个关键帧">◀</button>
+              <button class="btn tiny kf-add" id="kfAdd" title="在播放头处，给位置 / 大小 / 旋转 / 透明度各打一个关键帧">◆ 打关键帧</button>
+              <button class="btn tiny" id="kfDel" title="删掉播放头所在位置的关键帧">◇ 删除</button>
+              <button class="btn tiny" id="kfNext" title="跳到下一个关键帧">▶</button>
+            </div>
+            <div class="kf-row">
+              <select id="kfEase" title="新关键帧到下一个关键帧之间怎么过渡">
+                <option value="inout" selected>缓入缓出</option>
+                <option value="linear">匀速</option>
+                <option value="out">先快后慢</option>
+                <option value="in">先慢后快</option>
+                <option value="back">回弹</option>
+                <option value="hold">瞬切（保持）</option>
+              </select>
+              <select id="kfPreset" title="一键生成一组关键帧，之后还能手动改">
+                <option value="" selected>套用动画…</option>
+                <optgroup label="入场">
+                  <option value="fadeIn">淡入</option><option value="popIn">弹入</option>
+                  <option value="slideL">左滑入</option><option value="slideR">右滑入</option>
+                  <option value="slideU">上滑入</option><option value="slideD">下滑入</option>
+                  <option value="spinIn">旋转入</option>
+                </optgroup>
+                <optgroup label="出场">
+                  <option value="fadeOut">淡出</option><option value="shrinkOut">缩小出</option>
+                </optgroup>
+                <optgroup label="踩拍（需要 BPM）">
+                  <option value="pulse">踩拍脉冲</option><option value="sway">踩拍摇摆</option>
+                </optgroup>
+                <optgroup label="运镜">
+                  <option value="pushIn">缓慢推近</option><option value="pullOut">缓慢拉远</option>
+                  <option value="panLR">缓慢平移</option>
+                </optgroup>
+                <optgroup label="其他">
+                  <option value="clear">清除全部关键帧</option>
+                </optgroup>
+              </select>
+            </div>
+            <p class="tip tight" id="kfInfo"></p>
+          </div>
+          <div class="mi-acts">
+            <button class="btn tiny" id="miFit" title="按画面宽度铺满">铺满</button>
+            <button class="btn tiny" id="miCenter" title="回到画面中央">居中</button>
+            <button class="btn tiny" id="miFront" title="图是在歌词下面当背景，还是在歌词上面盖住字">压在字下</button>
+            <button class="btn tiny" id="miUp" title="在时间线上往上挪一层，盖住下面的轨道">上层</button>
+            <button class="btn tiny" id="miDown" title="往下挪一层">下层</button>
+          </div>
+        </div>
+
+        <p class="tip">每个素材占时间线上的一条轨道：左右拖改位置、拖边缘改时长、上下拖换轨道。选中后可以在画面上直接拖、滚轮缩放；时间线上的 ◆ 是关键帧，可以拖。删错了按 Ctrl+Z。</p>
+      </div>
+    </details>
+
+    <!-- 歌词 -->
+    <details class="card" data-tone="content" data-fold="lyrics" open>
+      <summary class="ch">
+        <i class="ch-ico">文</i>
+        <span class="ch-t">歌词文案</span>
+        <span class="ch-s" id="sumLyrics">—</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <textarea id="lyrics" spellcheck="false" placeholder="一行一句歌词；导入 srt / lrc 后每行前面会带 [00:12.40] 时间标签"></textarea>
+        <div class="syntax">
+          <span><b>/</b> 切镜头</span>
+          <span><b>*字*</b> 强调</span>
+          <span><b>!</b> 重击</span>
+          <span><b>[间奏 4]</b> 空拍</span>
+        </div>
+        <div class="row-btns">
+          <button class="btn tiny" id="btnSample">载入示例</button>
+          <button class="btn tiny" id="btnStripTime" title="把每行前面的 [00:12.40] 去掉，改回按节拍估算">去掉时间标签</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- 风格 -->
+    <details class="card" data-tone="style" data-fold="style" open>
+      <summary class="ch">
+        <i class="ch-ico">◐</i>
+        <span class="ch-t">整体风格</span>
+        <span class="ch-s" id="sumStyle">—</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="styles" id="styleGrid"></div>
+      </div>
+    </details>
+
+  </aside>
+
+  <div class="rz" data-rz="left" title="拖动调整左栏宽度 · 双击复位"></div>
+
+  <!-- ═════════════ 中栏 ═════════════ -->
+  <section class="stage">
+    <div class="viewport" id="viewport">
+      <canvas id="view"></canvas>
+      <div class="vmsg" id="viewMsg" hidden></div>
+      <div class="export-bar" id="exportBar" hidden>
+        <div class="eb-inner">
+          <div class="eb-label" id="ebLabel">准备中…</div>
+          <div class="eb-track"><i id="ebFill"></i></div>
+          <button class="btn tiny" id="btnCancelExport">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="transport">
+      <button class="icon-btn" id="btnPlay" aria-label="播放">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg>
+      </button>
+      <div class="time"><span id="tNow">00:00.0</span><span class="sep">/</span><span id="tAll">00:00.0</span></div>
+      <label class="check tight"><input type="checkbox" id="loop" checked> 循环</label>
+      <div class="grow"></div>
+      <div class="line-cap" id="lineCap"></div>
+    </div>
+
+    <div class="tl-toolbar">
+      <div class="tl-tools">
+        <button class="tl-btn" id="btnUndo" title="撤销（Ctrl+Z）" disabled>↶</button>
+        <button class="tl-btn" id="btnRedo" title="重做（Ctrl+Shift+Z / Ctrl+Y）" disabled>↷</button>
+      </div>
+      <div class="tl-tools">
+        <button class="tl-btn" id="btnZoomOut" title="轨道缩小（Ctrl + −）">−</button>
+        <button class="tl-btn" id="btnZoomFit" title="适配窗口（Shift + Z）">⤢</button>
+        <button class="tl-btn" id="btnZoomIn" title="轨道放大（Ctrl + +）">＋</button>
+      </div>
+      <button class="tl-add" id="btnAddMedia" title="导入图片 / GIF / 视频（Ctrl+I，也可以直接拖进时间线）">＋ 素材</button>
+      <span class="tl-snap" id="tlSnapTag" title="吸附开关（N）">吸附</span>
+      <span class="grow"></span>
+      <span class="tl-hint" id="tlHint">竖线 = 拍点 · 拖块：靠近拍点 / 邻块 / 播放头才会吸，平时逐帧自由（按住 Alt 完全不吸）· Alt+←/→ 微调 · ◆ 关键帧 · Ctrl+Z 撤销</span>
+    </div>
+
+    <div class="tl-grip" id="rzTl" title="拖动调整时间线高度 · 双击复位">
+      <span class="tg-dots"></span>
+      <span class="tg-label">时间线</span>
+      <span class="tg-hint">文字 / 图片 / GIF / 视频 / 音频</span>
+    </div>
+
+    <div class="timeline-wrap" id="tlWrap">
+      <div class="tl-scroll" id="tlScroll">
+        <div class="tl-inner" id="tlInner"></div>
+      </div>
+      <canvas id="tl"></canvas>
+      <div class="tl-drop" id="tlDrop" hidden>松手放到这里</div>
+    </div>
+  </section>
+
+  <div class="rz" data-rz="right" title="拖动调整右栏宽度 · 双击复位"></div>
+
+  <!-- ═════════════ 右栏 ═════════════ -->
+  <aside class="panel right" id="panelRight">
+
+    <details class="card" data-tone="lines" data-fold="lines" open>
+      <summary class="ch">
+        <i class="ch-ico">≡</i>
+        <span class="ch-t">逐行手法</span>
+        <span class="ch-s" id="sumLines">全部自动</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <p class="tip tight">点一行展开，可单独指定构图 / 入场 / 滞留 / 退场 / 装饰 / 质感。</p>
+        <div class="lines" id="lineList"></div>
+      </div>
+    </details>
+
+    <details class="card" data-tone="feel" data-fold="feel">
+      <summary class="ch">
+        <i class="ch-ico">≈</i>
+        <span class="ch-t">画面手感</span>
+        <span class="ch-s" id="sumFeel">平衡</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="seg wide" id="segTaste">
+          <button data-v="calm">克制</button>
+          <button data-v="mid" class="on">平衡</button>
+          <button data-v="wild">奔放</button>
+        </div>
+        <div class="slider"><label>动势 <output id="oMotion">0.65</output></label><input type="range" id="motion" min="0" max="100" value="65"></div>
+        <div class="slider"><label>密度 <output id="oDensity">0.50</output></label><input type="range" id="density" min="0" max="100" value="50"></div>
+        <div class="slider"><label>装饰 <output id="oDecor">0.45</output></label><input type="range" id="decor" min="0" max="100" value="45"></div>
+        <div class="slider"><label>故障 <output id="oGlitch">0.45</output></label><input type="range" id="glitch" min="0" max="100" value="45"></div>
+
+        <details class="sub" id="foldFeelMore">
+          <summary class="sh"><span>更多（质感 / 色差 / 变化度）</span><i class="ch-ar"></i></summary>
+          <div class="sb">
+            <div class="slider"><label>质感 <output id="oTexture">0.55</output></label><input type="range" id="texture" min="0" max="100" value="55"></div>
+            <div class="slider"><label>色差 <output id="oChroma">0.34</output></label><input type="range" id="chroma" min="0" max="100" value="34"></div>
+            <div class="slider hl"><label>变化度 <output id="oVariety">0.45</output></label><input type="range" id="variety" min="0" max="100" value="45"></div>
+            <p class="tip">变化度越高，同一个段落里越不会反复用同一种构图 / 入场；调低则整片更像一套统一的手艺。</p>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <details class="card" data-tone="switch" data-fold="switch">
+      <summary class="ch">
+        <i class="ch-ico">◎</i>
+        <span class="ch-t">编排开关</span>
+        <span class="ch-s" id="sumSwitch">5 / 6</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="togs">
+          <label class="tog"><input type="checkbox" id="swExtra" checked><i></i><span>更多特效</span></label>
+          <label class="tog"><input type="checkbox" id="swNew" checked><i></i><span>本作新增</span></label>
+          <label class="tog"><input type="checkbox" id="swTypo" checked><i></i><span>文字排版系</span></label>
+          <label class="tog"><input type="checkbox" id="swKinetic" checked><i></i><span>动态文字系</span></label>
+          <label class="tog"><input type="checkbox" id="swUnify"><i></i><span>统一感</span></label>
+          <label class="tog"><input type="checkbox" id="swTypeset"><i></i><span>文字整列</span></label>
+        </div>
+        <p class="tip">关掉某一类，自动编排时就完全不会用到它；已经手动指定的行不受影响。</p>
+      </div>
+    </details>
+
+    <details class="card" data-tone="fonts" data-fold="fonts">
+      <summary class="ch">
+        <i class="ch-ico">A</i>
+        <span class="ch-t">字体</span>
+        <span class="ch-s" id="sumFonts">跟随风格</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="fonts">
+          <label><span>主字</span><select id="fDisplay"></select></label>
+          <label><span>衬线</span><select id="fSerif"></select></label>
+          <label><span>正文</span><select id="fBody"></select></label>
+        </div>
+        <p class="tip">全部用你本机已装的中文字体，断网也能用。</p>
+      </div>
+    </details>
+
+  </aside>
+</main>
+
+<div id="lib" class="lib" hidden>
+  <div class="lib-box">
+    <header class="lib-head">
+      <div class="lib-title">效果库 <small id="libCount"></small></div>
+      <input id="libSearch" type="search" placeholder="搜索：翻页 / 网点 / 墨 / 拍手…" spellcheck="false">
+      <div class="lib-target">套用到 <b id="libTarget"></b></div>
+      <button class="btn ghost" id="libClose">关闭</button>
+    </header>
+    <div class="lib-body" id="libBody"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<!-- 底端挡条：告诉这里到底了 -->
+<footer class="bottombar" id="bottombar" aria-hidden="true">
+  <i class="bb-grip"></i>
+  <span class="bb-txt">已 到 底 端</span>
+  <i class="bb-grip"></i>
+</footer>
+
+<!-- 引擎 -->
+<script src="vendor/mp4-muxer.min.js"></script>
+<script src="engine/01_util.js"></script>
+<script src="engine/02_fonts.js"></script>
+<script src="engine/02b_lang.js"></script>
+<script src="engine/03_text.js"></script>
+<script src="engine/04_styles.js"></script>
+<script src="engine/05_anim.js"></script>
+<script src="engine/05b_registry.js"></script>
+<script src="engine/06_layouts.js"></script>
+<script src="engine/07_decor.js"></script>
+<script src="engine/08_planner.js"></script>
+<script src="engine/08b_omakase.js"></script>
+<script src="engine/09_render.js"></script>
+<script src="engine/10_audio.js"></script>
+<script src="engine/11_export.js"></script>
+<script src="engine/11p_bgcamB.js"></script>
+<script src="engine/11p_decor.js"></script>
+<script src="engine/11p_decorB.js"></script>
+<script src="engine/11p_enter.js"></script>
+<script src="engine/11p_enterB.js"></script>
+<script src="engine/11p_exit.js"></script>
+<script src="engine/11p_exitB.js"></script>
+<script src="engine/11p_fxB.js"></script>
+<script src="engine/11p_horror1.js"></script>
+<script src="engine/11p_horror2.js"></script>
+<script src="engine/11p_horror3.js"></script>
+<script src="engine/11p_kinetic1.js"></script>
+<script src="engine/11p_kinetic2.js"></script>
+<script src="engine/11p_kinetic3.js"></script>
+<script src="engine/11p_layoutsA.js"></script>
+<script src="engine/11p_layoutsB.js"></script>
+<script src="engine/11p_layoutsC.js"></script>
+<script src="engine/11p_layoutsD.js"></script>
+<script src="engine/11p_looks.js"></script>
+<script src="engine/11p_styles.js"></script>
+<script src="engine/11p_treattrans.js"></script>
+<script src="engine/11p_typo1.js"></script>
+<script src="engine/11p_typo2.js"></script>
+<script src="engine/11p_typo3.js"></script>
+<script src="engine/11q_sets.js"></script>
+<script src="engine/11z_more.js"></script>
+<script src="engine/12_slot.js"></script>
+
+<!-- 中文标签 / 本机字体 / 界面 -->
+<script src="app/names_zh.js"></script>
+<script src="app/labels_zh.js"></script>
+<script src="app/local_fonts.js"></script>
+<script src="app/mov_muxer.js"></script>
+<script src="app/studio.js"></script>
+<script src="app/catalog.js"></script>
+</body>
+</html>

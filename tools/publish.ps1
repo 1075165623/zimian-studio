@@ -1,0 +1,104 @@
+﻿# 字面工房 — 一键发布（提交 + 推送，GitHub Pages 自动更新）
+# 用法：
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools\publish.ps1
+#   第一次可以带仓库地址： -Remote https://github.com/用户名/仓库名.git
+param(
+  [string]$Remote = '',
+  [string]$Message = ''
+)
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $PSScriptRoot
+Set-Location $root
+
+function Find-Git {
+  $cmd = Get-Command git -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+  $cands = @()
+  $cands += Get-ChildItem "$env:LOCALAPPDATA\GitHubDesktop" -Directory -ErrorAction SilentlyContinue |
+    Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName 'resources\app\git\cmd\git.exe' }
+  $cands += 'C:\Program Files\Git\bin\git.exe'
+  $cands += 'C:\Program Files (x86)\Git\bin\git.exe'
+  foreach ($c in $cands) { if (Test-Path $c) { return $c } }
+  return $null
+}
+
+$git = Find-Git
+if (-not $git) {
+  Write-Host ''
+  Write-Host '  [x] 找不到 git。' -ForegroundColor Red
+  Write-Host '      装一个 Git（https://git-scm.com/download/win），或者用 GitHub Desktop 点「Publish repository」。'
+  Write-Host ''
+  exit 1
+}
+
+function Run($args_) {
+  $out = & $git @args_ 2>&1
+  return @{ code = $LASTEXITCODE; out = $out }
+}
+
+if (-not (Test-Path (Join-Path $root '.git'))) {
+  & $git init -b main | Out-Null
+  & $git config core.autocrlf false
+  Write-Host '  已初始化本地仓库（main 分支）'
+}
+
+# 远端
+$r = Run @('remote', 'get-url', 'origin')
+if ($r.code -ne 0) {
+  if ($Remote -ne '') {
+    & $git remote add origin $Remote
+    Write-Host "  已设置远端：$Remote"
+  } else {
+    Write-Host ''
+    Write-Host '  还没有远端仓库。二选一：' -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host '  A) 用 GitHub Desktop（最省事，推荐）'
+    Write-Host '     1. 打开 GitHub Desktop → File → Add local repository → 选这个文件夹'
+    Write-Host '     2. 右上角 Publish repository → 名字填 zimian-studio → 取消勾选 Keep this code private'
+    Write-Host '     3. 发布完再双击一次「发布.cmd」，以后就都是自动的了'
+    Write-Host ''
+    Write-Host '  B) 已经有空仓库了，把地址记下来，双击「发布.cmd」时它会问你要（或手动执行）：'
+    Write-Host '     git remote add origin https://github.com/你的用户名/zimian-studio.git'
+    Write-Host ''
+    exit 2
+  }
+}
+
+# 提交
+& $git add -A | Out-Null
+$st = Run @('status', '--porcelain')
+if (($st.out | Measure-Object).Count -eq 0) {
+  Write-Host '  没有改动，直接推送…'
+} else {
+  if ($Message -eq '') { $Message = 'update ' + (Get-Date -Format 'yyyy-MM-dd HH:mm') }
+  & $git commit -m $Message | Out-Null
+  Write-Host "  已提交：$Message"
+}
+
+# 推送
+Write-Host '  正在推送到 GitHub…'
+$p = Run @('push', '-u', 'origin', 'HEAD')
+if ($p.code -ne 0) {
+  $txt = ($p.out | Out-String)
+  Write-Host ''
+  if ($txt -match 'Authentication|credential|403|Permission denied|fatal: could not read') {
+    Write-Host '  [x] 推送需要登录 GitHub（只第一次）。' -ForegroundColor Yellow
+    Write-Host '      弹窗里用浏览器登录一次，或者用 GitHub Desktop 点一下 Push，成功之后这里就永久免登录了。'
+  } else {
+    Write-Host '  [x] 推送失败：' -ForegroundColor Red
+    Write-Host $txt
+  }
+  Write-Host ''
+  exit 3
+}
+
+# 推断在线地址
+$url = (& $git remote get-url origin)
+if ($url -match 'github\.com[:/]([^/]+)/([^/.]+)') {
+  $user = $Matches[1]; $repo = $Matches[2]
+  Write-Host ''
+  Write-Host '  已上线：' -ForegroundColor Green
+  Write-Host "  https://$user.github.io/$repo/" -ForegroundColor Cyan
+  Write-Host '  （GitHub Pages 一般 30~60 秒内生效；第一次用要先在仓库 Settings → Pages 里把 Source 设成 main / (root)）'
+}
+Write-Host ''
