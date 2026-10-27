@@ -134,7 +134,7 @@ function boot() {
   syncMediaState();
 
   // 效果库（app/catalog.js）用这几个入口；先挂上再生成，出问题也不会让整页卡死
-  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo };
+  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip };
 
   replan();
   commit(); syncHistBtns();          // 历史的第 0 步：刚打开时的样子
@@ -930,17 +930,14 @@ function bindTimeline() {
         S.mediaSel = i;
         syncMediaList();
         pause();
-        if (m.inLayout && !m.orphan) {           // 融进版式：时间是这一句歌词的，不能在时间线上随便拖
+        if (m.inLayout && !m.orphan) {           // 融进版式：也能拖 —— 松手时自动吸附到落点那一句（素材落在哪行就绑哪行）
           TL.sel = { kind: 'media', i };
           syncMediaInsp();
-          drawTimeline();
-          toast('它融在这一句的版式里，时长跟着歌词走 —— 想自由拖动先点「改成自由层」');
-          return;
         }
         base = { start: m.start, dur: m.dur, lane: m.lane | 0 };
       }
       TL.sel = { kind: hit.kind, i };
-      drag = { hit, x0: p.x, y0: p.y, pps: G.pps, laneH: TL.laneH, base, moved: false, lane0: base.lane | 0 };
+      drag = { hit, x0: p.x, y0: p.y, pps: G.pps, laneH: TL.laneH, base, moved: false, lane0: base.lane | 0, slot: hit.kind === 'media' && !!S.media[i].inLayout && !S.media[i].orphan };
       if (hit.kind === 'text') seek(base.start + 0.01);
     } else if (hit) {
       drag = { scrub: true };
@@ -1013,11 +1010,11 @@ function bindTimeline() {
     } else if (h.kind === 'media') {
       const m = S.media[h.i];
       if (!m) { drag = null; return; }
-      if (m.inLayout && !m.orphan) { drag = null; return; }
       if (h.edge === 'body') {
         m.start = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'media', i: h.i }), 0, Math.max(0, G.dur - 0.2));
         // 上下拖动换轨道
         m.lane = J.clamp(drag.lane0 + Math.round(dy / drag.laneH), 0, TL.maxLane);
+        if (drag.slot) snapSlotLive(m);              // 融在版式里的：拖着就直接吸到落点那一句
       } else if (h.edge === 'right') {
         m.dur = J.clamp(magSnapSpan(b.start + b.dur + dt, 0, { kind: 'media', i: h.i }) - m.start, 0.3, Math.max(0.3, G.dur - m.start));
       } else {
@@ -1038,6 +1035,8 @@ function bindTimeline() {
       if (h.kind === 'text') {
         clearTimeout(bindTimeline._t);
         replan();
+      } else if (h.kind === 'media' && drag.moved && drag.slot) {
+        dropSlotClip(S.media[h.i]);              // 松手：素材落在哪一句，就绑到哪一句
       }
     }
     drag = null;
@@ -1998,6 +1997,46 @@ function unbindSlot(m) {
   if (m.layout === 'slot') m.layout = 'auto';
   syncSlotLines();
   return m;
+}
+
+/* 拖完松手：把已经融进版式的素材重新绑到「落点那一句」（不重置大小 / 位置，只换句子和时长） */
+function attachSlot(m, cut) {
+  const names = slotNamesOf(cut.layout);
+  const keep = m.slotName && names.includes(m.slotName) && freeSlotName(cut.line, cut.layout, m) === m.slotName;
+  m.slotName = keep ? m.slotName : (freeSlotName(cut.line, cut.layout, m) || names[0] || 'photo');
+  m.inLayout = true; m.orphan = false; m.line = cut.line | 0;
+  m.start = cut.start;
+  m.dur = Math.max(0.2, cut.end - cut.start);
+  if (!Array.isArray(S.project.slotLines)) S.project.slotLines = [];
+  if (!S.project.slotLines.includes(m.line)) S.project.slotLines.push(m.line);
+  return m;
+}
+
+/* 拖动中：起点落在哪一句，就先把时长贴到那一句（松手再真正绑） */
+function snapSlotLive(m) {
+  if (!S.plan) return;
+  const cut = J.cutAt(S.plan, m.start + 0.005);
+  if (!cut || cut.line < 0) return;
+  const L = J.LAYOUTS[cut.layout];
+  if (!L || !L.slot) return;
+  m.start = cut.start;
+  m.dur = Math.max(0.2, cut.end - cut.start);
+}
+
+function dropSlotClip(m) {
+  if (!m || !S.plan) return;
+  const cut = J.cutAt(S.plan, m.start + 0.005);
+  const L = cut && cut.line >= 0 ? J.LAYOUTS[cut.layout] : null;
+  if (L && L.slot) {
+    const moved = m.line !== cut.line || m.orphan;
+    attachSlot(m, cut);
+    replan();
+    if (moved) toast('已吸附到第 ' + (cut.line + 1) + ' 句 · 时长跟着这一句走');
+    return;
+  }
+  unbindSlot(m);
+  replan();
+  toast('这里没有能放素材的版式 · 先当自由层放着，选中后还能「放进这一句」');
 }
 
 /* 由 S.media 反推「哪几行要版式插槽」，planner 会优先给这些行挑能放素材的版式 */

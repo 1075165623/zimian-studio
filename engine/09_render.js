@@ -410,6 +410,10 @@ class Renderer {
     if (env.layer === 'back') return null;                // 後景だけ: the lyrics and the front decorations go to the other layer
     let bb = null;
     try { bb = L.render(env); } catch (e) { console.warn('layout', cut.layout, e); }
+    // 两侧补白：能嵌素材的纸片版式（拍立得 / 信纸 / 明信片…）量出纸的边缘，只在纸外面画
+    if (bb && L.slot && !L.noGarnish && J.garnishSides && !env.zone) {
+      try { J.garnishSides(env, { band: bb }); } catch (e) { console.warn('garnish', e); }
+    }
     for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'front') try { D.draw(env, bb, d); } catch (e) { console.warn(e); } }
     return bb;
   }
