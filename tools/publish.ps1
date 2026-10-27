@@ -80,18 +80,40 @@ if (($st.out | Measure-Object).Count -eq 0) {
   Write-Host "  已提交：$Message"
 }
 
-# 推送
+# 推送（国内直连 github 常被重置：先直连，失败就自动找本机代理再试一次）
 Write-Host '  正在推送到 GitHub…'
 $p = Run @('push', '-u', 'origin', 'HEAD')
+
+function Find-ProxyPort {
+  foreach ($port in 7890, 7897, 10809, 1080, 8889) {
+    $c = New-Object System.Net.Sockets.TcpClient
+    try {
+      $ar = $c.BeginConnect('127.0.0.1', $port, $null, $null)
+      if ($ar.AsyncWaitHandle.WaitOne(250) -and $c.Connected) { $c.Close(); return $port }
+    } catch { }
+    finally { try { $c.Close() } catch { } }
+  }
+  return 0
+}
+
+if ($p.code -ne 0) {
+  $proxyPort = Find-ProxyPort
+  if ($proxyPort -gt 0) {
+    Write-Host "  直连失败，改用本机代理 127.0.0.1:$proxyPort 重试…" -ForegroundColor Yellow
+    $p = Run @('-c', "http.proxy=http://127.0.0.1:$proxyPort", '-c', 'http.version=HTTP/1.1', 'push', '-u', 'origin', 'HEAD')
+  }
+}
+
 if ($p.code -ne 0) {
   $txt = ($p.out | Out-String)
   Write-Host ''
   if ($txt -match 'Authentication|credential|403|Permission denied|fatal: could not read') {
     Write-Host '  [x] 推送需要登录 GitHub（只第一次）。' -ForegroundColor Yellow
-    Write-Host '      弹窗里用浏览器登录一次，或者用 GitHub Desktop 点一下 Push，成功之后这里就永久免登录了。'
+    Write-Host '      弹窗里用浏览器登录一次；成功之后这里会记住，不用再登。'
   } else {
     Write-Host '  [x] 推送失败：' -ForegroundColor Red
     Write-Host $txt
+    Write-Host '      网络问题的常见解法：开着你平常的代理（Clash 等）再点一次；脚本会自动走 127.0.0.1:7890 重试。'
   }
   Write-Host ''
   exit 3
