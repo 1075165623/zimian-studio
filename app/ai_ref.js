@@ -7,8 +7,10 @@
 'use strict';
 const $ = s => document.querySelector(s);
 const LS = 'tcgpv.ai';
-const cfg = Object.assign({ base: 'https://api.deepseek.com', model: 'deepseek-V4.1-Flash 1017 High', key: '' },
+const cfg = Object.assign({ base: 'https://api.deepseek.com', model: 'deepseek-flash', key: '' },
   JSON.parse(localStorage.getItem(LS) || '{}'));
+// 旧值迁移：之前填的那个名字官方不认，自动换成 deepseek-flash
+if (!/^deepseek-(flash|v4-pro|chat|reasoner)/.test(cfg.model || '')) cfg.model = 'deepseek-flash';
 const saveCfg = () => localStorage.setItem(LS, JSON.stringify(cfg));
 
 /* 让模型挑的版式（都是「素材能进画面、字不压脸」的那些） */
@@ -71,7 +73,7 @@ function modal() {
       <h3>AI 版式参考</h3>
       <div class="ai-drop" id="aiDrop">点这里选一张参考图（或把图拖进来）<input type="file" id="aiFile" accept="image/*" hidden></div>
       <div class="ai-row"><label>接口</label><input id="aiBase" value="${cfg.base}" placeholder="https://api.deepseek.com"></div>
-      <div class="ai-row"><label>模型</label><input id="aiModel" value="${cfg.model}"></div>
+      <div class="ai-row"><label>模型</label><input id="aiModel" value="${cfg.model}" list="aiModels" placeholder="deepseek-flash"><datalist id="aiModels"><option value="deepseek-flash"></option><option value="deepseek-v4-pro"></option></datalist></div>
       <div class="ai-row"><label>Key</label><input id="aiKey" type="password" value="${cfg.key}" placeholder="sk-...（只存本机）"></div>
       <div class="ai-out" id="aiOut">选图 → 填好接口/模型/Key → 点「解析」。</div>
       <div class="ai-acts">
