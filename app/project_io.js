@@ -205,6 +205,10 @@ async function hydrate() {
       await S.api.loadAudioFile(file);
       toast('已恢复工程音频 · ' + (au.name || ''));
     } catch (e) { console.warn('audio restore', e); }
+  } else if (S.project && S.project.audioName) {
+    const el2 = document.querySelector('#projAudio');
+    if (el2) el2.textContent = '音频没存进浏览器 · 请重新拖一次 wav';
+    toast('工程里有「' + S.project.audioName + '」，但音频文件没存进来 —— 重新拖一次 wav，之后就会自动跟着工程走');
   }
 }
 

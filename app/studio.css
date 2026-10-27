@@ -673,3 +673,5 @@ input[type=range]::-webkit-slider-thumb{
 #btnAiRef:hover{filter:brightness(1.04)}
 .tb-right{display:flex;align-items:center;gap:6px}
 .tb-right #btnAiRef{order:-1;margin-right:6px}
+.proj-state{font-size:10.5px;color:#B45309;margin-top:5px;min-height:14px;line-height:1.4}
+.proj-state:empty{display:none}
