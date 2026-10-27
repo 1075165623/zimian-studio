@@ -141,8 +141,24 @@ async function download() {
 /* 打开文件：写进存档后重载，boot() 会直接按这份工程起来 */
 async function openFile(file) {
   try {
-    const text = await file.text();
-    const pack = JSON.parse(text);
+    let pack = null;
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (head[0] === 0x50 && head[1] === 0x4B) {              // zip 工程包：解包 + 把图片/音频还原成 dataURL
+      const entries = window.ZIP.unzip(new Uint8Array(await file.arrayBuffer()));
+      const main = entries['工程.json'];
+      if (!main) throw new Error('包里没有 工程.json');
+      pack = JSON.parse(new TextDecoder().decode(main));
+      pack.assets = (pack.assets || []).map(a => {
+        const e = entries[a.file];
+        return e ? Object.assign({}, a, { data: 'data:image/png;base64,' + window.ZIP.bytesB64(e) }) : a;
+      });
+      if (pack.audio && entries[pack.audio.file]) {
+        const ext = (pack.audio.file.split('.').pop() || 'wav').toLowerCase();
+        pack.audio = { name: pack.audio.name, data: 'data:audio/' + ext + ';base64,' + window.ZIP.bytesB64(entries[pack.audio.file]) };
+      }
+    } else {
+      pack = JSON.parse(await file.text());
+    }
     if (!pack || !pack.project) throw new Error('不是工程文件');
     localStorage.setItem(LS, JSON.stringify({ v: 1, at: Date.now(), project: pack.project, media: pack.media || [] }));
     await idbSet('assets', pack.assets || []);

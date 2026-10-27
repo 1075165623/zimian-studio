@@ -91,5 +91,36 @@ function dataURLBytes(url) {
   return u8;
 }
 
-window.ZIP = { zip, dataURLBytes, crc32 };
+/* 读 zip（只认自己写的 store 格式；EOCD → 中央目录 → 本地头） */
+function unzip(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let eocd = -1;
+  const min = Math.max(0, u8.length - 65558);
+  for (let i = u8.length - 22; i >= min; i--) {
+    if (dv.getUint32(i, true) === 0x06054B50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('不是 zip 文件');
+  const n = dv.getUint16(eocd + 10, true), cdOff = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder('utf-8');
+  const out = {};
+  let p = cdOff;
+  for (let k = 0; k < n; k++) {
+    if (dv.getUint32(p, true) !== 0x02014B50) break;
+    const method = dv.getUint16(p + 10, true);
+    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    const usize = dv.getUint32(p + 24, true), lho = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nl));
+    const lnl = dv.getUint16(lho + 26, true), lel = dv.getUint16(lho + 28, true);
+    const start = lho + 30 + lnl + lel;
+    if (method === 0) out[name] = u8.subarray(start, start + usize);
+    p += 46 + nl + el + cl;
+  }
+  return out;
+}
+function bytesB64(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+window.ZIP = { zip, unzip, bytesB64, dataURLBytes, crc32 };
 })();
