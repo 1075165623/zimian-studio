@@ -1944,7 +1944,7 @@ reg('polaroid', {
       const dev = E.inOutCubic(J.clamp((env.lt - t - 0.1) / 0.9));
       // 素材插槽：照片窗 —— 立绘就是这张拍立得，跟着卡片一起飞入、歪、落下
       const filled = env.slot('photo', ix, iy, iw, iw, { tone: 'photo', alpha: a });
-      if (!filled) env.rect(ix, iy, iw, iw, J.mix(J.mix(C.fill, sc.sub, 0.35), imgC, dev), a, false);
+      if (!filled) env.rect(ix, iy, iw, iw, J.mix(J.mix(C.fill, sc.sub, 0.3), imgC, dev * 0.35), a, false);   // 没素材时是一张浅灰的空白相纸，不是黑洞
       else if (dev < 0.995) env.rect(ix, iy, iw, iw, J.mix(C.fill, sc.sub, 0.4), a * (1 - dev) * 0.92, false);   // 显影中：一层奶白慢慢退掉
       // soft light leak: two translucent discs (cheap, no gradient fill)
       env.circle(ix + iw * 0.72, iy + iw * 0.26, iw * 0.3, J.rgba(lightest(sc), 0.07 * dev), null, 0, a, false);
