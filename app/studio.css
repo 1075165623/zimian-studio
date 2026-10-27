@@ -116,6 +116,7 @@ body.no-right .panel.right,body.no-right .rz[data-rz="right"]{display:none}
 .card[data-tone="feel"]   {--c:#DB2777;--cs:#FDEBF3;--cl:#FBD4E4}
 .card[data-tone="switch"] {--c:#475569;--cs:#EEF1F6;--cl:#DCE2EB}
 .card[data-tone="text"]   {--c:#C026D3;--cs:#FBEFFB;--cl:#F2D2F4}
+.card[data-tone="proj"]   {--c:#92400E;--cs:#FBF2E7;--cl:#EED9BF}
 .card[data-tone="fonts"]  {--c:#0891B2;--cs:#E7F6FA;--cl:#C9EBF3}
 .card[data-tone="media"]  {--c:#D97706;--cs:#FFF4E6;--cl:#FBDDBE}
 

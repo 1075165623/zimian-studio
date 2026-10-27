@@ -76,6 +76,10 @@ const AP = {
 
 function boot() {
   const p = J.defaultProject();
+  const R = window.__RESTORE__;                 // 上次的工程（app/project_io.js 在解析阶段读好放这）
+  if (R && R.project) {
+    Object.assign(p, R.project);                // 直接恢复：歌词 / 风格 / 编排 / 时间 / 素材片段
+  } else {
   Object.assign(p, {
     lyrics: SAMPLE,
     style: 'tcg',                       // 默认：二次元渐层（TCG 糖果）
@@ -104,6 +108,9 @@ function boot() {
   // 文字层：英文仅描边 / 实心+描边叠层 / 形状图层（全部默认关，开了才改画面）
   p.text = { outlineEn: false, stack: 0, shapes: { block: false, honey: false, dots: false, noise: false }, amt: 0.45, drift: 0.5 };
   p.more = true;
+  }
+  p.fx = Object.assign({}, J.defaultProject().fx, p.fx || {});
+  p.text = Object.assign({ outlineEn: false, stack: 0, shapes: {}, amt: 0.45, drift: 0.5 }, p.text || {});
 
   // 深链接：?style=mxMorning&aspect=9:16&seed=123&extra=1
   const q = new URLSearchParams(location.search);
@@ -113,6 +120,7 @@ function boot() {
   if (q.get('extra')) p.extra = q.get('extra') === '1';
   if (q.get('variety') != null && q.get('variety') !== '') p.variety = J.clamp(+q.get('variety') || 0, 0, 1);
   S.project = p;
+  if (R && R.media && R.media.length) S.media = R.media.slice();   // 归档里的素材片段（图片数据稍后从 IndexedDB 补）
 
   $('#lyrics').value = p.lyrics;
   $('#bpm').value = p.timing.bpm;
@@ -133,8 +141,14 @@ function boot() {
   syncSubState();
   syncMediaState();
 
+  // 工程快照：能 JSON 化的都取出来（图片数据另外存）
+  function projectSnapshot() {
+    const media = S.media.map(m => { const o = {}; for (const k in m) if (k !== 'img' && k !== 'url' && k !== 'el' && k !== 'frames') o[k] = m[k]; return o; });
+    return { v: 1, at: Date.now(), project: JSON.parse(JSON.stringify(S.project)), media };
+  }
+
   // 效果库（app/catalog.js）用这几个入口；先挂上再生成，出问题也不会让整页卡死
-  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip };
+  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip, syncMediaList, syncMediaState, projectSnapshot };
 
   replan();
   commit(); syncHistBtns();          // 历史的第 0 步：刚打开时的样子
