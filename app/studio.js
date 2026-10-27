@@ -2185,9 +2185,11 @@ function motionIn(m, lt, W) {
   return o;
 }
 
-/* 模糊底：把素材缩成 48 像素宽再拉满画面 = 剪映那种「背景模糊」，画面永远没有黑边 */
-function blurBackdrop(m, src, W, H) {
-  const bw = 48, bh = Math.max(8, Math.round(48 * H / W));
+/* 模糊底：把素材缩到很小的画布再拉满 = 剪映那种「背景模糊」，画面永远没有黑边
+   amt 0~1：越大缩得越小，拉回来越糊 */
+function blurBackdrop(m, src, W, H, amt) {
+  const q = J.clamp(amt == null ? 0.5 : amt, 0, 1);
+  const bw = Math.max(10, Math.round(J.lerp(96, 11, q))), bh = Math.max(8, Math.round(bw * H / W));
   let c = m._bf;
   if (!c || c.width !== bw || c.height !== bh) { c = m._bf = document.createElement('canvas'); c.width = bw; c.height = bh; }
   const sw = src.videoWidth || src.naturalWidth || src.width, sh = src.videoHeight || src.naturalHeight || src.height;
@@ -2217,7 +2219,7 @@ function paintSlotBackdrop(env, m, lt) {
   const k = (ctx.canvas.width || W) / W || 1;
   const img = sourceOf(m, lt);
   if (!img) return;
-  const bf = blurBackdrop(m, img, W, H);
+  const bf = blurBackdrop(m, img, W, H, m.bgBlur == null ? 0.6 : m.bgBlur);
   if (!bf) return;
   const scheme = env.sc || fallbackScheme();
   ctx.save();
@@ -2228,6 +2230,22 @@ function paintSlotBackdrop(env, m, lt) {
   ctx.globalAlpha = 0.30;
   ctx.fillStyle = scheme.bg; ctx.fillRect(0, 0, W, H);
   ctx.restore();
+}
+
+/* 视频背景模式：
+   auto  = 有卡片时模糊视频、没卡片时视频原样
+   blur  = 一律模糊视频背景
+   sharp = 一律视频原样（有卡片时卡片仍画在视频上）
+   site  = 不铺视频背景，用网站 / 版式原本的背景 */
+function videoBgMode(m) {
+  return m.bgMode || (m.slotBg === false ? 'site' : 'auto');
+}
+function paintVideoBg(env, m, lt, hasSlot) {
+  const mode = videoBgMode(m);
+  if (mode === 'site') return;
+  const blur = mode === 'blur' || (mode === 'auto' && hasSlot);
+  if (blur) paintSlotBackdrop(env, m, lt);
+  else paintDirectMedia(env, m, lt);
 }
 
 /* 跨句 / 无插槽段落：不做模糊，直接铺在文字后面 */
@@ -2266,8 +2284,8 @@ function paintMedia(env, t, front) {
       if (!front && t >= m.start - 1e-4 && t <= m.start + m.dur + 1e-4) {
         const cut = env.cut;
         const hasSlot = !!(cut && cut.line >= 0 && J.LAYOUTS[cut.layout] && J.LAYOUTS[cut.layout].slot);
-        if (!hasSlot) paintDirectMedia(env, m, t - m.start);
-        else if (m.kind === 'video' && m.slotBg !== false) paintSlotBackdrop(env, m, t - m.start);
+        if (m.kind === 'video') paintVideoBg(env, m, t - m.start, hasSlot);
+        else if (!hasSlot) paintDirectMedia(env, m, t - m.start);
       }
       continue;                       // 已经融进版式：由版式的插槽来画，绝不再当贴图压在卡片底下
     }
@@ -2395,7 +2413,11 @@ function bindSlot(m, line, opts = {}) {
   m.blend = 0; m.border = 0; m.radius = 0; m.shadow = 0; m.fill = 'none'; m.react = 0; m.inM = 'none';
   m.front = false; m.fade = false; m.kf = newKf();
   m.layout = 'slot';
-  if (m.kind === 'video') m.slotFit = 'cover';      // 视频默认填满卡片，不留黑边
+  if (m.kind === 'video') {
+    m.slotFit = 'cover';
+    if (m.bgMode == null) m.bgMode = 'auto';
+    if (m.bgBlur == null) m.bgBlur = 0.6;
+  }
   m.start = cut.start;
   m.dur = Math.max(0.2, cut.end - cut.start);
   if (!Array.isArray(S.project.slotLines)) S.project.slotLines = [];
@@ -2456,7 +2478,11 @@ function slotLook(m) {
   m.blend = 0; m.border = 0; m.radius = 0; m.shadow = 0; m.fill = 'none'; m.react = 0; m.inM = 'none';
   m.front = false; m.fade = false; m.kf = newKf();
   m.layout = 'slot';
-  if (m.kind === 'video' && m.slotFit == null) m.slotFit = 'cover';
+  if (m.kind === 'video') {
+    if (m.slotFit == null) m.slotFit = 'cover';
+    if (m.bgMode == null && m.slotBg !== false) m.bgMode = 'auto';
+    if (m.bgBlur == null) m.bgBlur = 0.6;
+  }
 }
 function spanSlotTo(m) {
   if (!m || !S.plan) return [];
@@ -2752,12 +2778,6 @@ function syncMediaInsp() {
   ['#miFront', '#miFit', '#miCenter', '#miUp', '#miDown'].forEach(sel => {
     const el = $(sel); if (el) el.disabled = inSlot;
   });
-  const stip = $('#miSlotTip');
-  if (stip) stip.textContent = inSlot
-    ? (m.spanSlot
-      ? '它跨了好几句：每一句的卡片都会嵌进这一段' + (m.kind === 'video' ? '，视频按时间线连续播放' : '') + '。拖时间线左右边缘可以改覆盖范围，拖整块可以换覆盖到哪些句子。'
-      : '它现在是这一页纸的一部分：大小 = 在纸里放大 / 缩小，位置 / 旋转 = 在纸里微调（都可以打关键帧）。')
-    : '点「放进这一句」把它融进这一句的版式（立绘印在信纸 / 拍立得上，跟着纸一起动）。';
   // 视频专属：入点 / 出点 / 整段铺开
   const vr = $('#miVideoRow');
   if (vr) vr.hidden = m.kind !== 'video';
@@ -2771,8 +2791,15 @@ function syncMediaInsp() {
     const meta = $('#miVidMeta');
     if (meta) meta.textContent = sd > 0 ? '源 ' + sd.toFixed(1) + 's · 选段 ' + Math.max(0, b0 - a0).toFixed(1) + 's' : '—';
     const lp = $('#miLoop'); if (lp && lp.checked !== (m.loop !== false)) lp.checked = m.loop !== false;
-    const vb = $('#miVidBg');
-    if (vb) { vb.checked = m.slotBg !== false; vb.disabled = !(m.inLayout && !m.orphan); }
+    const bgm = $('#miVidBgMode');
+    const bgs = $('#miVidBlur');
+    const bgOn = !!(m.inLayout && !m.orphan);
+    if (bgm) { bgm.value = videoBgMode(m); bgm.disabled = !bgOn; }
+    if (bgs) {
+      const v = Math.round((m.bgBlur == null ? 0.6 : m.bgBlur) * 100);
+      bgs.value = v; bgs.disabled = !bgOn;
+      const o = $('#oVidBlur'); if (o) o.textContent = v + '%';
+    }
     const wb = $('#miVidWhole'); if (wb) wb.disabled = !(sd > 0);
   }
   // 关键帧
@@ -2988,8 +3015,21 @@ function bindMediaCard() {
   if (ps) ps.onchange = () => { const id = ps.value; ps.value = ''; const m = cur(); if (m && id) applyPreset(m, id); };
   const lp = $('#miLoop');
   if (lp) lp.onchange = () => { const m = cur(); if (m) { m.loop = lp.checked; S.need = true; commit(); } };
-  const vb = $('#miVidBg');
-  if (vb) vb.onchange = () => { const m = cur(); if (m) { m.slotBg = vb.checked; S.need = true; commit(); } };
+  const bgm = $('#miVidBgMode');
+  if (bgm) bgm.onchange = () => {
+    const m = cur(); if (!m) return;
+    m.bgMode = bgm.value; S.need = true; commit();
+  };
+  const bgs = $('#miVidBlur');
+  if (bgs) {
+    bgs.addEventListener('input', () => {
+      const m = cur(); if (!m) return;
+      m.bgBlur = +bgs.value / 100;
+      const o = $('#oVidBlur'); if (o) o.textContent = bgs.value + '%';
+      S.need = true;
+    });
+    bgs.addEventListener('change', commit);
+  }
 
   // ── 导入时自动卡拍的设置 ──
   const cl = $('#cfgLen'), ci = $('#cfgIn'), cp = $('#cfgPulse');

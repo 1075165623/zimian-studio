@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F7F8FA">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNGOTczMTYiLz48dGV4dCB4PSIzMiIgeT0iNDYiIGZvbnQtc2l6ZT0iMzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJzZXJpZiI+5a2XPC90ZXh0Pjwvc3ZnPg==">
-<link rel="stylesheet" href="app/studio.css?v=202610272325">
+<link rel="stylesheet" href="app/studio.css?v=202610272353">
 </head>
 <body>
 
@@ -203,9 +203,9 @@
               </select>
             </label>
           </div>
-          <label class="check"><input type="checkbox" id="cfgPulse" checked> 踩拍律动（鼓点上弹一下 + 缓慢推近）</label>
-          <label class="check"><input type="checkbox" id="cfgVideoSpan"> 视频按原片长铺开（默认关：像图片一样嵌进版式）</label>
-          <p class="tip tight">丢进来就行：整个文件夹可以直接拖，里面的素材会按文件名顺序（1、2、10…）一张接一张排进时间线；<b>图片和视频默认融进这一句的版式</b>——立绘 / 视频印在信纸 / 拍立得 / 明信片上，跟着这张纸一起入场、倾斜、退场；时长自动等于这一句歌词，一句一张，整片重排也跟着重新贴。没有可嵌套的版式时，素材直接压在文字后面当背景。<b>视频</b>选中后可以在小面板里挑入点 / 出点、按原片长或铺满整首。</p>
+          <label class="check"><input type="checkbox" id="cfgPulse" checked> 踩拍律动</label>
+          <label class="check"><input type="checkbox" id="cfgVideoSpan" title="勾选后视频不锁进版式，按原片长铺开"> 视频按原片长铺开</label>
+          <p class="tip tight">拖文件夹或文件进来 · 图片 / 视频默认进版式 · 视频拖边缘可跨句</p>
         </div>
         <div class="media-list" id="mediaList"></div>
 
@@ -245,7 +245,6 @@
                 <option value="contain">完整（留白）</option>
               </select>
             </label></div>
-            <p class="tip tight" id="miSlotTip">贴在纸上：大小 / 微移 / 微转仍然可以打关键帧，只是作用在纸面里。</p>
           </div>
           <div class="slider"><label>大小 <output id="oMiScale">30%</output></label><input type="range" id="miScale" min="2" max="300" value="30"></div>
           <div class="slider"><label>不透明度 <output id="oMiOpacity">100%</output></label><input type="range" id="miOpacity" min="0" max="100" value="100"></div>
@@ -260,8 +259,16 @@
               <label>入点（秒）<input type="number" id="miTrim" step="0.1" min="0" value="0"></label>
               <label>出点（秒）<input type="number" id="miTrimEnd" step="0.1" min="0" value="0"></label>
             </div>
-            <label class="check mi-loop"><input type="checkbox" id="miLoop" checked> 片段循环（不够长时在选段里循环）</label>
-            <label class="check mi-loop"><input type="checkbox" id="miVidBg" checked> 嵌进版式时，背后铺一层模糊视频</label>
+            <label class="check mi-loop"><input type="checkbox" id="miLoop" checked> 片段循环</label>
+            <div class="mi-row"><label>背景
+              <select id="miVidBgMode" title="视频背景用模糊视频、原样视频，还是网站原本的背景">
+                <option value="auto" selected>自动（卡片内模糊 / 无卡片原样）</option>
+                <option value="blur">模糊视频</option>
+                <option value="sharp">视频原样</option>
+                <option value="site">网站原背景</option>
+              </select>
+            </label></div>
+            <div class="slider"><label>背景模糊 <output id="oVidBlur">60%</output></label><input type="range" id="miVidBlur" min="0" max="100" value="60"></div>
             <div class="mi-acts">
               <button class="btn tiny" id="miVidIn" title="把播放头所在位置设为入点">播放头=入点</button>
               <button class="btn tiny" id="miVidOut" title="把播放头所在位置设为出点">播放头=出点</button>
@@ -321,7 +328,6 @@
           </div>
         </div>
 
-        <p class="tip">每个素材占时间线上的一条轨道：左右拖改位置、拖边缘改时长、上下拖换轨道。选中后可以在画面上直接拖、滚轮缩放；时间线上的 ◆ 是关键帧，可以拖。删错了按 Ctrl+Z。</p>
       </div>
     </details>
 
@@ -607,64 +613,64 @@
 </footer>
 
 <!-- 引擎 -->
-<script src="vendor/mp4-muxer.min.js?v=202610272325"></script>
-<script src="engine/01_util.js?v=202610272325"></script>
-<script src="engine/02_fonts.js?v=202610272325"></script>
-<script src="engine/02b_lang.js?v=202610272325"></script>
-<script src="engine/03_text.js?v=202610272325"></script>
-<script src="engine/04_styles.js?v=202610272325"></script>
-<script src="engine/05_anim.js?v=202610272325"></script>
-<script src="engine/05b_registry.js?v=202610272325"></script>
-<script src="engine/06_layouts.js?v=202610272325"></script>
-<script src="engine/07_decor.js?v=202610272325"></script>
-<script src="engine/08_planner.js?v=202610272325"></script>
-<script src="engine/08b_omakase.js?v=202610272325"></script>
-<script src="engine/09_render.js?v=202610272325"></script>
-<script src="engine/10_audio.js?v=202610272325"></script>
-<script src="engine/11_export.js?v=202610272325"></script>
-<script src="engine/11p_bgcamB.js?v=202610272325"></script>
-<script src="engine/11p_decor.js?v=202610272325"></script>
-<script src="engine/11p_decorB.js?v=202610272325"></script>
-<script src="engine/11p_enter.js?v=202610272325"></script>
-<script src="engine/11p_enterB.js?v=202610272325"></script>
-<script src="engine/11p_exit.js?v=202610272325"></script>
-<script src="engine/11p_exitB.js?v=202610272325"></script>
-<script src="engine/11p_fxB.js?v=202610272325"></script>
-<script src="engine/11p_horror1.js?v=202610272325"></script>
-<script src="engine/11p_horror2.js?v=202610272325"></script>
-<script src="engine/11p_horror3.js?v=202610272325"></script>
-<script src="engine/11p_kinetic1.js?v=202610272325"></script>
-<script src="engine/11p_kinetic2.js?v=202610272325"></script>
-<script src="engine/11p_kinetic3.js?v=202610272325"></script>
-<script src="engine/11p_layoutsA.js?v=202610272325"></script>
-<script src="engine/11p_layoutsB.js?v=202610272325"></script>
-<script src="engine/11p_layoutsC.js?v=202610272325"></script>
-<script src="engine/11p_layoutsD.js?v=202610272325"></script>
-<script src="engine/11p_looks.js?v=202610272325"></script>
-<script src="engine/11p_styles.js?v=202610272325"></script>
-<script src="engine/11p_styles2.js?v=202610272325"></script>
-<script src="engine/11p_treattrans.js?v=202610272325"></script>
-<script src="engine/11p_typo1.js?v=202610272325"></script>
-<script src="engine/11p_typo2.js?v=202610272325"></script>
-<script src="engine/11p_typo3.js?v=202610272325"></script>
-<script src="engine/11q_sets.js?v=202610272325"></script>
-<script src="engine/11r_shapes.js?v=202610272325"></script>
-<script src="engine/11s_garnish.js?v=202610272325"></script>
-<script src="engine/11z_more.js?v=202610272325"></script>
-<script src="engine/12_slot.js?v=202610272325"></script>
-<script src="engine/13_frames.js?v=202610272325"></script>
-<script src="engine/14_spec.js?v=202610272325"></script>
+<script src="vendor/mp4-muxer.min.js?v=202610272353"></script>
+<script src="engine/01_util.js?v=202610272353"></script>
+<script src="engine/02_fonts.js?v=202610272353"></script>
+<script src="engine/02b_lang.js?v=202610272353"></script>
+<script src="engine/03_text.js?v=202610272353"></script>
+<script src="engine/04_styles.js?v=202610272353"></script>
+<script src="engine/05_anim.js?v=202610272353"></script>
+<script src="engine/05b_registry.js?v=202610272353"></script>
+<script src="engine/06_layouts.js?v=202610272353"></script>
+<script src="engine/07_decor.js?v=202610272353"></script>
+<script src="engine/08_planner.js?v=202610272353"></script>
+<script src="engine/08b_omakase.js?v=202610272353"></script>
+<script src="engine/09_render.js?v=202610272353"></script>
+<script src="engine/10_audio.js?v=202610272353"></script>
+<script src="engine/11_export.js?v=202610272353"></script>
+<script src="engine/11p_bgcamB.js?v=202610272353"></script>
+<script src="engine/11p_decor.js?v=202610272353"></script>
+<script src="engine/11p_decorB.js?v=202610272353"></script>
+<script src="engine/11p_enter.js?v=202610272353"></script>
+<script src="engine/11p_enterB.js?v=202610272353"></script>
+<script src="engine/11p_exit.js?v=202610272353"></script>
+<script src="engine/11p_exitB.js?v=202610272353"></script>
+<script src="engine/11p_fxB.js?v=202610272353"></script>
+<script src="engine/11p_horror1.js?v=202610272353"></script>
+<script src="engine/11p_horror2.js?v=202610272353"></script>
+<script src="engine/11p_horror3.js?v=202610272353"></script>
+<script src="engine/11p_kinetic1.js?v=202610272353"></script>
+<script src="engine/11p_kinetic2.js?v=202610272353"></script>
+<script src="engine/11p_kinetic3.js?v=202610272353"></script>
+<script src="engine/11p_layoutsA.js?v=202610272353"></script>
+<script src="engine/11p_layoutsB.js?v=202610272353"></script>
+<script src="engine/11p_layoutsC.js?v=202610272353"></script>
+<script src="engine/11p_layoutsD.js?v=202610272353"></script>
+<script src="engine/11p_looks.js?v=202610272353"></script>
+<script src="engine/11p_styles.js?v=202610272353"></script>
+<script src="engine/11p_styles2.js?v=202610272353"></script>
+<script src="engine/11p_treattrans.js?v=202610272353"></script>
+<script src="engine/11p_typo1.js?v=202610272353"></script>
+<script src="engine/11p_typo2.js?v=202610272353"></script>
+<script src="engine/11p_typo3.js?v=202610272353"></script>
+<script src="engine/11q_sets.js?v=202610272353"></script>
+<script src="engine/11r_shapes.js?v=202610272353"></script>
+<script src="engine/11s_garnish.js?v=202610272353"></script>
+<script src="engine/11z_more.js?v=202610272353"></script>
+<script src="engine/12_slot.js?v=202610272353"></script>
+<script src="engine/13_frames.js?v=202610272353"></script>
+<script src="engine/14_spec.js?v=202610272353"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
-<script src="app/names_zh.js?v=202610272325"></script>
-<script src="app/labels_zh.js?v=202610272325"></script>
-<script src="app/local_fonts.js?v=202610272325"></script>
-<script src="app/mov_muxer.js?v=202610272325"></script>
-<script src="app/zip.js?v=202610272325"></script>
-<script src="app/project_io.js?v=202610272325"></script>
-<script src="app/studio.js?v=202610272325"></script>
-<script src="app/pet.js?v=202610272325"></script>
-<script src="app/catalog.js?v=202610272325"></script>
-<script src="app/ai_ref.js?v=202610272325"></script>
+<script src="app/names_zh.js?v=202610272353"></script>
+<script src="app/labels_zh.js?v=202610272353"></script>
+<script src="app/local_fonts.js?v=202610272353"></script>
+<script src="app/mov_muxer.js?v=202610272353"></script>
+<script src="app/zip.js?v=202610272353"></script>
+<script src="app/project_io.js?v=202610272353"></script>
+<script src="app/studio.js?v=202610272353"></script>
+<script src="app/pet.js?v=202610272353"></script>
+<script src="app/catalog.js?v=202610272353"></script>
+<script src="app/ai_ref.js?v=202610272353"></script>
 </body>
 </html>
