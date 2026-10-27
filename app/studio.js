@@ -2395,6 +2395,7 @@ function bindSlot(m, line, opts = {}) {
   m.blend = 0; m.border = 0; m.radius = 0; m.shadow = 0; m.fill = 'none'; m.react = 0; m.inM = 'none';
   m.front = false; m.fade = false; m.kf = newKf();
   m.layout = 'slot';
+  if (m.kind === 'video') m.slotFit = 'cover';      // 视频默认填满卡片，不留黑边
   m.start = cut.start;
   m.dur = Math.max(0.2, cut.end - cut.start);
   if (!Array.isArray(S.project.slotLines)) S.project.slotLines = [];
@@ -2455,6 +2456,7 @@ function slotLook(m) {
   m.blend = 0; m.border = 0; m.radius = 0; m.shadow = 0; m.fill = 'none'; m.react = 0; m.inM = 'none';
   m.front = false; m.fade = false; m.kf = newKf();
   m.layout = 'slot';
+  if (m.kind === 'video' && m.slotFit == null) m.slotFit = 'cover';
 }
 function spanSlotTo(m) {
   if (!m || !S.plan) return [];
@@ -2565,7 +2567,8 @@ function paintSlot(slot) {
   const ctx = slot.env.ctx;
   const pad = (slot.margin || 0) * Math.min(slot.w, slot.h);
   const vw = Math.max(1, slot.w - pad * 2), vh = Math.max(1, slot.h - pad * 2);
-  const fitK = slot.fit === 'contain' ? Math.min(vw / iw, vh / ih) : Math.max(vw / iw, vh / ih);
+  const fit = m.slotFit === 'contain' || m.slotFit === 'cover' ? m.slotFit : slot.fit;
+  const fitK = fit === 'contain' ? Math.min(vw / iw, vh / ih) : Math.max(vw / iw, vh / ih);
   const k = fitK * zoom;
   const dw = iw * k, dh = ih * k;
   const rot = (evalProp(m, 'rot', lt) + (slot.rot || 0)) * J.DEG;
@@ -2577,7 +2580,7 @@ function paintSlot(slot) {
   ctx.translate(slot.x, slot.y);
   J.roundPath(ctx, 0, 0, slot.w, slot.h, slot.r);
   ctx.clip();
-  if (slot.fit === 'contain') { ctx.globalAlpha = op; ctx.fillStyle = slot.paper; ctx.fillRect(0, 0, slot.w, slot.h); }
+  if (fit === 'contain') { ctx.globalAlpha = op; ctx.fillStyle = slot.paper; ctx.fillRect(0, 0, slot.w, slot.h); }
   try { if (tone.desat > 0.01) ctx.filter = 'saturate(' + (1 - tone.desat).toFixed(2) + ')'; } catch (e) {}
   ctx.globalAlpha = op;
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
@@ -2737,6 +2740,11 @@ function syncMediaInsp() {
       : m.inLayout ? '这一句暂时没有插槽 · 先按自由层画'
         : '自由层 · 浮在画面上';
   }
+  const sfit = $('#miSlotFit');
+  if (sfit) {
+    sfit.value = (m.slotFit === 'cover' || m.slotFit === 'contain') ? m.slotFit : 'auto';
+    sfit.disabled = !inSlot;
+  }
   // 融进版式之后：版式内的位置交给插槽；视频 / 跨句素材仍然可以改起点和时长
   ['#miStart', '#miDur'].forEach(sel => {
     const el = $(sel); if (el) el.disabled = inSlot && !(m.spanSlot || m.kind === 'video');
@@ -2847,6 +2855,12 @@ function bindMediaCard() {
     unbindSlot(m); autoFit(m, 'card');
     replan(); touch(); syncMediaList(); commit();
     toast('改回自由层：素材浮在画面上，可以随便摆位置和时长');
+  };
+  const sfit = $('#miSlotFit');
+  if (sfit) sfit.onchange = () => {
+    const m = cur(); if (!m) return;
+    m.slotFit = sfit.value === 'auto' ? null : sfit.value;
+    S.need = true; commit();
   };
   const inn = $('#miIn');
   if (inn) inn.onchange = () => { const m = cur(); if (!m) return; m.inM = inn.value; touch(); commit(); };

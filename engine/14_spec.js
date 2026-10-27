@@ -78,7 +78,7 @@ J.drawSpec = (env, spec) => {
   sw = W * (s.w == null ? 0.46 : s.w); sh = H * (s.h == null ? 0.92 : s.h);
   ctx.save();
   ctx.beginPath(); ctx.rect(sx, sy, sw, sh); ctx.clip();
-  env.slot('photo', sx, sy, sw, sh, { tone: s.tone || 'photo', alpha: a, fit: s.fit === 'cover' ? 'cover' : 'contain', paper: sc.bg });
+  env.slot('photo', sx, sy, sw, sh, { tone: s.tone || 'photo', alpha: a, fit: s.fit === 'contain' ? 'contain' : 'cover', paper: sc.bg });
   ctx.restore();
   if (s.outline) {
     ctx.save(); ctx.globalAlpha = a * 0.8; ctx.strokeStyle = s.outline; ctx.lineWidth = Math.max(2, u * (s.outlineW || 3));
