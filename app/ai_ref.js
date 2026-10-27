@@ -40,7 +40,9 @@ function css() {
 function buildPrompt(keys) {
   return [
     '你是文字 PV / 杂志排版的版式分析器。看这张参考图，只输出 JSON，不要解释。',
-    '输出字段：{"layout":"<从下列 key 里选一个最接近的>","imageRatio":0-1,"textZone":"left|right|top|bottom|corner|center","decor":["线条","色块","网点","竖排英文","编号","胶带","贴纸"],"palette":["#rrggbb","#rrggbb","#rrggbb"],"note":"一句中文说明"}',
+    '只输出这个 JSON（数值是 0~1 的比例，用不到的字段省略）：',
+    '{"bgText":{"size":0.42,"x":0.5,"y":0.5,"angle":0,"alpha":0.8},"subject":{"x":0.04,"y":0.04,"w":0.46,"h":0.92,"fit":"contain","outline":"#7FE3D4"},"rails":[{"x":0.9,"w":0.06,"h":0.88,"squares":7}],"lyric":{"zone":"bottom-left","w":0.4,"size":0.07},"decor":{"rules":true,"dots":true,"verticalText":"TCG-PV","caps":true,"sign":"T.01"},"palette":["#FFF6FA","#FF9FC2"]}',
+    '规则：subject 是人物/照片的位置；bgText 是背后的大字；有竖长条就写 rails；字绝不能落在 subject 里。',
     '可选 layout key：' + keys.join(', '),
     '判断标准：图占多大、字在哪一侧、装饰是什么类型、整体明暗。',
     '如果参考图是「人物 + 背后超大号文字 + 侧边竖条/胶囊」这一类，选 refPanel。',
@@ -132,13 +134,16 @@ function modal() {
     if (!spec) { out.textContent = '模型没返回 JSON，原文：\n' + text; return; }
     out.textContent = JSON.stringify(spec, null, 2);
     const btn = mask.querySelector('#aiApply');
-    btn.disabled = !(spec.layout && window.J.LAYOUTS[spec.layout]);
+    btn.disabled = false;
     btn.onclick = () => {
       const S = window.STUDIO;
       const line = S.api.targetLine();
       if (line < 0) { out.textContent = '播放头不在歌词行上。'; return; }
-      S.api.setOverride(line, 'layout', spec.layout);
-      out.textContent = '已给第 ' + (line + 1) + ' 行套上「' + (J.LAYOUTS[spec.layout].name || spec.layout) + '」。';
+      const genKey = 'aiGen' + Date.now().toString(36);
+      const S2 = S; const sp = spec;
+      J.register('layout', genKey, { name: 'AI 生成', tags: ['pop'], w: 1, slot: true, needsMaterial: true, slots: ['photo'], fits: () => true, plan: () => ({}), render(env) { J.drawSpec(env, sp); return null; } }, 'ai');
+      S2.api.setOverride(line, 'layout', genKey);
+      out.textContent = '已按参考图给第 ' + (line + 1) + ' 行生成了一版构图。';
       mask.remove();
     };
   };
