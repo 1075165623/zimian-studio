@@ -296,7 +296,7 @@ const S = {
       enter: { pop: 1.9, drop: 1.5, blur: 1.3, spin: 1.2, zoom: 1.2, assemble: 0.5, scramble: 0.3, slice: 0.3 },
       exit: { scatter: 1.5, shrink: 1.4, blur: 1.3, drift: 1.1, explode: 0.6, glitch: 0.3 },
       treat: { softShadow: 1.5, outline: 1.3, glow: 1.2, gradientV: 1.2, emphasisDots: 1.1, halftone: 0.3, distressed: 0.2 },
-      bg: { bokehBg: 1.6, gradientSweep: 1.5, particlesBg: 1.4, sunburst: 1, splitH: 0.7, spotlight: 0.7, tvBars: 0.1, retroGrid: 0.3 },
+      bg: { bokehBg: 1.6, gradientSweep: 1.5, particlesBg: 1.4, sunburst: 0.3, splitH: 0.7, spotlight: 0.7, tvBars: 0.1, retroGrid: 0.3 },
       cam: { dollyIn: 1.3, driftDiag: 1.2, handheld: 1.1, bounce: 0.5 },
       fx: { lightSweep: 1.3, filmBurn: 0.6, strobe: 0.4, posterize: 0.2 },
     },

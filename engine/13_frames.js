@@ -61,13 +61,12 @@ function fit(env, text, font, maxW, maxH, maxLines, maxSize) {
 function softShadow(env, x, y, w, h, r, a, d) {
   const ctx = env.ctx;
   ctx.save();
-  ctx.globalAlpha = a * 0.16;
-  ctx.fillStyle = '#101018';
-  J.roundPath(ctx, x + d * 0.2, y + d, w, h, r);
+  try { ctx.filter = 'blur(' + Math.max(2, d * 0.5).toFixed(1) + 'px)'; } catch (e) {}
+  ctx.globalAlpha = a * 0.26;
+  ctx.fillStyle = '#0E1018';
+  J.roundPath(ctx, x + d * 0.05, y + d * 0.28, w, h, r);
   ctx.fill();
-  ctx.globalAlpha = a * 0.1;
-  J.roundPath(ctx, x + d * 0.5, y + d * 1.7, w, h, r);
-  ctx.fill();
+  try { ctx.filter = 'none'; } catch (e) {}
   ctx.restore();
 }
 /* 半透明胶带 */

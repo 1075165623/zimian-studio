@@ -90,7 +90,7 @@ for (let i = 0; i < P.length; i++) {
       enter: { pop: 1.7, drop: 1.4, blur: 1.3, spin: 1.1, zoom: 1.1, assemble: 0.5, scramble: 0.3, slice: 0.3 },
       exit: { scatter: 1.4, shrink: 1.3, blur: 1.3, drift: 1.1, explode: 0.6, glitch: 0.3 },
       treat: { softShadow: 1.4, outline: 1.2, glow: 1.1, gradientV: 1.1, halftone: 0.3 },
-      bg: { bokehBg: 1.4, gradientSweep: 1.4, particlesBg: 1.3, sunburst: 0.9, splitH: 0.7, tvBars: 0.1, retroGrid: 0.4 },
+      bg: { bokehBg: 1.4, gradientSweep: 1.4, particlesBg: 1.3, sunburst: 0.12, splitH: 0.7, tvBars: 0.1, retroGrid: 0.4 },
       cam: { dollyIn: 1.2, driftDiag: 1.1, handheld: 1, bounce: 0.5 },
       fx: { lightSweep: 1.2, filmBurn: 0.6, strobe: 0.4, posterize: 0.2 },
     },
