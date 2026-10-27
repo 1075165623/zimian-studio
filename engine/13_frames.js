@@ -93,6 +93,77 @@ function dots(env, x, y, w, h, step, r, col, a) {
   ctx.restore();
 }
 
+/* ============================================================
+   版面装饰层：只画在四周边带里（不碰中间的素材），
+   细线 / 刻度 / 竖排英文 / 大号幽灵数字 / 色块 / 网点 / 胶带 / 圆环
+   —— 每个 cut 按 seed 换一套，同一支片子里不会每帧都一样。
+   ============================================================ */
+function decorKit(env, a, sc) {
+  const { W, H, ctx } = env, u = U(env) / 1080;
+  const C = paper(sc);
+  const ink = C.text, acc = sc.accent, acc2 = sc.accent2 || sc.accent;
+  const mono = 'mono';
+  const band = Math.min(W, H) * 0.135;
+  const v = (env.cut.seed >>> 0) % 6;
+  const s1 = Math.max(9, u * 15), s2 = Math.max(10, u * 19);
+  const no = lineNo(env);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  ctx.rect(band, band, W - band * 2, H - band * 2);
+  try { ctx.clip('evenodd'); } catch (e) { ctx.restore(); return; }
+
+  // ① 顶部标尺：一条细线 + 刻度
+  const ry = band * 0.62;
+  env.line([[band, ry], [W - band, ry]], ink, Math.max(1, u * 1.2), a * 0.3, false);
+  for (let i = 0; i <= 12; i++) {
+    const x = band + (W - band * 2) * i / 12;
+    env.line([[x, ry], [x, ry - (i % 3 ? u * 5 : u * 10)]], ink, Math.max(1, u), a * 0.3, false);
+  }
+  env.draw({ text: 'TCG-PV  STUDIO', font: mono, size: s1, track: 0.34, x: band, y: ry - u * 34, align: 'left', color: ink, alpha: a * 0.55, ghost: false });
+  env.draw({ text: 'SCENE ' + no + ' / ' + J.fmtTime(env.cut.start), font: mono, size: s1, track: 0.1, x: W - band, y: ry - u * 34, align: 'right', color: ink, alpha: a * 0.5, ghost: false });
+
+  // 左/右竖排英文（每个变体都有，保证两侧不空）
+  const LW = 'TCGPV·STUDIO'.split(''), RW = 'LYRIC·MOVIE·2026'.split('');
+  LW.forEach((ch, i) => env.draw({ text: ch, font: mono, size: s1, x: band * 0.4, y: H * 0.26 + i * s1 * 1.5, align: 'center', color: ink, alpha: a * 0.42, ghost: false }));
+  RW.forEach((ch, i) => env.draw({ text: ch, font: mono, size: Math.max(8, u * 12), x: W - band * 0.4, y: H * 0.2 + i * Math.max(8, u * 12) * 1.45, align: 'center', color: ink, alpha: a * 0.34, ghost: false }));
+  // 底部细线 + 时间
+  env.line([[band * 0.15, H - band * 0.55], [W - band * 0.15, H - band * 0.55]], ink, Math.max(1, u * 1.2), a * 0.25, false);
+  if (v === 0 || v === 3) {
+    // ② 左边缘竖排英文（一个字一格）
+    const word = (v === 0 ? 'TCGPV' : 'FRAME').split('');
+    word.forEach((ch, i) => {
+      env.draw({ text: ch, font: mono, size: s2, x: band * 0.42, y: H * 0.34 + i * s2 * 1.55, align: 'center', color: ink, alpha: a * 0.5, ghost: false });
+    });
+    env.line([[band * 0.72, H * 0.3], [band * 0.72, H * 0.3 + word.length * s2 * 1.55 + u * 10]], acc, Math.max(1, u * 2), a * 0.5, false);
+  }
+  if (v === 1 || v === 4) {
+    // ③ 大号幽灵数字
+    env.draw({ text: no, font: 'gothic_black', size: u * (v === 1 ? 190 : 130), x: v === 1 ? W - band * 0.9 : band * 0.9, y: H - band * 0.55, align: v === 1 ? 'right' : 'left', color: ink, alpha: a * 0.1, ghost: false });
+  }
+  if (v === 2 || v === 5) {
+    // ④ 色块 + 反白小字
+    const bw = Math.min(W * 0.3, u * 340), bh = u * 46;
+    const bx = v === 2 ? band * 0.25 : W - band * 0.25 - bw, by = H - band * 0.25 - bh;
+    env.rect(bx, by, bw, bh, acc, a * 0.9, false);
+    env.draw({ text: 'PV / ' + no + '  ' + J.fmtTime(env.cut.start), font: mono, size: s1, track: 0.12, x: bx + bw * 0.06, y: by + bh * 0.58, align: 'left', color: inkOn(sc, acc), alpha: a, ghost: false });
+  }
+  if (v === 3) {
+    // ⑤ 网点块
+    dots(env, band * 0.2, H * 0.62, band * 0.8, H * 0.2, Math.max(5, u * 9), Math.max(1, u * 1.5), ink, a * 0.3);
+  }
+  if (v === 5) {
+    // ⑥ 胶带 + 圆环
+    tape(env, band * 0.5, band * 0.9, u * 150, u * 34, -24, a, J.rgba(acc2, 0.5));
+    env.circle(W - band * 0.55, H * 0.3, u * 26, null, null, 0, 0, false);
+    ctx.save(); ctx.beginPath(); ctx.arc(W - band * 0.55, H * 0.3, u * 26, 0, J.TAU);
+    ctx.strokeStyle = ink; ctx.globalAlpha = a * 0.4; ctx.lineWidth = Math.max(1, u * 2); ctx.stroke(); ctx.restore();
+  }
+  // ⑦ 右下角：小方块 + 一行英文
+  env.rect(W - band * 0.75, H - band * 0.75, u * 22, u * 22, ink, a * 0.22, false);
+  env.draw({ text: 'DESIGNED IN TCG-PV', font: mono, size: Math.max(8, u * 11), track: 0.3, x: band, y: H - band * 0.3, align: 'left', color: ink, alpha: a * 0.35, ghost: false });
+  ctx.restore();
+}
 /* 版面四周的「版式标记」：细线 + 刻度 + 英文小字 + 小方块 —— 让画面不只剩一张照片 */
 function marginalia(env, a, C, sc, tag) {
   const { W, H } = env, u = U(env) / 1080;
@@ -135,6 +206,7 @@ J.register('layout', 'bigPicture', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params;
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const C = paper(sc);
     const m = U(env) * 0.045, band = H * p.band;
     const x = m, y = m, w = W - m * 2, h = H - m * 2;
@@ -167,6 +239,7 @@ J.register('layout', 'tapePhoto', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const ein = J.E.outCubic(clamp(env.lt / 0.4));
     const fw = Math.min(W * 0.8, H * 0.74), fh = Math.min(H * 0.92, fw * 1.28);
     const band = fh * p.band;
@@ -201,6 +274,7 @@ J.register('layout', 'filmStripFrame', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params;
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const stripH = H * 0.72, baseH = stripH * 0.2, photoH = stripH * 0.6;
     const cx = W / 2, cy = H * 0.47;
     const rot = p.tilt + (1 - J.E.outCubic(clamp(env.lt / 0.45))) * 4;
@@ -239,6 +313,7 @@ J.register('layout', 'screenFrame', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const fw = Math.min(W * 0.9, H * 1.36), fh = fw * 0.66;
     const cx = W / 2, cy = H * 0.44;
     const bezC = p.bezel === 'accent' ? sc.accent : p.bezel === 'dark' ? J.mix(sc.bg, '#000000', 0.35) : sc.ink;
@@ -279,6 +354,7 @@ J.register('layout', 'comicPanel', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const m = U(env) * 0.05, gut = U(env) * 0.012;
     const pw = W - m * 2 - gut * 2, ph = H - m * 2 - gut * 2;
     const rot = p.tilt + (1 - J.E.outCubic(clamp(env.lt / 0.4))) * 3;
@@ -311,6 +387,7 @@ J.register('layout', 'posterWall', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const ein = J.E.outCubic(clamp(env.lt / 0.42));
     const wide = W / H > 1.35;
     const pw = wide ? Math.min(W * 0.86, H * 1.22) : Math.min(W * 0.82, H * 0.64);
@@ -343,6 +420,7 @@ J.register('layout', 'albumFrame', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const port = isPort(env);
     const S = port ? Math.min(W * 0.84, H * 0.52) : Math.min(H * 0.84, W * 0.5);
     const cx = port ? W / 2 : W * 0.64, cy = port ? H * 0.34 : H * 0.5;
@@ -377,6 +455,7 @@ J.register('layout', 'circlePortrait', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const port = isPort(env);
     const R = Math.min(H * 0.36, W * 0.32);
     const cx = port ? W / 2 : W * 0.3, cy = port ? H * 0.34 : H * 0.5;
@@ -419,6 +498,7 @@ J.register('layout', 'windowFrame', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const m = U(env) * 0.05;
     const ww = W - m * 2, wh = H - m * 2 - H * p.stool;
     const x = m, y = m;
@@ -450,6 +530,7 @@ J.register('layout', 'idCard', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const cw = Math.min(W * 0.84, H * 1.7), ch = cw * 0.56;
     const cx = W / 2, cy = H * 0.5;
     const rot = p.tilt + (1 - J.E.outCubic(clamp(env.lt / 0.45))) * 7;
@@ -488,6 +569,7 @@ J.register('layout', 'polaroidStack', {
   render(env) {
     const { W, H, sc, ctx } = env, u = U(env) / 1080, p = env.cut.params, C = paper(sc);
     const a = base(env); if (!a) return null;
+    decorKit(env, a, sc);
     const fw = isPort(env) ? Math.min(W * 0.7, H * 0.46) : Math.min(W * 0.44, H * 0.66), fh = fw * 1.2;
     const cx = W / 2, cy = H * 0.47;
     const ein = J.E.outCubic(clamp(env.lt / 0.45));
