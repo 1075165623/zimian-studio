@@ -50,6 +50,17 @@ J.slot = (env, name, x, y, w, h, o) => {
     ink: (env.sc && env.sc.fg) || '#000000',
   };
   if (slot.alpha <= 0.004) return false;
+  // 记下插槽在画布上的包围盒：11t_slotAtmosphere 画边缘装饰时避开它，绝不盖住素材
+  try {
+    const a = slot.m[0], b = slot.m[1], c = slot.m[2], d = slot.m[3], e = slot.m[4], f = slot.m[5];
+    const pt = (px, py) => [a * px + c * py + e, b * px + d * py + f];
+    const p1 = pt(x, y), p2 = pt(x + w, y), p3 = pt(x + w, y + h), p4 = pt(x, y + h);
+    const xs = [p1[0], p2[0], p3[0], p4[0]], ys = [p1[1], p2[1], p3[1], p4[1]];
+    (env._slotRects || (env._slotRects = [])).push({
+      x0: Math.min.apply(null, xs), y0: Math.min.apply(null, ys),
+      x1: Math.max.apply(null, xs), y1: Math.max.apply(null, ys),
+    });
+  } catch (e) {}
   let hit = false;
   if (typeof env.slotPaint === 'function') {
     try { hit = !!env.slotPaint(slot); } catch (e) { console.warn('slot:' + slot.name, e); }

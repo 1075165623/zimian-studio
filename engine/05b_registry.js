@@ -62,6 +62,35 @@ J.register = (group, key, def, pack) => {
   const reg = J[G[0]], order = J[G[1]];
   if (reg[key] && reg[key].pack !== pack) console.warn(`JIZURA: ${group}.${key} is being replaced`);
   def.pack = pack || def.pack || 'core';
+  // 所有「可嵌套素材」的版式自动加环境层：背景铺满 + 边缘动态。
+  // 定义在 11t_slotAtmosphere.js，渲染时才取，放最后也不会漏。
+  if (group === 'layout' && def.slot && typeof def.render === 'function' && !def._slotWrapped) {
+    def._slotWrapped = true;
+    const orig = def.render;
+    def.render = function (env) {
+      const main = !!(env && env.pass === 'main' && !env.bgOnly);
+      if (main && J.slotAtmosphere) { try { J.slotAtmosphere(env, this); } catch (e) {} }
+      let bb;
+      if (main && env.W > 10 && env.H > 10) {
+        // 很轻的持续运镜：可嵌套版式里的纸、字、素材也一直在呼吸，而不是一张静帧
+        const t = env.t != null ? env.t : (env.lt || 0);
+        const ctx = env.ctx, W = env.W, H = env.H;
+        const dx = Math.sin(t * 0.09) * W * 0.0016;
+        const dy = Math.cos(t * 0.07) * H * 0.0012;
+        const rot = Math.sin(t * 0.06 + 1.3) * 0.07 * J.DEG;
+        ctx.save();
+        ctx.translate(W / 2 + dx, H / 2 + dy);
+        ctx.rotate(rot);
+        ctx.scale(1.0015, 1.0015);
+        ctx.translate(-W / 2, -H / 2);
+        try { bb = orig.call(this, env); } finally { ctx.restore(); }
+      } else {
+        bb = orig.call(this, env);
+      }
+      if (main && J.slotAtmosphereFront) { try { J.slotAtmosphereFront(env, this); } catch (e) {} }
+      return bb;
+    };
+  }
   reg[key] = def;
   if (!def.special && !order.includes(key)) order.push(key);
   return def;
