@@ -1154,6 +1154,7 @@ async function loadAudioFile(file) {
     const a = await J.analyzeAudio(file);
     if (my !== S.audioSeq) return;
     S.audio = a;
+    S.audioFile = file;                 // 存工程时要把音频原文件一起打包
     S.project.audioName = file.name;
     S.project.includeAudio = true;
     if (a.bpm > 0) {

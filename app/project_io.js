@@ -97,15 +97,21 @@ async function save(auto) {
   lastSig = sig;
   try { localStorage.setItem(LS, JSON.stringify(snap)); } catch (e) {}
   await idbSet('assets', collectAssets());
+  const f = window.STUDIO.audioFile;
+  if (f) { try { await idbSet('audio', { name: f.name, type: f.type, buf: await f.arrayBuffer() }); } catch (e) {} }
   stamp(snap.at);
   return true;
 }
+
+const fileToDataURL = f => new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null); r.readAsDataURL(f); });
 
 /* 下载成文件（图片一起打包） */
 async function download() {
   const snap = snapshot();
   if (!snap) return;
-  const pack = Object.assign({}, snap, { app: 'TCG-PV工厂', kind: 'project', assets: collectAssets() });
+  const f = window.STUDIO.audioFile;
+  const audio = f ? { name: f.name, data: await fileToDataURL(f) } : null;
+  const pack = Object.assign({}, snap, { app: 'TCG-PV工厂', kind: 'project', assets: collectAssets(), audio });
   const body = JSON.stringify(pack);
   const blob = new Blob([body], { type: 'application/json' });
   const a = document.createElement('a');
@@ -128,6 +134,12 @@ async function openFile(file) {
     if (!pack || !pack.project) throw new Error('不是工程文件');
     localStorage.setItem(LS, JSON.stringify({ v: 1, at: Date.now(), project: pack.project, media: pack.media || [] }));
     await idbSet('assets', pack.assets || []);
+    if (pack.audio && pack.audio.data) {                 // 音频也一起带走
+      try {
+        const blob = await (await fetch(pack.audio.data)).blob();
+        await idbSet('audio', { name: pack.audio.name || '音频', type: blob.type || 'audio/wav', buf: await blob.arrayBuffer() });
+      } catch (e) {}
+    }
     toast('正在打开工程…');
     setTimeout(() => location.reload(), 400);
   } catch (e) {
@@ -140,9 +152,9 @@ async function hydrate() {
   const S = window.STUDIO;
   if (!S || !S.api) return;
   const list = await idbGet('assets');
-  if (!Array.isArray(list) || !list.length) return;
+  const imgs = Array.isArray(list) ? list : [];
   let n = 0;
-  for (const a of list) {
+  for (const a of imgs) {
     if (!a || !a.data) continue;
     const img = new Image();
     img.src = a.data;
@@ -156,6 +168,15 @@ async function hydrate() {
   if (n) {
     try { S.api.replan(); S.api.syncMediaList(); S.api.syncMediaState(); } catch (e) {}
     toast('已恢复上次的工程 · ' + n + ' 张素材');
+  }
+  // 音频：从存档里取回原文件，走一遍正常的载入流程（BPM / 波形 / 卡点都回来）
+  const au = await idbGet('audio');
+  if (au && au.buf) {
+    try {
+      const file = new File([au.buf], au.name || '音频', { type: au.type || 'audio/wav' });
+      await S.api.loadAudioFile(file);
+      toast('已恢复工程音频 · ' + (au.name || ''));
+    } catch (e) { console.warn('audio restore', e); }
   }
 }
 
