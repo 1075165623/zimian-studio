@@ -109,21 +109,33 @@ const fileToDataURL = f => new Promise(res => { const r = new FileReader(); r.on
 async function download() {
   const snap = snapshot();
   if (!snap) return;
-  const f = window.STUDIO.audioFile;
-  const audio = f ? { name: f.name, data: await fileToDataURL(f) } : null;
-  const pack = Object.assign({}, snap, { app: 'TCG-PV工厂', kind: 'project', assets: collectAssets(), audio });
-  const body = JSON.stringify(pack);
-  const blob = new Blob([body], { type: 'application/json' });
+  if (!window.ZIP) { toast('打包模块没加载，先刷新一次页面'); return; }
+  const S = window.STUDIO;
+  const assets = collectAssets();
+  const f = S.audioFile;
+  const pack = JSON.parse(JSON.stringify(snap));
+  pack.app = 'TCG-PV工厂';
+  pack.kind = 'project';
+  pack.assets = assets.map(a => ({ id: a.id, kind: a.kind, iw: a.iw, ih: a.ih, total: a.total, file: 'img/' + a.id + '.png' }));
+  pack.audio = f ? { name: f.name, file: 'audio/' + f.name } : null;
+  pack.lyricsFile = '字幕/歌词.txt';
+  const enc = new TextEncoder();
+  const files = [{ name: '工程.json', data: enc.encode(JSON.stringify(pack)) }];
+  for (const a of assets) files.push({ name: 'img/' + a.id + '.png', data: window.ZIP.dataURLBytes(a.data) });
+  if (f) { try { files.push({ name: 'audio/' + f.name, data: new Uint8Array(await f.arrayBuffer()) }); } catch (e) {} }
+  files.push({ name: '字幕/歌词.txt', data: enc.encode(S.project.lyrics || '') });
+  const bytes = window.ZIP.zip(files);
+  const blob = new Blob([bytes], { type: 'application/zip' });
   const a = document.createElement('a');
   const d = new Date();
   const name = 'TCG-PV工程_' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '_' +
-    String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + '.json';
+    String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0') + '.zip';
   a.href = URL.createObjectURL(blob);
   a.download = name;
   document.body.appendChild(a);
   a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  toast('已下载：' + name + '（' + Math.round(body.length / 1024) + ' KB）');
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('已打包：' + name + '（' + Math.round(bytes.length / 1024) + ' KB，含音频 / 图片 / 字幕）');
 }
 
 /* 打开文件：写进存档后重载，boot() 会直接按这份工程起来 */
