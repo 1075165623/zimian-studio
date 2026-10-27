@@ -516,7 +516,7 @@ input[type=range]::-webkit-slider-thumb{
   --tl-deep:#0C0F15;
   --tl-ink:#B7C2DA;
 }
-.panel.right{background:#DDE3F0;border-left:1px solid #AEB9CF}
+.panel.right{background:#DDE3F0;border-left:1px solid #AEB9CF;padding-bottom:172px}
 .card{border-color:#AFBAD0;box-shadow:0 1px 2px rgba(16,24,40,.12),0 4px 12px rgba(16,24,40,.07)}
 .card[open]>summary.ch{border-bottom-color:var(--cl)}
 .topbar{border-bottom:1px solid #AEB9CF;box-shadow:0 2px 6px rgba(16,24,40,.08)}
@@ -620,6 +620,45 @@ input[type=range]::-webkit-slider-thumb{
 .chip span:hover{border-color:var(--cl)}
 .chip input:checked + span{background:var(--cs);border-color:var(--cl);color:var(--c);font-weight:600}
 .chip input:focus-visible + span{outline:2px solid var(--cs)}
+
+/* ─────────── 桌面宠物 ─────────── */
+.card[data-tone="pet"]{--c:#65A30D;--cs:#F1F8E4;--cl:#DCEEBD}
+.card[data-tone="pet"] .ch-ico{border-radius:50% 50% 44% 44%}
+.pet{
+  position:fixed;z-index:70;right:14px;bottom:calc(var(--bb-h,26px) + 8px);
+  width:150px;cursor:grab;touch-action:none;user-select:none;
+}
+.pet[hidden]{display:none}
+.pet.dragging{cursor:grabbing}
+.pet .pet-ink{display:block;filter:drop-shadow(0 8px 14px rgba(16,24,40,.22));transform-origin:50% 92%}
+.pet .pet-svg{display:block;width:100%;height:auto;overflow:visible}
+.pet .pet-bob{animation:petBob 3.6s ease-in-out infinite;transform-origin:50% 92%}
+@keyframes petBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3.5px)}}
+.pet .pet-eyes{transform-box:fill-box;transform-origin:center;transition:transform .07s linear}
+.pet.blink .pet-eyes{transform:scaleY(.08)}
+.pet .pet-eye{transition:transform .18s ease-out}
+.pet.pinch .pet-ink{animation:petSquash .44s cubic-bezier(.34,1.56,.64,1)}
+@keyframes petSquash{
+  0%{transform:scale(1,1)}
+  30%{transform:scale(1.12,.86) rotate(-2deg)}
+  60%{transform:scale(.94,1.06) rotate(1.5deg)}
+  100%{transform:scale(1,1)}
+}
+.pet-bubble{
+  position:absolute;left:50%;bottom:100%;transform:translate(calc(-50% + var(--bx,0px)),-8px) scale(.92);
+  max-width:172px;min-width:54px;width:max-content;padding:7px 10px;border-radius:12px;
+  background:#fff;color:#22262F;font-size:11.5px;line-height:1.45;text-align:center;
+  box-shadow:0 6px 18px rgba(16,24,40,.16);border:1px solid #E7EAF2;
+  opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease;
+}
+.pet-bubble::after{
+  content:"";position:absolute;left:50%;top:100%;width:9px;height:9px;margin-left:-4.5px;margin-top:-5px;
+  background:#fff;border-right:1px solid #E7EAF2;border-bottom:1px solid #E7EAF2;transform:rotate(45deg);
+}
+.pet-bubble.on{opacity:1;transform:translate(calc(-50% + var(--bx,0px)),-8px) scale(1)}
+.pet-bubble.down{bottom:auto;top:100%;transform:translate(calc(-50% + var(--bx,0px)),8px) scale(.92)}
+.pet-bubble.down.on{transform:translate(calc(-50% + var(--bx,0px)),8px) scale(1)}
+.pet-bubble.down::after{top:auto;bottom:100%;margin-top:0;margin-bottom:-5px;transform:rotate(225deg)}
 
 /* 自定义配色行（风格格子下面） */
 .style-custom{display:flex;align-items:center;gap:5px;margin:0 0 8px;padding:5px 6px;border:1px dashed #D7CFEA;border-radius:8px;background:#FBF9FF}

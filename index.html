@@ -327,24 +327,6 @@
       </div>
     </details>
 
-    <!-- 字体 -->
-    <details class="card" data-tone="fonts" data-fold="fonts">
-      <summary class="ch">
-        <i class="ch-ico">A</i>
-        <span class="ch-t">字体</span>
-        <span class="ch-s" id="sumFonts">跟随风格</span>
-        <i class="ch-ar"></i>
-      </summary>
-      <div class="ch-body">
-        <div class="fonts">
-          <label><span>主字</span><select id="fDisplay"></select></label>
-          <label><span>衬线</span><select id="fSerif"></select></label>
-          <label><span>正文</span><select id="fBody"></select></label>
-        </div>
-        <p class="tip">全部用你本机已装的中文字体，断网也能用。</p>
-      </div>
-    </details>
-
     <!-- 效果库（顶栏搬下来：全部手法，点一下套到当前这一行） -->
     <details class="card lib-card" data-tone="lib" data-fold="lib" id="cardLib">
       <summary class="ch">
@@ -439,6 +421,24 @@
       </div>
     </details>
 
+    <!-- 字体 -->
+    <details class="card" data-tone="fonts" data-fold="fonts">
+      <summary class="ch">
+        <i class="ch-ico">A</i>
+        <span class="ch-t">字体</span>
+        <span class="ch-s" id="sumFonts">跟随风格</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="fonts">
+          <label><span>主字</span><select id="fDisplay"></select></label>
+          <label><span>衬线</span><select id="fSerif"></select></label>
+          <label><span>正文</span><select id="fBody"></select></label>
+        </div>
+        <p class="tip">全部用你本机已装的中文字体，断网也能用。</p>
+      </div>
+    </details>
+
     <details class="card" data-tone="feel" data-fold="feel">
       <summary class="ch">
         <i class="ch-ico">≈</i>
@@ -522,6 +522,26 @@
       </div>
     </details>
 
+    <!-- 桌面宠物 -->
+    <details class="card" data-tone="pet" data-fold="pet">
+      <summary class="ch">
+        <i class="ch-ico">✿</i>
+        <span class="ch-t">桌面宠物</span>
+        <span class="ch-s" id="sumPet">在右下角</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <label class="check"><input type="checkbox" id="petOn" checked> 显示宠物</label>
+        <div class="slider"><label>大小 <output id="oPetSize">100%</output></label><input type="range" id="petSize" min="60" max="170" value="100"></div>
+        <label class="check"><input type="checkbox" id="petQuiet"> 安静模式（不主动说话）</label>
+        <div class="row-btns">
+          <button class="btn tiny" id="btnPetPinch">捏一下</button>
+          <button class="btn tiny" id="btnPetHome">回到右下角</button>
+        </div>
+        <p class="tip">拖住就能把她挪开，点一下就是捏。她平时会自己冒气泡，被捏的时候会抗议。</p>
+      </div>
+    </details>
+
   </aside>
 </main>
 
@@ -590,6 +610,7 @@
 <script src="app/local_fonts.js"></script>
 <script src="app/mov_muxer.js"></script>
 <script src="app/studio.js"></script>
+<script src="app/pet.js"></script>
 <script src="app/catalog.js"></script>
 <script src="app/ai_ref.js"></script>
 </body>
