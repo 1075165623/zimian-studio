@@ -510,6 +510,50 @@ input[type=range]::-webkit-slider-thumb{
 .media-insp .mi-acts .btn{flex:1 1 0;min-width:44px;height:24px;font-size:10.5px;border-radius:6px;padding:0 4px}
 .media-insp .mi-acts .btn.on{background:#FFF1E4;border-color:#F0C79A;color:#B0723A;font-weight:600}
 
+/* ── 素材面板 v3：导入默认折叠 + 选中素材分页 ── */
+.media-list{max-height:126px;overflow:auto;padding-right:2px;scrollbar-width:thin}
+.media-insp{
+  margin-top:9px;padding:9px;border:1px solid #E7D9C7;border-radius:12px;background:#FFFDF9;
+  box-shadow:0 1px 2px rgba(16,24,40,.04);
+}
+.mini{margin-top:8px;border:1px solid var(--line);border-radius:10px;background:#FAFBFD;overflow:hidden}
+.mini>summary{list-style:none;display:flex;align-items:center;gap:6px;padding:7px 9px;cursor:pointer;font-size:10.5px;color:var(--ink-2);font-weight:600}
+.mini>summary::-webkit-details-marker{display:none}
+.mini-head small{margin-left:auto;font-weight:400;color:var(--ink-3);font-size:9.5px;white-space:nowrap}
+.mini-ar{width:6px;height:6px;border-right:1.5px solid var(--ink-3);border-bottom:1.5px solid var(--ink-3);transform:rotate(45deg);transition:.15s;margin-left:2px}
+.mini[open] .mini-ar{transform:rotate(225deg)}
+.mini-body{padding:0 9px 8px}
+.mini-body .bc-row{margin-top:5px}
+.mini-checks{display:flex;flex-direction:column;gap:3px;margin-top:7px}
+.mini-checks .check{font-size:10.5px}
+.mi-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.mi-thumb{
+  width:34px;height:34px;flex:0 0 34px;border-radius:8px;border:1px solid #EEE2D3;background:#F4EFE7;
+  display:grid;place-items:center;font-size:15px;color:#B08A62;overflow:hidden;
+}
+.mi-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.mi-title{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mi-title b{font-size:11.5px;color:var(--ink);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi-title small{font-size:9px;color:var(--ink-3);letter-spacing:.04em}
+.mi-close{width:20px;height:20px;flex:0 0 20px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--ink-3);font-size:13px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+.mi-close:hover{color:#B91C1C;border-color:#F4C4C4;background:#FFF6F6}
+.mi-tabs{display:flex;gap:2px;padding:2px;border-radius:8px;background:#F1F3F7;margin:1px 0 8px}
+.mi-tab{flex:1;height:24px;border:0;border-radius:6px;background:transparent;color:var(--ink-3);font-size:10.5px;font-weight:600;cursor:pointer;padding:0;transition:.12s}
+.mi-tab:hover{color:var(--ink-2)}
+.mi-tab.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.14)}
+.mi-tab[hidden]{display:none}
+.mi-pane{display:none}
+.mi-pane.on{display:block}
+.mi-sec{margin-bottom:7px}
+.mi-sec+.mi-sec{padding-top:7px;border-top:1px dashed #EFE4D6}
+.mi-sec h4{margin:0 0 5px;font-size:9px;font-weight:700;letter-spacing:.12em;color:#A98A6A;text-transform:uppercase}
+.mi-quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(62px,1fr));gap:4px;margin-top:8px}
+.mi-quick .btn{height:23px;font-size:10px;border-radius:6px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi-quick .btn[hidden]{display:none}
+.media-insp .mi-slot,.media-insp .vid-box,.media-insp .mi-kf{margin-top:0}
+.media-insp .mi-row{margin-top:5px}
+.media-insp .slider{margin-top:4px;margin-bottom:4px}
+
 
 /* ============================================================
    v2 覆盖层：更强的界面层次 + 深色时间线 + 关键帧 / 卡拍控件

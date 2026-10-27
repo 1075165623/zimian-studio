@@ -2721,6 +2721,18 @@ function removeMedia(i) {
 }
 
 /* 选中素材的小面板：显示的是「播放头所在时刻」的值（有关键帧时会跟着变） */
+let INSP_TAB = 'basic';
+let INSP_SEL = -1;
+function showInspTab(name) {
+  const box = $('#mediaInsp');
+  if (!box) return;
+  const m = S.media[S.mediaSel];
+  if (name === 'video' && (!m || m.kind !== 'video')) name = 'basic';
+  INSP_TAB = name;
+  $$('#mediaInsp .mi-tab').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  $$('#mediaInsp .mi-pane').forEach(p => p.classList.toggle('on', p.dataset.pane === name));
+}
+
 function syncMediaInsp() {
   const box = $('#mediaInsp');
   if (!box) return;
@@ -2733,6 +2745,21 @@ function syncMediaInsp() {
   const rot = Math.round(J.clamp(evalProp(m, 'rot', lt), -180, 180));
   const name = $('#miSelName');
   if (name && name.textContent !== (m.name || '素材')) name.textContent = m.name || '素材';
+  const th = $('#miThumb');
+  if (th) {
+    const u = m.url || '';
+    if (th.dataset.src !== u) {
+      th.dataset.src = u;
+      th.innerHTML = '';
+      if (u) { const im = document.createElement('img'); im.src = u; im.alt = ''; th.appendChild(im); }
+      else th.textContent = '▣';
+    }
+  }
+  const kd = $('#miKind'); if (kd) kd.textContent = KIND_TAG[m.kind] || '素材';
+  if (INSP_SEL !== S.mediaSel) { INSP_SEL = S.mediaSel; INSP_TAB = 'basic'; }
+  const vt = $('#miTabVideo'); if (vt) vt.hidden = m.kind !== 'video';
+  if (m.kind !== 'video' && INSP_TAB === 'video') INSP_TAB = 'basic';
+  showInspTab(INSP_TAB);
   const setVal = (sel, v) => { const el = $(sel); if (el && document.activeElement !== el && el.value !== String(v)) el.value = v; };
   setVal('#miScale', sc);
   setVal('#miOpacity', op);
@@ -2761,10 +2788,16 @@ function syncMediaInsp() {
   const inSlot = !!(m.inLayout && !m.orphan);
   if (sbox) sbox.hidden = false;
   if (sinfo) {
-    const info = slotInfoOf(m);
-    sinfo.textContent = inSlot ? ((info && info.tid) || '在版式里') + (m.spanSlot ? '' : ' · 时长跟着这一句')
-      : m.inLayout ? '这一句暂时没有插槽 · 先按自由层画'
-        : '自由层 · 浮在画面上';
+    if (inSlot) {
+      if (m.spanSlot && m.spanLines && m.spanLines.length) {
+        const a = m.spanLines[0], b = m.spanLines[m.spanLines.length - 1];
+        sinfo.textContent = '第 ' + (a + 1) + (b > a ? '–' + (b + 1) : '') + ' 句 · ' + m.spanLines.length + ' 句';
+      } else {
+        sinfo.textContent = '第 ' + ((m.line | 0) + 1) + ' 句';
+      }
+    } else {
+      sinfo.textContent = m.inLayout ? '这一句没有插槽' : '自由层';
+    }
   }
   const sfit = $('#miSlotFit');
   if (sfit) {
@@ -2772,11 +2805,13 @@ function syncMediaInsp() {
     sfit.disabled = !inSlot;
   }
   // 融进版式之后：版式内的位置交给插槽；视频 / 跨句素材仍然可以改起点和时长
+  const tr = $('#miTimeRow');
+  if (tr) tr.hidden = inSlot && !(m.spanSlot || m.kind === 'video');
   ['#miStart', '#miDur'].forEach(sel => {
     const el = $(sel); if (el) el.disabled = inSlot && !(m.spanSlot || m.kind === 'video');
   });
   ['#miFront', '#miFit', '#miCenter', '#miUp', '#miDown'].forEach(sel => {
-    const el = $(sel); if (el) el.disabled = inSlot;
+    const el = $(sel); if (el) { el.disabled = inSlot; el.hidden = inSlot; }
   });
   // 视频专属：入点 / 出点 / 整段铺开
   const vr = $('#miVideoRow');
@@ -2808,9 +2843,7 @@ function syncMediaInsp() {
   if (info) {
     const ts = kfTimes(m);
     const here = ts.some(x => Math.abs(x - (S.t - m.start)) < 0.04);
-    info.textContent = ts.length
-      ? ts.length + ' 个关键帧' + (here ? ' · 播放头正好在一个关键帧上' : '') + ' · 拖时间线上的 ◆ 改时间；在画面上拖 / 缩放就会写入关键帧'
-      : '还没有关键帧。点「◆ 打关键帧」，把播放头挪到别处，再在画面上拖动 / 缩放，就做出动画了。也可以直接套下面的预设。';
+    info.textContent = ts.length ? ts.length + ' 个关键帧' + (here ? ' · 当前' : '') : '还没有关键帧';
   }
 }
 
@@ -2819,6 +2852,9 @@ function syncMediaState() { syncMediaList(); }
 function bindMediaCard() {
   const cur = () => S.media[S.mediaSel];
   const touch = () => { S.need = true; drawTimeline(); syncMediaInsp(); };
+  $$('#mediaInsp .mi-tab').forEach(b => { b.onclick = () => showInspTab(b.dataset.tab); });
+  const mc = $('#miClose');
+  if (mc) mc.onclick = () => tlSetSelection([], null);
   const slide = (sel, fn) => {
     const el = $(sel);
     if (!el) return;
