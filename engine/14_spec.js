@@ -72,9 +72,10 @@ J.drawSpec = (env, spec) => {
     ctx.save(); ctx.globalAlpha = a * (spec.scrim == null ? 0.42 : spec.scrim);
     ctx.fillStyle = (pal[0] || sc.bg); ctx.fillRect(0, 0, W, H); ctx.restore();
   }
+  let sx, sy, sw, sh;
   if (!bleed) {
-  const sx = W * (s.x == null ? 0.06 : s.x), sy = H * (s.y == null ? 0.04 : s.y);
-  const sw = W * (s.w == null ? 0.46 : s.w), sh = H * (s.h == null ? 0.92 : s.h);
+  sx = W * (s.x == null ? 0.06 : s.x); sy = H * (s.y == null ? 0.04 : s.y);
+  sw = W * (s.w == null ? 0.46 : s.w); sh = H * (s.h == null ? 0.92 : s.h);
   ctx.save();
   ctx.beginPath(); ctx.rect(sx, sy, sw, sh); ctx.clip();
   env.slot('photo', sx, sy, sw, sh, { tone: s.tone || 'photo', alpha: a, fit: s.fit === 'cover' ? 'cover' : 'contain', paper: sc.bg });
@@ -84,7 +85,7 @@ J.drawSpec = (env, spec) => {
     ctx.strokeRect(sx + u * 4, sy + u * 4, sw - u * 8, sh - u * 8); ctx.restore();
   }
 
-  }
+  } else { sx = 0; sy = 0; sw = W; sh = H; }
   // ③ 竖条 / 胶囊
   (spec.rails || []).forEach(r => {
     const rx = W * r.x, ry = H * (r.y == null ? 0.05 : r.y), rw = W * r.w, rh = H * (r.h == null ? 0.9 : r.h);
