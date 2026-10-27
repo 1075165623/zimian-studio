@@ -1,3 +1,7 @@
+> **© 2026 淦 · 保留所有权利（All Rights Reserved）**
+> 本仓库的界面、编排逻辑、版式参数、配色与文档为原创，未经书面许可不得复制、修改、再发布或商用。
+> 引擎部分来自 JIZURA（MIT），其版权声明必须保留，详见 [LICENSE](LICENSE) 与 [LICENSE-JIZURA.txt](LICENSE-JIZURA.txt)。
+
 # TCG-PV工厂
 
 把歌词做成「文字 PV」风格的动态字幕：885 个手法、素材自动印进信纸 / 拍立得 / 明信片，

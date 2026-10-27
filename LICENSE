@@ -1,0 +1,34 @@
+TCG-PV工厂 (zimian-studio)
+Copyright (C) 2026 淦 (GitHub: 1075165623). All Rights Reserved.
+版权所有，保留一切权利。
+
+一、本仓库中的「界面、编排逻辑、版式参数、配色方案、文档」等由作者原创的部分，
+    未经作者书面许可，不得复制、修改、再发布、商用或用于任何衍生产品。
+
+二、仅允许以下行为：
+    1. 通过作者发布的网址在线使用本工具；
+    2. 在自己的视频作品中正常使用本工具导出的成片；
+    3. 为学习目的阅读源码，但不得再分发。
+
+三、转载 / 二次发布 / 二次开发，须事先取得作者书面授权，并保留本文件与页脚署名。
+
+四、本项目的文字排版引擎（engine/ 目录中的 JIZURA 部分）来自
+    https://github.com/852wa/JIZURA ，MIT License, Copyright (C) 2026 hakoniwa。
+    该部分的使用遵循 MIT 条款，其原始许可全文见 LICENSE-JIZURA.txt，
+    二次分发时必须保留该文件与版权声明。
+
+五、本软件按「现状」提供，不附带任何明示或暗示的担保。
+
+--------------------------------------------------------------------------
+TCG-PV STUDIO — Copyright (C) 2026 Gan. All Rights Reserved.
+
+The original parts of this repository (UI, orchestration, layout parameters,
+colour schemes and documentation) may not be copied, modified, redistributed
+or used commercially without prior written permission from the author.
+
+The lyric-typesetting engine in engine/ is derived from JIZURA
+(https://github.com/852wa/JIZURA, MIT License, Copyright (C) 2026 hakoniwa)
+and remains under the MIT License — see LICENSE-JIZURA.txt, which must be
+kept in any redistribution.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
