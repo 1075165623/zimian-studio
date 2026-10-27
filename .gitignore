@@ -11,3 +11,6 @@ desktop.ini
 
 # 依赖
 node_modules/
+
+# 临时探针页
+__probe*.html
