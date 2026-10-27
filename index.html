@@ -469,6 +469,39 @@
       </div>
     </details>
 
+    <details class="card" data-tone="text" data-fold="text">
+      <summary class="ch">
+        <i class="ch-ico">▤</i>
+        <span class="ch-t">文字层</span>
+        <span class="ch-s" id="sumText">关</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <label class="check"><input type="checkbox" id="tlOutlineEn"> 英文仅描边（大号拉丁字镂空）</label>
+        <div class="tl-row">
+          <span class="tl-lab">实心 + 描边叠层</span>
+          <div class="seg" id="segStack">
+            <button data-v="0" class="on">关</button>
+            <button data-v="1">1</button>
+            <button data-v="2">2</button>
+            <button data-v="3">3</button>
+          </div>
+        </div>
+        <div class="tl-row tl-shapes">
+          <span class="tl-lab">形状图层</span>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" id="shBlock"><span>色块</span></label>
+            <label class="chip"><input type="checkbox" id="shHoney"><span>蜂窝</span></label>
+            <label class="chip"><input type="checkbox" id="shDots"><span>网点</span></label>
+            <label class="chip"><input type="checkbox" id="shNoise"><span>噪点</span></label>
+          </div>
+        </div>
+        <div class="slider"><label>多少 <output id="oShAmt">0.45</output></label><input type="range" id="shAmt" min="0" max="100" value="45"></div>
+        <div class="slider"><label>漂移 <output id="oShDrift">0.50</output></label><input type="range" id="shDrift" min="0" max="100" value="50"></div>
+        <p class="tip">形状图层垫在文字下面：勾一种就多 2–3 块，互相压着，按「漂移」慢慢飘。英文仅描边只管大号拉丁字，小标签照旧填色。</p>
+      </div>
+    </details>
+
     <details class="card" data-tone="switch" data-fold="switch">
       <summary class="ch">
         <i class="ch-ico">◎</i>
@@ -544,6 +577,7 @@
 <script src="engine/11p_typo2.js"></script>
 <script src="engine/11p_typo3.js"></script>
 <script src="engine/11q_sets.js"></script>
+<script src="engine/11r_shapes.js"></script>
 <script src="engine/11z_more.js"></script>
 <script src="engine/12_slot.js"></script>
 <script src="engine/13_frames.js"></script>

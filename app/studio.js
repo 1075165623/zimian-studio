@@ -101,6 +101,8 @@ function boot() {
     timing: { bpm: 96, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineDurs: {}, lineEnds: {}, lineScale: 1 },
   });
   p.fx = Object.assign(p.fx, { motion: 0.65, density: 0.5, decor: 0.45, glitch: 0.45, texture: 0.55, chroma: 0.34 });
+  // 文字层：英文仅描边 / 实心+描边叠层 / 形状图层（全部默认关，开了才改画面）
+  p.text = { outlineEn: false, stack: 0, shapes: { block: false, honey: false, dots: false, noise: false }, amt: 0.45, drift: 0.5 };
   p.more = true;
 
   // 深链接：?style=mxMorning&aspect=9:16&seed=123&extra=1
@@ -2560,6 +2562,13 @@ function updateSums() {
   const fn = ['#fDisplay', '#fSerif', '#fBody'].map(id => { const s = $(id); return s.selectedIndex > 0 ? s.options[s.selectedIndex].text.split('　')[0] : ''; }).filter(Boolean);
   $('#sumFonts').textContent = fn.length ? fn.join(' / ') : '跟随风格';
   $('#sumLyrics').textContent = (S.plan ? S.plan.lines.filter(l => !l.interlude).length : '—') + ' 句' + (countTags() ? ' · 卡点' : '');
+  const tl = S.project.text || {};
+  const nShape = tl.shapes ? ['block', 'honey', 'dots', 'noise'].filter(k => tl.shapes[k]).length : 0;
+  const tBits = [];
+  if (tl.outlineEn) tBits.push('英文描边');
+  if (tl.stack) tBits.push('叠 ' + tl.stack + ' 层');
+  if (nShape) tBits.push(nShape + ' 种形状');
+  $('#sumText').textContent = tBits.length ? tBits.join(' · ') : '关';
 }
 
 /* ───────────────────────── 版面：拖动改宽高 ───────────────────────── */
@@ -3020,6 +3029,39 @@ function bind() {
     replan();
   });
   fs('#fDisplay', 'display'); fs('#fSerif', 'serif'); fs('#fBody', 'body');
+
+  // 文字层：英文描边 / 叠层 / 形状图层（只影响画面，不用重排）
+  const TL = () => (S.project.text || (S.project.text = { outlineEn: false, stack: 0, shapes: {}, amt: 0.45, drift: 0.5 }));
+  const shapeIds = { block: '#shBlock', honey: '#shHoney', dots: '#shDots', noise: '#shNoise' };
+  const syncTextUI = () => {
+    const t = TL();
+    $('#tlOutlineEn').checked = !!t.outlineEn;
+    $$('#segStack button').forEach(b => b.classList.toggle('on', (+b.dataset.v | 0) === (t.stack | 0)));
+    for (const k in shapeIds) { const el = $(shapeIds[k]); if (el) el.checked = !!(t.shapes && t.shapes[k]); }
+    const amt = t.amt == null ? 0.45 : t.amt, drift = t.drift == null ? 0.5 : t.drift;
+    $('#shAmt').value = Math.round(amt * 100); $('#oShAmt').textContent = amt.toFixed(2);
+    $('#shDrift').value = Math.round(drift * 100); $('#oShDrift').textContent = drift.toFixed(2);
+  };
+  syncTextUI();
+  $('#tlOutlineEn').addEventListener('change', e => { TL().outlineEn = e.target.checked; S.need = true; updateSums(); });
+  $('#segStack').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    TL().stack = +b.dataset.v | 0;
+    $$('#segStack button').forEach(x => x.classList.toggle('on', x === b));
+    S.need = true; updateSums();
+  });
+  for (const k in shapeIds) {
+    const el = $(shapeIds[k]); if (!el) continue;
+    el.addEventListener('change', () => {
+      const t = TL(); t.shapes = t.shapes || {}; t.shapes[k] = el.checked;
+      S.need = true; updateSums();
+    });
+  }
+  const shSl = (id, key, out) => $(id).addEventListener('input', () => {
+    const v = +$(id).value / 100; TL()[key] = v; $(out).textContent = v.toFixed(2); S.need = true;
+  });
+  shSl('#shAmt', 'amt', '#oShAmt');
+  shSl('#shDrift', 'drift', '#oShDrift');
 
   // 播放
   $('#btnPlay').onclick = () => (S.playing ? pause() : play());

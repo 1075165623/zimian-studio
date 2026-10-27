@@ -176,6 +176,11 @@ J.drawItem = (env, it) => {
   }
   const lay = it._lay || J.layoutText(it);
   const size = it.size, sx = it.sx || 1, sy = it.sy || 1;
+  // 文字层（全局）：英文只描边 / 实心+描边叠层
+  const TL = env.text || null;
+  const outlineEn = !!(TL && TL.outlineEn);
+  const stackN = TL && TL.stack ? Math.min(3, TL.stack | 0) : 0;
+  const stackCol = (TL && TL.stackColor) || null;
   const baseAlpha = (it.alpha ?? 1) * (ghostPass ? (it.ghostAlpha ?? 1) : 1);
   if (baseAlpha <= 0.002) return null;
   const col = ghostPass ? env.passColor : (it.color || '#fff');
@@ -247,7 +252,21 @@ J.drawItem = (env, it) => {
     }
     if (c && c.blur > 0.4 && env.allowFilter) ctx.filter = `blur(${(c.blur * env.scale).toFixed(1)}px)`;
     ctx.globalAlpha = a;
-    const outlineOnly = c && c.outline;
+    // 英文只描边：大号拉丁字镂空（小标签照旧填色，不然糊成一团）
+    const enThin = outlineEn && size * (env.scale || 1) >= 22 && J.isLatin(ch);
+    const outlineOnly = (c && c.outline) || enThin;
+    // 实心 + 描边叠层：实心字背后垫 N 层描边，层层往外错开，像贴纸印刷
+    if (stackN > 0 && !ghostPass && !outlineOnly && fill) {
+      const sc2 = stackCol || (env.sc && env.sc.accent) || '#000';
+      const off = size * 0.055;
+      ctx.strokeStyle = sc2; ctx.lineJoin = 'round'; ctx.miterLimit = 2;
+      ctx.lineWidth = Math.max(1, size * 0.052) / Math.sqrt(Math.abs(csx * csy));
+      for (let k = stackN; k >= 1; k--) {
+        ctx.globalAlpha = a * (0.98 - k * 0.14);
+        ctx.strokeText(ch, k * off / csx, k * off / csy);
+      }
+      ctx.globalAlpha = a;
+    }
     if (ext && !outlineOnly) {
       ctx.fillStyle = ext.color || '#000';
       const ea = ext.a ?? 1;
@@ -258,7 +277,7 @@ J.drawItem = (env, it) => {
     if (it.stroke > 0 || outlineOnly || dash != null) {
       if (shadow && fill) { ctx.shadowColor = 'rgba(0,0,0,0)'; }
       ctx.lineJoin = 'round'; ctx.miterLimit = 2;
-      ctx.lineWidth = (it.stroke > 0 ? it.stroke : Math.max(1, size * 0.02)) / Math.sqrt(Math.abs(csx * csy));
+      ctx.lineWidth = (it.stroke > 0 ? it.stroke : Math.max(1, size * (enThin ? 0.045 : 0.02))) / Math.sqrt(Math.abs(csx * csy));
       ctx.strokeStyle = (!ghostPass && c && c.color) || sCol;
       if (dash != null) { const L = size * 3.2; ctx.setLineDash([Math.max(0.01, L * dash), L]); ctx.lineDashOffset = 0; }
       else if (it.strokeDash) ctx.setLineDash(it.strokeDash);

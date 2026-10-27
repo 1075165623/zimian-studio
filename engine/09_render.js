@@ -134,6 +134,11 @@ class Renderer {
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
     }
     const shx = J.rs(step, 71) * shake * 16 * u, shy = J.rs(step, 72) * shake * 11 * u;
+    // ---------- 形状图层（色块 / 蜂窝 / 网点 / 噪点，垫在字下面慢慢飘） ----------
+    if (!opt.noBgGfx && (!opt.transparent || layer === 'back') && plan.text && plan.text.shapes) {
+      try { J.drawShapes(ctx, plan, sc, tq, scale); } catch (e) { console.warn('shapes', e); }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
+    }
     // ---------- underlay hook（字面工房扩展）：图片素材压在文字下面 ----------
     if (opt.underlay && (!opt.transparent || layer === 'back')) {
       const uenv = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: tq - (mainCut ? mainCut.start : 0), ltb: tq - (mainCut ? mainCut.start : 0), step, scale, allowFilter, energy, beat: beatInfo });
@@ -329,7 +334,7 @@ class Renderer {
   }
   makeEnv(ctx, plan, cut, sc, o) {
     const W = o.zone ? o.zone.w : plan.W, H = o.zone ? o.zone.h : plan.H;   // 中央を空ける: a cut lives in its side band
-    const env = Object.assign({ ctx, W, H, sc, st: plan.style, fx: plan.fx, fps: plan.fps, cut, plan }, o);
+    const env = Object.assign({ ctx, W, H, sc, st: plan.style, fx: plan.fx, fps: plan.fps, cut, plan, text: plan.text || null }, o);
     if (cut) {
       env.pIn = J.clamp(o.lt / Math.max(0.01, cut.inDur));
       env.pOut = cut.outDur > 0 ? J.clamp((o.lt - (cut.dur - cut.outDur)) / cut.outDur) : 0;

@@ -115,6 +115,7 @@ body.no-right .panel.right,body.no-right .rz[data-rz="right"]{display:none}
 .card[data-tone="lines"]  {--c:#C2410C;--cs:#FEF2E6;--cl:#FBDDBE}
 .card[data-tone="feel"]   {--c:#DB2777;--cs:#FDEBF3;--cl:#FBD4E4}
 .card[data-tone="switch"] {--c:#475569;--cs:#EEF1F6;--cl:#DCE2EB}
+.card[data-tone="text"]   {--c:#C026D3;--cs:#FBEFFB;--cl:#F2D2F4}
 .card[data-tone="fonts"]  {--c:#0891B2;--cs:#E7F6FA;--cl:#C9EBF3}
 .card[data-tone="media"]  {--c:#D97706;--cs:#FFF4E6;--cl:#FBDDBE}
 
@@ -138,6 +139,7 @@ body.no-right .panel.right,body.no-right .rz[data-rz="right"]{display:none}
 .card[data-tone="lines"]  .ch-ico{border-radius:4px;box-shadow:inset 0 0 0 1.6px var(--c)}
 .card[data-tone="feel"]   .ch-ico{border-radius:50% 50% 50% 4px}
 .card[data-tone="switch"] .ch-ico{border-radius:11px}
+.card[data-tone="text"]   .ch-ico{border-radius:3px 3px 3px 10px}
 .card[data-tone="fonts"]  .ch-ico{border-radius:3px 3px 9px 9px}
 .card[data-tone="media"]  .ch-ico{border-radius:3px}
 
@@ -602,6 +604,22 @@ input[type=range]::-webkit-slider-thumb{
 .mi-slot .mi-acts .btn{height:23px}
 .mi-slot .tip{margin:6px 0 2px;color:#6B5B95}
 .media-insp .btn:disabled{opacity:.42;cursor:not-allowed}
+
+/* 文字层卡片 */
+.tl-row{display:flex;align-items:center;gap:8px;margin-top:9px}
+.tl-lab{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.tl-row .seg{margin-left:auto}
+.tl-row .seg button{padding:3px 9px;font-size:11px}
+.chips{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.chip{position:relative;display:inline-flex}
+.chip input{position:absolute;opacity:0;width:0;height:0}
+.chip span{
+  font-size:10.5px;line-height:22px;padding:0 8px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--line);background:#fff;color:var(--ink-2);transition:.12s;white-space:nowrap;
+}
+.chip span:hover{border-color:var(--cl)}
+.chip input:checked + span{background:var(--cs);border-color:var(--cl);color:var(--c);font-weight:600}
+.chip input:focus-visible + span{outline:2px solid var(--cs)}
 
 /* 自定义配色行（风格格子下面） */
 .style-custom{display:flex;align-items:center;gap:5px;margin:0 0 8px;padding:5px 6px;border:1px dashed #D7CFEA;border-radius:8px;background:#FBF9FF}
