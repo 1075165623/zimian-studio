@@ -1900,11 +1900,11 @@ async function loadMediaFile(file, opt = {}) {
       S.mediaSel = S.media.length - 1;
     } else if (opt.line != null && opt.line >= 0) {
       // 「进版式」：指定了歌词行 → 直接融进那一行的版式插槽（时间 = 这一句；这一句满了就往后一句）
-      if (!bindSlot(m, opt.line, { slot: opt.slot })) {
+      if (!bindSlot(m, opt.line, { slot: opt.slot, force: opt.forceSlot })) {
         // 视频：这一句放不了就退回自由层当背景（不模糊），不要跳到别的句子；图片仍按老规矩往后找空位
         if (a.kind !== 'video') {
           const nl = nextLineAfter(opt.line);
-          if (nl >= 0) bindSlot(m, nl, { slot: opt.slot });
+          if (nl >= 0) bindSlot(m, nl, { slot: opt.slot, force: opt.forceSlot });
         }
       }
       S.mediaSel = S.media.length - 1;
@@ -1946,7 +1946,7 @@ async function addImageFiles(files, opt = {}) {
       toast('正在排入素材 ' + (idx + 1) + ' / ' + total + '…');
       await new Promise(r => setTimeout(r, 0));      // 让进度提示先刷出来
     }
-    const m = await loadMediaFile(f, { start: t, after: n > 0, batch: total > 1, line: slotMode && line >= 0 ? line : -1 });
+    const m = await loadMediaFile(f, { start: t, after: n > 0, batch: total > 1, line: slotMode && line >= 0 ? line : -1, forceSlot: slotMode });
     if (m) {
       n++;
       t = m.start + m.dur;
@@ -2401,8 +2401,11 @@ function bindSlot(m, line, opts = {}) {
   const cut = cutOfLine(line);
   if (!cut) return null;
   const lay = J.LAYOUTS[cut.layout];
-  if (!lay || !lay.slot) return null;              // 这一句没有能嵌素材的版式：别硬绑进去（否则卡片里永远是空的）
-  const name = opts.slot || freeSlotName(line, cut.layout, m);
+  const hasSlot = !!(lay && lay.slot);
+  // 批量导入时先「占位」：当前这一句可能还没被排成带插槽的版式，
+  // 但先把行号占住，整批读完后统一 replan，planner 会给这些行挑带插槽的版式。
+  if (!hasSlot && !opts.force) return null;
+  const name = opts.slot || (hasSlot ? freeSlotName(line, cut.layout, m) : 'photo');
   if (!name) return null;
   m.inLayout = true;
   m.orphan = false;
