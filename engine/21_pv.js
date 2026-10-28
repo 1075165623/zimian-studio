@@ -17,6 +17,7 @@
   });
   J.PV_IMAGES = [];
   J.PV_MEDIA = [];
+  J.PV_TITLE_MEDIA = null;
 
   J.pvPlan = (project, audio) => {
     const pv = Object.assign(J.PV_DEFAULT_STATE(), project.pvState || {});

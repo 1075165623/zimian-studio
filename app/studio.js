@@ -462,7 +462,16 @@ function ensurePvMedia() {
       pvImg: J.PV_IMAGES[i] || null,
     });
   }
+  const titleM = {
+    id: 'pvtitle', assetId: 'pvtitle', kind: 'text', pvTitle: true,
+    name: 'PV 标题', start: 0, dur, trim: 0, loop: false,
+    x: .5, y: .22, scale: 1, rot: 0, opacity: 1, lane: 7,
+    front: false, inLayout: false, layout: 'auto', fill: 'none', border: 0, shadow: 0,
+    radius: 0, blend: 0, react: 0, inM: 'none', outFade: true, kf: newKf(),
+  };
+  S.media.push(titleM);
   J.PV_MEDIA = S.media.filter(m => m.pvChar);
+  J.PV_TITLE_MEDIA = titleM;
   syncMediaList(); drawTimeline();
 }
 function syncPvDurations() {
@@ -470,11 +479,12 @@ function syncPvDurations() {
   const pv = (S.media || []).filter(m => m.pvChar);
   const dur = (S.plan && S.plan.duration) || 44;
   for (const m of pv) { m.start = 0; m.dur = dur; }
+  if (J.PV_TITLE_MEDIA && !J.PV_TITLE_MEDIA.userTrim) J.PV_TITLE_MEDIA.dur = dur;
   if (pv.length) drawTimeline();
 }
 function removePvMedia() {
-  S.media = S.media.filter(m => !m.pvChar);
-  J.PV_MEDIA = [];
+  S.media = S.media.filter(m => !m.pvChar && !m.pvTitle);
+  J.PV_MEDIA = []; J.PV_TITLE_MEDIA = null;
   syncMediaList(); drawTimeline();
   S.need = true;
 }
@@ -499,6 +509,10 @@ function bindPv() {
     if (titleOn) st.titleOn = titleOn.checked;
     if (titleX) st.titleX = (+titleX.value || 50) / 100;
     if (titleY) st.titleY = (+titleY.value || 22) / 100;
+    if (J.PV_TITLE_MEDIA) {
+      J.PV_TITLE_MEDIA.x = st.titleX;
+      J.PV_TITLE_MEDIA.y = st.titleY;
+    }
   };
   const buildSlots = () => {
     slots.innerHTML = '';
@@ -1217,6 +1231,71 @@ function snapCands(excl) {
   });
   return c;
 }
+/* ── 时间线硬约束：同一轨道绝不重叠 ──
+   参考 OpenCut / Diffusion Studio 的 clip model：拖动先算出目标区间，
+   再对同轨道做 collision resolve；文字轨用相邻句边界 clamp，素材轨
+   先找同轨最近空档，没有空档再自动换一条空闲轨道。 */
+function textBoundsAt(i) {
+  const L = (S.plan && S.plan.lines) || [];
+  let prev = 0, next = S.plan ? S.plan.duration : Infinity;
+  for (let j = 0; j < i; j++) {
+    const q = L[j]; if (!q) continue;
+    prev = Math.max(prev, q.visEnd != null ? q.visEnd : q.end);
+  }
+  for (let j = i + 1; j < L.length; j++) {
+    const q = L[j]; if (!q) continue;
+    next = Math.min(next, q.start);
+  }
+  return { prev, next };
+}
+function clampTextSpan(i, start, end) {
+  const b = textBoundsAt(i);
+  const next = Math.max(b.prev + .3, b.next);
+  let s = J.clamp(start, b.prev, Math.max(b.prev, next - .3));
+  let e = J.clamp(end, s + .3, Math.max(s + .3, next));
+  return { start: s, end: e };
+}
+function mediaOnLane(lane, exclude) {
+  const ex = new Set(exclude || []);
+  return (S.media || []).filter((m, i) => !ex.has(i) && (m.lane | 0) === lane && m.dur > .02);
+}
+function mediaFree(start, dur, lane, exclude) {
+  const end = start + dur;
+  return !mediaOnLane(lane, exclude).some(m => start < m.start + m.dur - .015 && end > m.start + .015);
+}
+function resolveMediaSpan(start, dur, lane, exclude) {
+  const total = (S.plan && S.plan.duration) || 44;
+  const maxLane = TL.maxLane;
+  start = J.clamp(start, 0, Math.max(0, total - Math.min(dur, total)));
+  dur = J.clamp(dur, .3, Math.max(.3, total - start));
+  if (mediaFree(start, dur, lane, exclude)) return { start, dur, lane };
+  // nearest gap on the requested lane
+  const cands = [0, total - dur];
+  for (const m of mediaOnLane(lane, exclude)) {
+    cands.push(m.start - dur, m.start + m.dur);
+  }
+  cands.sort((a, b) => Math.abs(a - start) - Math.abs(b - start));
+  for (const s of cands) {
+    if (s < -.001 || s + dur > total + .001) continue;
+    if (mediaFree(s, dur, lane, exclude)) return { start: +s.toFixed(3), dur, lane };
+  }
+  // no gap on this lane: put it on the nearest free lane
+  const lanes = [];
+  for (let l = 0; l <= maxLane; l++) lanes.push(l);
+  lanes.sort((a, b) => Math.abs(a - lane) - Math.abs(b - lane));
+  for (const l of lanes) if (mediaFree(start, dur, l, exclude)) return { start, dur, lane: l };
+  return null;
+}
+function mediaEdgesOnLane(lane, exclude, at) {
+  const ms = mediaOnLane(lane, exclude).sort((a, b) => a.start - b.start);
+  let prev = 0, next = (S.plan && S.plan.duration) || 44;
+  for (const m of ms) {
+    if (m.start + m.dur <= at + .02) prev = Math.max(prev, m.start + m.dur);
+    else if (m.start >= at - .02) { next = Math.min(next, m.start); break; }
+  }
+  return { prev, next };
+}
+
 /* start = 想要的起点；dur > 0 时头和尾都可以吸（整块平移）；dur = 0 时只吸这一个点（拖边缘） */
 function magSnapSpan(start, dur, excl) {
   tlSnapGuide = null; tlSnapLabel = '';
@@ -1446,14 +1525,15 @@ function bindTimeline() {
       const i = h.i;
       const T = S.project.timing;
       const ln = S.plan.lines[i];
+      const lim = textBoundsAt(i);
       let s0 = b.start, e0 = b.end;
       if (h.edge === 'body') {
-        s0 = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'text', i }), 0, Math.max(0, G.dur - 0.3));
+        s0 = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'text', i }), lim.prev, Math.max(lim.prev, lim.next - b.dur));
         e0 = s0 + b.dur;                       // 整块平移，长度不变
       } else if (h.edge === 'right') {
-        e0 = Math.max(b.start + 0.3, magSnapSpan(b.end + dt, 0, { kind: 'text', i }));
+        e0 = J.clamp(magSnapSpan(b.end + dt, 0, { kind: 'text', i }), b.start + 0.3, Math.max(b.start + 0.3, lim.next));
       } else {
-        s0 = J.clamp(magSnapSpan(b.start + dt, 0, { kind: 'text', i }), 0, b.end - 0.3);
+        s0 = J.clamp(magSnapSpan(b.start + dt, 0, { kind: 'text', i }), lim.prev, Math.max(lim.prev, b.end - 0.3));
       }
       T.lineTimes[i] = +s0.toFixed(3);
       T.lineEnds[i] = +e0.toFixed(3);
@@ -1475,17 +1555,25 @@ function bindTimeline() {
             g.m.lane = J.clamp(g.lane + laneDelta, 0, TL.maxLane);
           }
         } else {
-          m.start = J.clamp(magSnapSpan(b.start + dt, b.dur, { kind: 'media', i: h.i }), 0, Math.max(0, G.dur - 0.2));
-          // 上下拖动换轨道
-          m.lane = J.clamp(drag.lane0 + laneDelta, 0, TL.maxLane);
+          const want = magSnapSpan(b.start + dt, b.dur, { kind: 'media', i: h.i });
+          const wantLane = J.clamp(drag.lane0 + laneDelta, 0, TL.maxLane);
+          const placed = resolveMediaSpan(want, b.dur, wantLane, [h.i]);
+          if (placed) {
+            m.start = placed.start; m.dur = placed.dur; m.lane = placed.lane;
+          }
           if (drag.slot && m.kind !== 'video' && !m.spanSlot) snapSlotLive(m);   // 普通图片融在版式里：吸到落点那一句；视频/跨句素材保持自由时长
         }
       } else if (h.edge === 'right') {
-        m.dur = J.clamp(magSnapSpan(b.start + b.dur + dt, 0, { kind: 'media', i: h.i }) - m.start, 0.3, Math.max(0.3, G.dur - m.start));
+        const lim = mediaEdgesOnLane(m.lane | 0, [h.i], b.start + 1);
+        const e0 = J.clamp(magSnapSpan(b.start + b.dur + dt, 0, { kind: 'media', i: h.i }), b.start + .3, Math.max(b.start + .3, lim.next));
+        m.dur = Math.max(.3, Math.min(e0, G.dur) - m.start);
+        if (m.pvTitle) m.userTrim = true;
       } else {
-        const s = J.clamp(magSnapSpan(b.start + dt, 0, { kind: 'media', i: h.i }), 0, b.start + b.dur - 0.3);
+        const lim = mediaEdgesOnLane(m.lane | 0, [h.i], b.start + b.dur);
+        const s = J.clamp(magSnapSpan(b.start + dt, 0, { kind: 'media', i: h.i }), lim.prev, Math.max(lim.prev, b.start + b.dur - .3));
         m.start = s;
         m.dur = b.start + b.dur - s;
+        if (m.pvTitle) m.userTrim = true;
       }
       S.need = true;
     }
@@ -2581,7 +2669,7 @@ function paintMedia(env, t, front) {
   // 轨道号小的在上面：倒着画，最后画的盖在最上层
   const list = S.media.slice().sort((a, b) => (b.lane | 0) - (a.lane | 0));
   for (const m of list) {
-    if (m.pvChar) continue;                    // PV character layers only feed PV_CORE
+    if (m.pvChar || m.pvTitle) continue;       // PV character/title layers only feed PV_CORE
     if (m.inLayout && !m.orphan) {
       if (stagedCut && (m.line === env.cut.line || (m.spanSlot && m.spanLines && m.spanLines.includes(env.cut.line)))) continue;   // drawn by paintStageMedia
       // 视频嵌进版式时：有插槽的段落铺模糊视频背景；没有插槽的段落不模糊，直接压在文字后面
@@ -2938,7 +3026,7 @@ function syncSlotClips() {
   if (!S.plan) return;
   if (!S.media.length) { if (Array.isArray(S.project.slotLines) && S.project.slotLines.length) S.project.slotLines = []; return; }
   for (const m of S.media) {
-    if (m.pvChar) continue;                    // PV character layers are drawn by PV_CORE
+    if (m.pvChar || m.pvTitle) continue;       // PV character/title layers are drawn by PV_CORE
     if (!m.inLayout) continue;
     if (m.spanSlot) {                                 // 跨句素材：时间由自己决定，只重算覆盖到哪几句
       const lines = coveredLines(m.start, m.start + m.dur);

@@ -472,10 +472,15 @@ function end(lt) {
 function titleOverlay(sc) {
   if (S.titleOn === false || !S.title) return;
   if (sc.kind !== 'cover' && sc.kind !== 'end') return;
-  const x = W * (S.titleX == null ? .5 : +S.titleX);
-  const y = H * (S.titleY == null ? .22 : +S.titleY);
+  const tm = window.J && J.PV_TITLE_MEDIA;
+  if (tm) {
+    const at = S.absT == null ? S.t : S.absT;
+    if (at < tm.start - .001 || at > tm.start + tm.dur + .001) return;
+  }
+  const x = W * (tm ? (+tm.x || .5) : (S.titleX == null ? .5 : +S.titleX));
+  const y = H * (tm ? (+tm.y || .22) : (S.titleY == null ? .22 : +S.titleY));
   const color = sc.kind === 'end' ? '#fff' : C.blue;
-  const size = sc.kind === 'end' ? 150 : 210;
+  const size = (sc.kind === 'end' ? 150 : 210) * (tm ? Math.max(.3, +tm.scale || 1) : 1);
   drawText(S.title, x, y, {
     size, font: SERIF, weight: 900, color, align: 'center',
     track: .16, p: 1, alpha: .96,
@@ -519,6 +524,7 @@ function render(canvasCtx, t, state, sceneIndex, sceneStart) {
   ctx = canvasCtx;
   S = state;
   if (!S) return;
+  S.absT = t;
   if (sceneIndex != null && SCENES[sceneIndex]) {
     S.t = SCENES[sceneIndex].s + Math.max(0, t - (sceneStart || 0));
   } else S.t = t;
