@@ -203,7 +203,11 @@ trans('invertFlash', { dur: 0.16, draw(ctx, A, B, p, info) {
 J.LIB_ORDER = J.LIB_ORDER || {};
 for (const g of J.GROUP_KEYS) if (!J.LIB_ORDER[g] || !J.LIB_ORDER[g].length) J.LIB_ORDER[g] = J.order(g).slice();
 J.libOrder = g => (J.LIB_ORDER && J.LIB_ORDER[g] && J.LIB_ORDER[g].length ? J.LIB_ORDER[g] : J.order(g));
-J.BG_ORDER.length = 0; J.BG_ORDER.push('none');
-J.CAMERA_ORDER.length = 0; J.CAMERA_ORDER.push('push', 'still');
-J.TRANS_ORDER.length = 0;
+/* Free-library mode: the restored 928-item library is the auto pool again.
+   The new sentence/stage/scene modules stay available but their plan
+   wrappers are bypassed when project.freeLibrary is true. */
+J.LAYOUT_ORDER = (J.LIB_ORDER.layout || J.LAYOUT_ORDER).filter(k => J.LAYOUTS[k]);
+J.BG_ORDER = (J.LIB_ORDER.bg || J.BG_ORDER).filter(k => J.BG[k]);
+J.CAMERA_ORDER = (J.LIB_ORDER.cam || J.CAMERA_ORDER).filter(k => J.CAMERA[k]);
+J.TRANS_ORDER = (J.LIB_ORDER.trans || J.TRANS_ORDER).filter(k => J.TRANS[k]);
 })();

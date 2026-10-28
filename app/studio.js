@@ -129,6 +129,11 @@ function boot() {
   if (q.get('seed')) p.seed = +q.get('seed') || p.seed;
   if (q.get('extra')) p.extra = q.get('extra') === '1';
   if (q.get('variety') != null && q.get('variety') !== '') p.variety = J.clamp(+q.get('variety') || 0, 0, 1);
+  // No genre template: every project runs the full restored technique library.
+  p.freeLibrary = true;
+  p.genre = null;
+  p.extra = true; p.wa = true; p.typo = true; p.kinetic = true; p.horror = true;
+  p.enabled = libraryEnabled();
   S.project = p;
   if (R && R.media && R.media.length) S.media = R.media.slice();   // 归档里的素材片段（图片数据稍后从 IndexedDB 补）
 
@@ -267,6 +272,20 @@ const GENRES = {
     fx: { motion: 0.32, density: 0.5, decor: 0.78, glitch: 0.02, texture: 0.9, chroma: 0.08, motionBlur: 0, koma: 0, onTwos: false, flash: false },
   },
 };
+function libraryEnabled() {
+  return Object.fromEntries(J.GROUP_KEYS.map(g => [g, Object.fromEntries(
+    (J.libOrder ? J.libOrder(g) : J.order(g)).map(k => [k, true])
+  )]));
+}
+function freeReplan() {
+  S.project.freeLibrary = true;
+  S.project.genre = null;
+  S.project.enabled = libraryEnabled();
+  S.project.overrides = {};
+  S.project.seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
+  replan();
+  toast('已用高级手法库重新编排');
+}
 function applyGenre(kind) {
   const G = GENRES[kind]; if (!G) return;
   S.project.genre = kind;
@@ -4152,7 +4171,7 @@ function bind() {
   $('#btnLeft').onclick = () => togglePanel('left');
   $('#btnRight').onclick = () => togglePanel('right');
 
-  $('#btnOneShot').onclick = () => applyGenre(S.project.genre || 'mad');
+  $('#btnOneShot').onclick = () => freeReplan();
   $('#btnShuffleAll').onclick = () => {
     S.project.seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
     S.project.overrides = {};

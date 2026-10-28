@@ -16,6 +16,7 @@ J.defaultProject = () => ({
   title: '', artist: '',
   lyrics: J.SAMPLE_LYRICS,
   style: 'noir', mood: null, genre: 'mad',
+  freeLibrary: false,              // studio boot sets true: no genre template, full advanced-library auto
   choreo: true,                    // word-level MAD choreography (15_mad.js)
   garnish: false,                  // hand-journal side garnish: off by default
   extra: false,                   // random picks may use the parts added after the first version (追加分)

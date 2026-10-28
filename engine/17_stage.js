@@ -107,6 +107,7 @@ J.LAYOUTS.stage = {
 const prevPlan = J.plan;
 J.plan = function (project, audio) {
   const plan = prevPlan(project, audio);
+  if (project && project.freeLibrary === true) return plan;
   try { return J.applyStages(project, plan); }
   catch (e) { console.warn('stage layout failed', e); return plan; }
 };

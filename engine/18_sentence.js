@@ -350,6 +350,7 @@ J.applySentences = (project, plan) => {
 const prevPlan = J.plan;
 J.plan = function (project, audio) {
   const plan = prevPlan(project, audio);
+  if (project && project.freeLibrary === true) return plan;
   try { return J.applySentences(project, plan); }
   catch (e) { console.warn('sentence layout failed', e); return plan; }
 };

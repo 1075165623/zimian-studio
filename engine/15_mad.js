@@ -863,6 +863,7 @@ J.HOLD.rushOut = {
 const basePlan = J.plan;
 J.plan = function (project, audio) {
   const plan = basePlan(project, audio);
+  if (!project || project.freeLibrary === true) return plan;   // free mode: the restored library drives the plan
   if (!project || project.choreo === false) return plan;
   const backup = { cuts: plan.cuts.slice(), events: plan.events.slice() };
   try { return MAD.apply(project, audio, plan); }

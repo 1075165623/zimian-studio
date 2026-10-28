@@ -194,7 +194,6 @@ J.JOURNAL_LAYOUTS = [
 ];
 J.LAYOUT_ORDER.length = 0;
 J.LAYOUT_ORDER.push(...J.JOURNAL_LAYOUTS);
-// the new journal pages are intentionally plain; old slot atmosphere is opt-in only
-J.slotAtmosphere = null;
-J.slotAtmosphereFront = null;
+// keep the old slot atmosphere: free-library mode uses the restored slot layouts
+// (the new journal pages do not have a slot, so they stay plain).
 })();
