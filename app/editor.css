@@ -196,6 +196,12 @@ body.ed-open #ed { display: flex; }
   background: rgba(8, 11, 16, .72); padding: 7px 14px; border-radius: 18px;
   border: 1px dashed #27303f;
 }
+.ed-mon-hint .ed-hint-btn {
+  pointer-events: auto; margin-left: 4px; height: 22px; padding: 0 9px; border-radius: 11px;
+  border: 1px solid #3a465c; background: #1b2230; color: #cbd5e6; font: 500 11px/1 inherit;
+  cursor: pointer;
+}
+.ed-mon-hint .ed-hint-btn:hover { color: #fff; border-color: var(--ed-accent); }
 
 /* 播放条 */
 .ed-play {

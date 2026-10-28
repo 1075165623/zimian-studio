@@ -82,7 +82,8 @@ const ED = {
   assets: {},               // id → { id, kind, name, blob, url, img, el, dur, w, h, peaks }
   assetSeq: 0,
   pps: 70,                  // 时间线缩放 px/秒
-  snap: true,
+  snap: false,              // 吸附默认关（片段边缘 / 播放头 / 标记）；开着时按住 Alt 临时自由
+  snapBypass: false,        // 拖拽中按住 Alt：本次不吸附
   snapBeat: false,
   kfEase: 'inout',
   kfAuto: false,
@@ -251,8 +252,9 @@ function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(LS_PREF) || '{}');
     if (isNum(p.pps)) ED.pps = clamp(p.pps, 12, 420);
-    if (p.snap != null) ED.snap = !!p.snap;
-    if (p.snapBeat != null) ED.snapBeat = !!p.snapBeat;
+    // 旧版本默认是开的，这里不再沿用；用户主动打开过才记住
+    if (p.snap === true) ED.snap = true;
+    if (p.snapBeat === true) ED.snapBeat = true;
     if (isNum(p.volume)) ED.volume = clamp(p.volume, 0, 1);
   } catch (e) {}
 }
@@ -358,14 +360,34 @@ async function addAsset(blob, name, opts) {
       a.img = img; a.w = img.naturalWidth || 1280; a.h = img.naturalHeight || 720; a.dur = 4; a.thumb = a.url;
     } else if (kind === 'video') {
       const v = document.createElement('video');
-      v.src = a.url; v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
-      await new Promise((res) => { v.addEventListener('loadedmetadata', res, { once: true }); v.addEventListener('error', res, { once: true }); setTimeout(res, 8000); });
-      a.el = v; a.w = v.videoWidth || 1280; a.h = v.videoHeight || 720; a.dur = isFinite(v.duration) ? v.duration : 5;
+      v.src = a.url; v.muted = true; v.playsInline = true; v.preload = 'auto';
+      await new Promise((res) => {
+        let done = false;
+        const fin = () => { if (done) return; done = true; res(); };
+        v.addEventListener('loadeddata', fin, { once: true });      // 有第一帧了
+        v.addEventListener('loadedmetadata', fin, { once: true });
+        v.addEventListener('error', fin, { once: true });
+        setTimeout(fin, 9000);
+      });
+      // 迟到的一帧：视频读完后再让监视器重画一次
+      v.addEventListener('loadeddata', () => { a.failed = false; requestRedraw(); }, { once: true });
+      v.addEventListener('error', () => { a.failed = true; requestRedraw(); });
+      a.el = v;
+      a.w = v.videoWidth || 0; a.h = v.videoHeight || 0;
+      a.failed = !a.w || !!v.error;
+      a.dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 5;
+      if (!a.w) { a.w = 1280; a.h = 720; }
       a.thumb = await videoThumb(v);
     } else if (kind === 'audio') {
-      const ctx = audioCtx();
-      const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
-      a.buf = buf; a.dur = buf.duration; a.peaks = peaksOf(buf, 1200); a.w = 0; a.h = 0;
+      try {
+        const ctx = audioCtx();
+        const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+        a.buf = buf; a.dur = buf.duration; a.peaks = peaksOf(buf, 1200); a.w = 0; a.h = 0;
+      } catch (e) {
+        a.failed = true; a.dur = 5;
+        toast('音频无法解码：' + a.name + '（换 mp3 / wav 试试）', 3200);
+        console.warn('音频解码失败', a.name, e);
+      }
     }
   } catch (e) { console.warn('素材读取失败', name, e); }
   if (!a.dur) a.dur = kind === 'audio' || kind === 'video' ? 5 : 4;
@@ -725,15 +747,27 @@ function drawVisualClip(ctx, clip, lt, outW, outH, k, alphaMul, fast) {
     return;
   }
   const src = a && (a.el || a.img);
-  if (!src || (a.el && a.el.readyState < 2)) {
-    // 素材还没准备好：画一个占位框，避免用户以为片段丢了
+  const badVideo = !!(a && a.el && (a.failed || !a.el.videoWidth));
+  if (!a || !src || badVideo || (a.el && a.el.readyState < 2)) {
+    // 素材没准备好 / 解不了码：在画面里直接写清楚原因，不要留一片黑
+    const W = ED.designW, H = ED.designH;
+    const reason = !a ? '素材丢失' : badVideo ? '视频无法解码' : a.el ? '视频读取中…' : '素材读取中…';
+    const tip = badVideo ? '请转成 H.264 的 MP4 再导入' : !a ? '把素材重新拖进来' : '';
     ctx.save();
     ctx.setTransform(k, 0, 0, k, 0, 0);
-    ctx.globalAlpha = op * 0.5;
-    ctx.fillStyle = '#1a2230'; ctx.fillRect(ED.designW * 0.25, ED.designH * 0.25, ED.designW * 0.5, ED.designH * 0.5);
-    ctx.fillStyle = '#8b96ab'; ctx.font = '600 ' + Math.round(ED.designH * 0.028) + 'px system-ui,sans-serif';
+    ctx.globalAlpha = clamp(op, 0, 1);
+    ctx.fillStyle = 'rgba(18,24,34,.85)';
+    ctx.fillRect(W * 0.18, H * 0.36, W * 0.64, H * 0.28);
+    ctx.strokeStyle = badVideo ? '#ef4444' : '#3a465c';
+    ctx.lineWidth = Math.max(2, H * 0.003);
+    ctx.strokeRect(W * 0.18, H * 0.36, W * 0.64, H * 0.28);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(clip.name || '素材加载中…', ED.designW / 2, ED.designH / 2);
+    ctx.fillStyle = badVideo ? '#ff9c9c' : '#dbe3f2';
+    ctx.font = '700 ' + Math.round(H * 0.036) + 'px system-ui,"Microsoft YaHei",sans-serif';
+    ctx.fillText(reason, W / 2, H / 2 - H * 0.035);
+    ctx.fillStyle = '#8b96ab';
+    ctx.font = '500 ' + Math.round(H * 0.024) + 'px system-ui,"Microsoft YaHei",sans-serif';
+    ctx.fillText((clip.name || '') + (tip ? ' · ' + tip : ''), W / 2, H / 2 + H * 0.035);
     ctx.restore();
     return;
   }
@@ -1437,21 +1471,17 @@ function snapCand(exclude) {
   }
   return out;
 }
-function snapT(t, exclude, thrPx) {
-  if (!ED.snap) { ED.snapGuide = null; return t; }
-  const thr = (thrPx || 8) / ED.pps;
+/* 只在「真的够近」的时候返回吸附结果；没有吸附就 hit=false（不要拿 0 距离去比较） */
+function snapTry(t, exclude, thrPx) {
+  if (!ED.snap || ED.snapBypass) return { v: t, hit: false, target: null };
+  const thr = (thrPx || 6) / ED.pps;
   let best = null, bd = 1e9;
   for (const s of snapCand(exclude)) {
     const d = Math.abs(s - t);
     if (d < bd) { bd = d; best = s; }
   }
-  if (best != null && bd <= thr) {
-    ED.snapGuide = best;
-    ED.snapLabel = labelAt(best);
-    return best;
-  }
-  ED.snapGuide = null; ED.snapLabel = '';
-  return t;
+  if (best != null && bd <= thr) return { v: best, hit: true, target: best };
+  return { v: t, hit: false, target: null };
 }
 function labelAt(t) {
   for (const c of ED.doc.clips) {
@@ -1518,6 +1548,8 @@ function addAssetAt(assetId, t, trackId) {
   if (!c) return;
   addClip(c);
   warmupAudio([c]);
+  if (c.kind !== 'audio') warmupClip(c);
+  seek(c.start + previewOffset(c));
   toast('已加入：' + c.name);
 }
 function addTextAt(t, trackId, text) {
@@ -1750,13 +1782,12 @@ function bindTimeline() {
       if (tr && tr.lock) { toast('轨道已锁定'); return; }
       if (additive) { toggleSelect(c.id); return; }
       if (!ED.sel.includes(c.id)) select([c.id]);
-      // 点哪里就把播放头放到哪里（和剪映一样，立刻能看到这一段）
-      if (hit.zone === 'body') seek(G_unX(p.x));
       if (hit.zone === 'l' || hit.zone === 'r') {
         drag = { mode: hit.zone === 'l' ? 'trimL' : 'trimR', x0: p.x, y0: p.y, ids: ED.sel.slice(), orig: {} };
         for (const id of ED.sel) { const x = clipById(id); if (x) drag.orig[id] = { start: x.start, dur: x.dur, in: x.in }; }
       } else {
-        drag = { mode: 'move', x0: p.x, y0: p.y, ids: ED.sel.slice(), orig: {}, track0: {} };
+        drag = { mode: 'move', x0: p.x, y0: p.y, ids: ED.sel.slice(), orig: {}, group: {} };
+        drag.id = c.id; drag.moved = false;
         for (const id of ED.sel) { const x = clipById(id); if (x) { drag.orig[id] = { start: x.start, dur: x.dur, track: x.track }; } }
       }
       ED.tlDrag = drag;
@@ -1772,6 +1803,7 @@ function bindTimeline() {
 
   cv.addEventListener('pointermove', (e) => {
     const p = pos(e);
+    ED.snapBypass = !!e.altKey;     // 按住 Alt：这次拖动完全自由
     if (!drag) {
       const hit = tlHit(p.x, p.y);
       let hov = hit && hit.type === 'clip' ? hit.clip.id : null;
@@ -1816,17 +1848,26 @@ function bindTimeline() {
     }
     const single = drag.ids.length === 1;
     if (drag.mode === 'move') {
+      if (Math.abs(p.x - drag.x0) + Math.abs(p.y - drag.y0) > 3) drag.moved = true;
       const dt0 = (p.x - drag.x0) / ED.pps;
-      let dt = dt0;
-      // 吸附：单段吸两边，多段吸主段的头尾
+      let dt = dt0, snapped = false;
+      // 吸附：只跟「真的吸上了」的那条边比较，头尾谁离得近吸谁
       const primary = clipById(drag.ids[0]);
       if (primary) {
         const po = drag.orig[primary.id];
         const wantS = po.start + dt0, wantE = po.start + po.dur + dt0;
-        const s1 = snapT(wantS, drag.ids, 8), s2 = snapT(wantE, drag.ids, 8);
-        if (Math.abs(s1 - wantS) < Math.abs(s2 - wantE) && !(dt0 < 0 && po.start + dt0 < 0)) dt = s1 - po.start;
-        else dt = s2 - po.start - po.dur;
-        if (!ED.snap) { ED.snapGuide = null; }
+        const aS = snapTry(wantS, drag.ids, 6), aE = snapTry(wantE, drag.ids, 6);
+        let pick = null;
+        if (aS.hit && aE.hit) pick = Math.abs(aS.v - wantS) <= Math.abs(aE.v - wantE) ? { edge: 's', r: aS } : { edge: 'e', r: aE };
+        else if (aS.hit) pick = { edge: 's', r: aS };
+        else if (aE.hit) pick = { edge: 'e', r: aE };
+        if (pick) {
+          if (pick.edge === 's') dt = pick.r.v - po.start;
+          else dt = pick.r.v - po.start - po.dur;
+          snapped = true;
+          ED.snapGuide = pick.r.target;
+          ED.snapLabel = labelAt(pick.r.target);
+        } else { ED.snapGuide = null; ED.snapLabel = ''; }
       }
       if (dt0 < 0) {
         for (const id of drag.ids) { const o = drag.orig[id]; if (o && o.start + dt < 0) dt = -o.start; }
@@ -1839,7 +1880,8 @@ function bindTimeline() {
       for (const id of drag.ids) {
         const c = clipById(id); const o = drag.orig[id];
         if (!c || !o) continue;
-        c.start = Math.max(0, frameRound(o.start + dt));
+        // 吸到别的片段边缘时用精确值；自由拖动按帧取整
+        c.start = Math.max(0, snapped ? (o.start + dt) : frameRound(o.start + dt));
         if (single) {
           const tr = trackById(targetTrack);
           if (tr && !tr.lock) {
@@ -1858,19 +1900,23 @@ function bindTimeline() {
         if (!c || !o) continue;
         const d = (p.x - drag.x0) / ED.pps;
         if (drag.mode === 'trimL') {
-          let ns = snapT(o.start + d, drag.ids, 6);
+          const aL = snapTry(o.start + d, drag.ids, 5);
+          let ns = aL.hit ? aL.v : o.start + d;      // 吸上了就用精确值，不再按帧取整
           const din = (ns - o.start) * (c.speed || 1);
           if ((c.kind === 'video' || c.kind === 'audio') && o.in + din < 0) ns = o.start - o.in / (c.speed || 1);
           ns = clamp(ns, 0, o.start + o.dur - TL.minDur);
-          c.start = frameRound(ns);
+          c.start = aL.hit ? ns : frameRound(ns);
           c.in = Math.max(0, o.in + (c.start - o.start) * (c.speed || 1));
           c.dur = Math.max(TL.minDur, o.start + o.dur - c.start);
+          if (aL.hit) { ED.snapGuide = aL.target; ED.snapLabel = labelAt(aL.target); }
         } else {
-          let ne = snapT(o.start + o.dur + d, drag.ids, 6);
+          const aR = snapTry(o.start + o.dur + d, drag.ids, 5);
+          let ne = aR.hit ? aR.v : o.start + o.dur + d;
           let dur = Math.max(TL.minDur, ne - c.start);
           const a = assetOf(c);
           if ((c.kind === 'video' || c.kind === 'audio') && a) dur = Math.min(dur, Math.max(TL.minDur, (a.dur - c.in) / (c.speed || 1)));
-          c.dur = frameRound(dur);
+          c.dur = aR.hit ? dur : frameRound(dur);
+          if (aR.hit) { ED.snapGuide = aR.target; ED.snapLabel = labelAt(aR.target); }
         }
         invalidateClip(c.id);
       }
@@ -1881,6 +1927,12 @@ function bindTimeline() {
 
   const finish = () => {
     if (!drag) return;
+    ED.snapBypass = false;
+    // 只是点了一下片段（没有拖动）：把播放头放到这一段，监视器马上有画面
+    if (drag.mode === 'move' && !drag.moved && drag.id) {
+      const c = clipById(drag.id);
+      if (c) seek(c.start + previewOffset(c));
+    }
     const wasEdit = drag.mode === 'move' || drag.mode === 'trimL' || drag.mode === 'trimR' || drag.mode === 'kf';
     if (wasEdit) { snapshot(drag.mode === 'move' ? '移动片段' : drag.mode === 'kf' ? '移动关键帧' : '裁切片段'); markDirty(); }
     if (drag.mode === 'marquee') { ED.mkSel = null; ED.snapGuide = null; }
@@ -2076,7 +2128,16 @@ function drawMonitor() {
   const tn = $('#edTimeNow'); if (tn) tn.textContent = tc(ED.t);
   const tf = $('#edFrameNo'); if (tf) tf.textContent = 'F ' + Math.round(ED.t * ED.doc.fps);
   const hint = $('#edMonHint');
-  if (hint) hint.hidden = !!topClipAt(ED.t);
+  if (hint) {
+    const top = topClipAt(ED.t);
+    if (top) { hint.hidden = true; }
+    else {
+      hint.hidden = false;
+      const near = nearestVisualStart(ED.t);
+      const why = audioAt(ED.t) ? '这里是音频，没有画面' : (ED.doc.clips.length ? '播放头不在任何画面上' : '时间线是空的');
+      hint.innerHTML = esc(why) + (near != null ? '　<button class="ed-hint-btn" data-jump="1">跳到最近片段</button>' : '');
+    }
+  }
   updateTimeAll();
   const now = performance.now();
   if (!ED.playing || now - (drawMonitor._tl || 0) > 34) { drawMonitor._tl = now; drawTimeline(); }
@@ -2143,32 +2204,58 @@ function syncVideoPlayback(playing) {
   }
 }
 
+function nearestVisualStart(t) {
+  let best = null, bd = 1e9;
+  for (const c of ED.doc.clips) {
+    if (!isVisual(c)) continue;
+    const d = Math.abs(c.start - t);
+    if (d < bd) { bd = d; best = c.start; }
+  }
+  return best;
+}
+/* 片段起点往往正好是入场动画的第 0 帧（透明），跳进去时往后挪一点才看得到东西 */
+function previewOffset(c) {
+  if (!c) return 0;
+  if (c.kind === 'pv') return Math.min(1.2, Math.max(0.25, c.dur * 0.15));
+  if (c.kind === 'text') return Math.min(0.45, Math.max(0.08, c.dur * 0.18));
+  return 0.05;
+}
+function audioAt(t) {
+  return ED.doc.clips.some(c => c.kind === 'audio' && t >= c.start - 1e-6 && t < clipEnd(c) - 1e-6);
+}
+
 function loopFrame() {
   if (!ED.open) return;
-  const now = performance.now();
-  if (ED.playing) {
-    const wall = ED.playStartT + (now - ED.playStartWall) / 1000;
-    const clock = PLAY.ctx && PLAY.ctx.state === 'running' ? PLAY.time() : wall;
-    ED.t = Math.max(ED.playStartT, clock);
-    const stopAt = ED.doc.outPoint > ED.doc.inPoint + 0.05 ? ED.doc.outPoint : timelineEnd();
-    if (ED.t >= stopAt) {
-      if (ED.loop) { seek(ED.doc.inPoint || 0); PLAY.schedule(ED.t); ED.playStartT = ED.t; ED.playStartWall = performance.now(); }
-      else { ED.t = stopAt; pause(); }
-    }
-    syncVideoPlayback(true);
-    needRedraw = true;
-    // 播放头跑出视口时自动跟随
-    const scroll = $('#edTlScroll');
-    if (scroll) {
-      const G = tlGeom();
-      if (G) {
-        const x = G.X(ED.t);
-        if (x > G.vw - 30 || x < TL.head + 20) scroll.scrollLeft = Math.max(0, ED.t * ED.pps - (G.vw - TL.head) * 0.3);
+  try {
+    const now = performance.now();
+    if (ED.playing) {
+      const wall = ED.playStartT + (now - ED.playStartWall) / 1000;
+      const clock = PLAY.ctx && PLAY.ctx.state === 'running' ? PLAY.time() : wall;
+      ED.t = Math.max(ED.playStartT, clock);
+      const stopAt = ED.doc.outPoint > ED.doc.inPoint + 0.05 ? ED.doc.outPoint : timelineEnd();
+      if (ED.t >= stopAt) {
+        if (ED.loop) { seek(ED.doc.inPoint || 0); PLAY.schedule(ED.t); ED.playStartT = ED.t; ED.playStartWall = performance.now(); }
+        else { ED.t = stopAt; pause(); }
+      }
+      syncVideoPlayback(true);
+      needRedraw = true;
+      // 播放头跑出视口时自动跟随
+      const scroll = $('#edTlScroll');
+      if (scroll) {
+        const G = tlGeom();
+        if (G) {
+          const x = G.X(ED.t);
+          if (x > G.vw - 30 || x < TL.head + 20) scroll.scrollLeft = Math.max(0, ED.t * ED.pps - (G.vw - TL.head) * 0.3);
+        }
       }
     }
+    if (needRedraw) { needRedraw = false; drawMonitor(); }
+  } catch (e) {
+    // 任何一次绘制出错都不能把预览循环弄死
+    if (!loopFrame._warned) { loopFrame._warned = true; console.error('剪辑台绘制出错（已拦下，继续运行）', e); toast('绘制出错：' + (e && e.message || e), 3000); }
+  } finally {
+    requestAnimationFrame(loopFrame);
   }
-  if (needRedraw) { needRedraw = false; drawMonitor(); }
-  requestAnimationFrame(loopFrame);
 }
 
 /* ============================================================
@@ -2474,7 +2561,7 @@ function buildShell() {
           <span class="grow"></span>
           <button class="ed-tool" id="edAddTextBtn" title="在播放头加一段文字（T）">＋文字</button>
           <button class="ed-tool" id="edAddTrackBtn" title="添加轨道">＋轨道</button>
-          <button class="ed-tool on" id="edSnapBtn" title="吸附片段边缘 / 播放头（N）">吸附</button>
+          <button class="ed-tool" id="edSnapBtn" title="吸附片段边缘 / 播放头（N）；默认关，开着时按住 Alt 临时自由">吸附</button>
           <button class="ed-tool" id="edSnapBeatBtn" title="额外吸附节拍（B）">拍点</button>
           <input class="ed-zoom" id="edZoom" type="range" min="10" max="320" value="70" title="时间线缩放">
           <button class="ed-tool" id="edZoomFit" title="适配窗口（Shift+Z）">适配</button>
@@ -3328,11 +3415,24 @@ function bindUI() {
     const list = await addFiles(files);
     if (!list.length) return;
     let t = ED.t;
+    const added = [];
     for (const a of list) {
       const c = assetClip(null, a.id, t);
-      if (c) { ED.doc.clips.push(c); t = clipEnd(c); }
+      if (c) { ED.doc.clips.push(c); added.push(c); t = clipEnd(c); }
     }
-    recalcDur(); select([]); renderBin(); drawTimeline(); requestRedraw(); snapshot('导入素材');
+    recalcDur();
+    // 导入完直接把播放头放到第一个新片段上，保证监视器立刻有画面
+    if (added.length) {
+      const first = added[0];
+      select([first.id]);
+      seek(first.start + previewOffset(first));
+      if (first.kind !== 'audio') warmupClip(first);
+      if (first.kind === 'video' && ED.assets[first.asset] && ED.assets[first.asset].el) seekVideo(ED.assets[first.asset].el, videoTarget(first, 0));
+      toast(list.some(a => a.failed) ? '有素材解码失败，已在画面里标出原因' : '已导入 ' + added.length + ' 段');
+    } else {
+      select([]);
+    }
+    renderBin(); drawTimeline(); requestRedraw(); snapshot('导入素材');
   };
   $('#edImportFolder').onclick = () => $('#edFolder').click();
   $('#edFolder').onchange = async (e) => {
@@ -3373,13 +3473,25 @@ function bindUI() {
     menu.style.top = '210px';
     $$('#edMenu button').forEach(bb => bb.onclick = () => { closeMenu(); items[+bb.dataset.i].fn(); });
   };
-  $('#edSnapBtn').onclick = () => { ED.snap = !ED.snap; $('#edSnapBtn').classList.toggle('on', ED.snap); drawTimeline(); toast(ED.snap ? '吸附开' : '吸附关'); };
-  $('#edSnapBeatBtn').onclick = () => { ED.snapBeat = !ED.snapBeat; $('#edSnapBeatBtn').classList.toggle('on', ED.snapBeat); drawTimeline(); toast(ED.snapBeat ? '额外吸附节拍' : '不吸附节拍'); };
+  $('#edSnapBtn').onclick = () => { ED.snap = !ED.snap; $('#edSnapBtn').classList.toggle('on', ED.snap); drawTimeline(); saveLocal(); toast(ED.snap ? '吸附开（按住 Alt 可临时自由）' : '吸附关'); };
+  $('#edSnapBeatBtn').onclick = () => { ED.snapBeat = !ED.snapBeat; $('#edSnapBeatBtn').classList.toggle('on', ED.snapBeat); drawTimeline(); saveLocal(); toast(ED.snapBeat ? '额外吸附节拍' : '不吸附节拍'); };
   $('#edZoom').oninput = (e) => { ED.pps = +e.target.value; drawTimeline(); };
   $('#edZoomFit').onclick = zoomFit;
   $('#edPlay').onclick = togglePlay;
   $('#edFramePNG').onclick = exportFramePNG;
-  $('#edTlHint').textContent = '拖动=移动 · 边缘=裁切 · 双击=改属性 · Ctrl+滚轮=缩放 · 右键=更多';
+  $('#edTlHint').textContent = '拖动=移动 · 边缘=裁切 · 双击=改属性 · Ctrl+滚轮=缩放 · 按住 Alt=不吸附 · 右键=更多';
+  const monEl = $('#edMon');
+  if (monEl) monEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-jump]');
+    if (!b) return;
+    const near = nearestVisualStart(ED.t);
+    if (near == null) return;
+    const cands = ED.doc.clips.filter(x => isVisual(x) && Math.abs(x.start - near) < 1e-6);
+    const c = cands.find(x => x.kind === 'text' || x.kind === 'pv') || cands[0];
+    seek(near + previewOffset(c));
+    if (c) select([c.id]);
+    toast('已跳到最近片段');
+  });
 
   // ── 属性页签 ──
   $$('.ed-insp-tabs .ed-tab').forEach(b => b.onclick = () => showInspTab(b.dataset.itab));
@@ -3533,19 +3645,31 @@ function bindDrop() {
       }
     }
     const id = e.dataTransfer.getData('text/x-ed-asset');
-    if (id) { addAssetAt(id, t, trackId); return; }
+    if (id) {
+      const before = ED.doc.clips.length;
+      addAssetAt(id, t, trackId);
+      const c = ED.doc.clips[ED.doc.clips.length - 1];
+      if (ED.doc.clips.length > before && c) { select([c.id]); seek(c.start + 0.01); }
+      return;
+    }
     const files = [...(e.dataTransfer.files || [])];
     if (files.length) {
       const list = await addFiles(files);
       if (!list.length) return;
       let at = t;
+      const added = [];
       for (const a of list) {
         const c = assetClip(trackId, a.id, at);
         if (!c) continue;
-        ED.doc.clips.push(c);
+        ED.doc.clips.push(c); added.push(c);
         at = clipEnd(c);
       }
-      recalcDur(); renderBin(); select([]); drawTimeline(); requestRedraw(); snapshot('拖入素材');
+      recalcDur(); renderBin();
+      if (added.length) {
+        select([added[0].id]);
+        seek(added[0].start + previewOffset(added[0]));   // 放下的瞬间就能看到画面
+      } else select([]);
+      drawTimeline(); requestRedraw(); snapshot('拖入素材');
       toast('已放入 ' + list.length + ' 个素材');
     }
   });
@@ -3580,7 +3704,7 @@ function bindShortcuts() {
     if (k === 'arrowright') { e.preventDefault(); seek(ED.t + (e.shiftKey ? 1 : 1 / ED.doc.fps)); return; }
     if (k === 'home') { e.preventDefault(); seek(0); return; }
     if (k === 'end') { e.preventDefault(); seek(timelineEnd()); return; }
-    if (k === 'n') { ED.snap = !ED.snap; $('#edSnapBtn').classList.toggle('on', ED.snap); drawTimeline(); toast(ED.snap ? '吸附开' : '吸附关'); return; }
+    if (k === 'n') { ED.snap = !ED.snap; $('#edSnapBtn').classList.toggle('on', ED.snap); drawTimeline(); saveLocal(); toast(ED.snap ? '吸附开（按住 Alt 可临时自由）' : '吸附关'); return; }
     if (k === 'b') { ED.snapBeat = !ED.snapBeat; $('#edSnapBeatBtn').classList.toggle('on', ED.snapBeat); drawTimeline(); return; }
     if (k === 'm') { addMarkerAtPlayhead(); return; }
     if (k === 'i') { ED.doc.inPoint = ED.t; drawTimeline(); toast('入点 ' + tc(ED.t, false)); return; }
@@ -3610,7 +3734,7 @@ function showHelp() {
       <kbd>Ctrl 滚轮</kbd><span>时间线缩放</span>
       <kbd>拖动边缘</kbd><span>裁切片段</span>
       <kbd>Alt 拖画面</kbd><span>缩放画面 · Ctrl+拖=旋转</span>
-      <kbd>N / B</kbd><span>吸附开关 / 拍点吸附</span>
+      <kbd>N / B</kbd><span>吸附开关 / 拍点吸附（默认关；开着时按住 Alt 拖 = 临时自由）</span>
       <kbd>I / O</kbd><span>设入点 / 出点（只导出这一段）</span>
       <kbd>M</kbd><span>打标记</span>
       <kbd>Ctrl E</kbd><span>导出 MP4</span>
@@ -3669,6 +3793,11 @@ async function openEditor(opts) {
   syncDocInputs(); renderBin(); renderInspector(); sizeMonitor(); drawTimeline(); requestRedraw();
   updateTimeAll();
   if (fresh && ED.doc.clips.length) { ED.t = Math.min(1.2, Math.max(0.2, timelineEnd() * 0.3)); ensureVideoFrame(); }
+  // 打开就把播放头放到有画面的地方（上次停在空档 / 片段被删掉时不至于一片黑）
+  if (!topClipAt(ED.t)) {
+    const near = nearestVisualStart(ED.t);
+    if (near != null) { const cc = ED.doc.clips.find(x => isVisual(x) && Math.abs(x.start - near) < 1e-6); ED.t = near + previewOffset(cc); ensureVideoFrame(); }
+  }
   if (!ED.loopStarted) { ED.loopStarted = true; requestAnimationFrame(loopFrame); }
   requestAnimationFrame(() => { sizeMonitor(); drawTimeline(); });
   if (opts && opts.pv) setTimeout(() => importPVFromStudio(opts.pv), 80);
@@ -3716,6 +3845,7 @@ async function importPVFromStudio(projectArg) {
     } catch (e) { console.warn('PV 音频带入失败', e); }
   }
   recalcDur(); renderBin(); select([c.id]); drawTimeline(); requestRedraw(); markDirty(); snapshot('带入 PV 工程');
+  seek(c.start + previewOffset(c));     // 跳过第一帧的入场透明，直接落在有字的画面
   toast('已带入 PV 工程（' + c.dur.toFixed(1) + ' 秒）· 在「PV 层」轨，上面可以继续加字幕');
 }
 ED.openEditor = openEditor;
