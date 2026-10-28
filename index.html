@@ -1,17 +1,18 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>粉色大肥鱼-文字PV — 词级编舞的重击 MAD / 文字 PV</title>
-<meta name="description" content="粉色大肥鱼-文字PV：词级编舞的文字 PV / 重击 MAD 工坊。10 个重击动作、内嵌中文字体、词级卡点与真实鼓点，浏览器里直接导出 MP4。">
-<meta property="og:title" content="粉色大肥鱼-文字PV — 词级编舞的重击 MAD">
-<meta property="og:description" content="把歌词做成词级编舞的文字 PV / 重击 MAD：逐字硬切、重击、穿字、残影、字距爆开，踩真实鼓点；内嵌字体，离线也能用。">
+<title>粉色大肥鱼-文字PV — 词级编舞的重击 MAD / 文字 PV / 剪辑台</title>
+<meta name="description" content="粉色大肥鱼-文字PV：词级编舞的文字 PV / 重击 MAD 工坊，内置多轨剪辑台（视频 / 图片 / 文字 / 音频），900+ 手法库当动画效果用，浏览器里直接导出带音频的 MP4。">
+<meta property="og:title" content="粉色大肥鱼-文字PV — 词级编舞的重击 MAD + 多轨剪辑台">
+<meta property="og:description" content="把歌词做成词级编舞的文字 PV / 重击 MAD，再用多轨剪辑台排素材、套手法、混音、导出 MP4；内嵌字体，离线也能用。">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#F7F8FA">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNGOTczMTYiLz48dGV4dCB4PSIzMiIgeT0iNDYiIGZvbnQtc2l6ZT0iMzYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmZmYiIGZvbnQtZmFtaWx5PSJzZXJpZiI+5a2XPC90ZXh0Pjwvc3ZnPg==">
-<link rel="stylesheet" href="app/embedded_fonts.css?v=2026102901">
-<link rel="stylesheet" href="app/studio.css?v=2026102901">
+<link rel="stylesheet" href="app/embedded_fonts.css?v=202610281949">
+<link rel="stylesheet" href="app/studio.css?v=202610281949">
+<link rel="stylesheet" href="app/editor.css?v=202610281949">
 </head>
 <body>
 
@@ -67,6 +68,7 @@
 
   <button class="btn ghost" id="btnOneShot" title="用完整高级手法库重新编排">一键成片</button>
   <button class="btn ghost" id="btnShuffleAll" title="换一整套编排（同样的字，不同的手法）">整片重排</button>
+  <button class="btn ghost" id="btnEditor" title="打开剪辑台：多轨时间线、素材拖拽、分割 / 波纹删除 / 转场 / 关键帧，手法库当动画效果用，导出带音频的 MP4">✂ 剪辑台</button>
   <button class="btn ghost" id="btnExportPNG" title="导出带透明通道的 MOV 视频，可导入剪映 / AE / PR 当透明素材（Alt+点击 = 导出 PNG 序列 zip）">透明 MOV</button>
   <button class="btn primary" id="btnExport">导出视频</button>
 </header>
@@ -661,6 +663,9 @@
 
 <div id="toast" class="toast" hidden></div>
 
+<!-- 剪辑台（NLE）：由 app/editor.js 构建界面，默认隐藏 -->
+<div id="ed"></div>
+
 <!-- 底端挡条：告诉这里到底了 -->
 <footer class="bottombar" id="bottombar" aria-hidden="true">
   <i class="bb-grip"></i>
@@ -670,71 +675,72 @@
 </footer>
 
 <!-- 引擎 -->
-<script src="vendor/mp4-muxer.min.js?v=2026110101"></script>
-<script src="engine/01_util.js?v=2026110101"></script>
-<script src="engine/02_fonts.js?v=2026110101"></script>
-<script src="engine/02b_lang.js?v=2026110101"></script>
-<script src="engine/03_text.js?v=2026110101"></script>
-<script src="engine/04_styles.js?v=2026110101"></script>
-<script src="engine/05_anim.js?v=2026110101"></script>
-<script src="engine/05b_registry.js?v=2026110101"></script>
-<script src="engine/06_layouts.js?v=2026110101"></script>
-<script src="engine/07_decor.js?v=2026110101"></script>
-<script src="engine/08_planner.js?v=2026110101"></script>
-<script src="engine/08b_omakase.js?v=2026110101"></script>
-<script src="engine/09_render.js?v=2026110101"></script>
-<script src="engine/10_audio.js?v=2026110101"></script>
-<script src="engine/11_export.js?v=2026110101"></script>
-<script src="engine/11p_bgcamB.js?v=2026110101"></script>
-<script src="engine/11p_decor.js?v=2026110101"></script>
-<script src="engine/11p_decorB.js?v=2026110101"></script>
-<script src="engine/11p_enter.js?v=2026110101"></script>
-<script src="engine/11p_enterB.js?v=2026110101"></script>
-<script src="engine/11p_exit.js?v=2026110101"></script>
-<script src="engine/11p_exitB.js?v=2026110101"></script>
-<script src="engine/11p_fxB.js?v=2026110101"></script>
-<script src="engine/11p_horror1.js?v=2026110101"></script>
-<script src="engine/11p_horror2.js?v=2026110101"></script>
-<script src="engine/11p_horror3.js?v=2026110101"></script>
-<script src="engine/11p_kinetic1.js?v=2026110101"></script>
-<script src="engine/11p_kinetic2.js?v=2026110101"></script>
-<script src="engine/11p_kinetic3.js?v=2026110101"></script>
-<script src="engine/11p_layoutsA.js?v=2026110101"></script>
-<script src="engine/11p_layoutsB.js?v=2026110101"></script>
-<script src="engine/11p_layoutsC.js?v=2026110101"></script>
-<script src="engine/11p_layoutsD.js?v=2026110101"></script>
-<script src="engine/11p_looks.js?v=2026110101"></script>
-<script src="engine/11p_styles.js?v=2026110101"></script>
-<script src="engine/11p_styles2.js?v=2026110101"></script>
-<script src="engine/11p_treattrans.js?v=2026110101"></script>
-<script src="engine/11p_typo1.js?v=2026110101"></script>
-<script src="engine/11p_typo2.js?v=2026110101"></script>
-<script src="engine/11p_typo3.js?v=2026110101"></script>
-<script src="engine/11q_sets.js?v=2026110101"></script>
-<script src="engine/11r_shapes.js?v=2026110101"></script>
-<script src="engine/11s_garnish.js?v=2026110101"></script>
-<script src="engine/11t_slotAtmosphere.js?v=2026110101"></script>
-<script src="engine/11z_more.js?v=2026110101"></script>
-<script src="engine/12_slot.js?v=2026110101"></script>
-<script src="engine/13_frames.js?v=2026110101"></script>
-<script src="engine/14_spec.js?v=2026110101"></script>
-<script src="engine/16_journal.js?v=2026110101"></script>
-<script src="engine/15_mad.js?v=2026110101"></script>
-<script src="engine/17_stage.js?v=2026110101"></script>
-<script src="engine/18_sentence.js?v=2026110101"></script>
-<script src="engine/19_scene.js?v=2026110101"></script>
-<script src="engine/20_tail.js?v=2026110101"></script>
+<script src="vendor/mp4-muxer.min.js?v=202610281949"></script>
+<script src="engine/01_util.js?v=202610281949"></script>
+<script src="engine/02_fonts.js?v=202610281949"></script>
+<script src="engine/02b_lang.js?v=202610281949"></script>
+<script src="engine/03_text.js?v=202610281949"></script>
+<script src="engine/04_styles.js?v=202610281949"></script>
+<script src="engine/05_anim.js?v=202610281949"></script>
+<script src="engine/05b_registry.js?v=202610281949"></script>
+<script src="engine/06_layouts.js?v=202610281949"></script>
+<script src="engine/07_decor.js?v=202610281949"></script>
+<script src="engine/08_planner.js?v=202610281949"></script>
+<script src="engine/08b_omakase.js?v=202610281949"></script>
+<script src="engine/09_render.js?v=202610281949"></script>
+<script src="engine/10_audio.js?v=202610281949"></script>
+<script src="engine/11_export.js?v=202610281949"></script>
+<script src="engine/11p_bgcamB.js?v=202610281949"></script>
+<script src="engine/11p_decor.js?v=202610281949"></script>
+<script src="engine/11p_decorB.js?v=202610281949"></script>
+<script src="engine/11p_enter.js?v=202610281949"></script>
+<script src="engine/11p_enterB.js?v=202610281949"></script>
+<script src="engine/11p_exit.js?v=202610281949"></script>
+<script src="engine/11p_exitB.js?v=202610281949"></script>
+<script src="engine/11p_fxB.js?v=202610281949"></script>
+<script src="engine/11p_horror1.js?v=202610281949"></script>
+<script src="engine/11p_horror2.js?v=202610281949"></script>
+<script src="engine/11p_horror3.js?v=202610281949"></script>
+<script src="engine/11p_kinetic1.js?v=202610281949"></script>
+<script src="engine/11p_kinetic2.js?v=202610281949"></script>
+<script src="engine/11p_kinetic3.js?v=202610281949"></script>
+<script src="engine/11p_layoutsA.js?v=202610281949"></script>
+<script src="engine/11p_layoutsB.js?v=202610281949"></script>
+<script src="engine/11p_layoutsC.js?v=202610281949"></script>
+<script src="engine/11p_layoutsD.js?v=202610281949"></script>
+<script src="engine/11p_looks.js?v=202610281949"></script>
+<script src="engine/11p_styles.js?v=202610281949"></script>
+<script src="engine/11p_styles2.js?v=202610281949"></script>
+<script src="engine/11p_treattrans.js?v=202610281949"></script>
+<script src="engine/11p_typo1.js?v=202610281949"></script>
+<script src="engine/11p_typo2.js?v=202610281949"></script>
+<script src="engine/11p_typo3.js?v=202610281949"></script>
+<script src="engine/11q_sets.js?v=202610281949"></script>
+<script src="engine/11r_shapes.js?v=202610281949"></script>
+<script src="engine/11s_garnish.js?v=202610281949"></script>
+<script src="engine/11t_slotAtmosphere.js?v=202610281949"></script>
+<script src="engine/11z_more.js?v=202610281949"></script>
+<script src="engine/12_slot.js?v=202610281949"></script>
+<script src="engine/13_frames.js?v=202610281949"></script>
+<script src="engine/14_spec.js?v=202610281949"></script>
+<script src="engine/16_journal.js?v=202610281949"></script>
+<script src="engine/15_mad.js?v=202610281949"></script>
+<script src="engine/17_stage.js?v=202610281949"></script>
+<script src="engine/18_sentence.js?v=202610281949"></script>
+<script src="engine/19_scene.js?v=202610281949"></script>
+<script src="engine/20_tail.js?v=202610281949"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
-<script src="app/names_zh.js?v=2026110101"></script>
-<script src="app/labels_zh.js?v=2026110101"></script>
-<script src="app/local_fonts.js?v=2026110101"></script>
-<script src="app/mov_muxer.js?v=2026110101"></script>
-<script src="app/zip.js?v=2026110101"></script>
-<script src="app/project_io.js?v=2026110101"></script>
-<script src="app/studio.js?v=2026110101"></script>
-<script src="app/pet.js?v=2026110101"></script>
-<script src="app/catalog.js?v=2026110101"></script>
-<script src="app/ai_ref.js?v=2026110101"></script>
+<script src="app/names_zh.js?v=202610281949"></script>
+<script src="app/labels_zh.js?v=202610281949"></script>
+<script src="app/local_fonts.js?v=202610281949"></script>
+<script src="app/mov_muxer.js?v=202610281949"></script>
+<script src="app/zip.js?v=202610281949"></script>
+<script src="app/project_io.js?v=202610281949"></script>
+<script src="app/studio.js?v=202610281949"></script>
+<script src="app/pet.js?v=202610281949"></script>
+<script src="app/catalog.js?v=202610281949"></script>
+<script src="app/ai_ref.js?v=202610281949"></script>
+<script src="app/editor.js?v=202610281949"></script>
 </body>
 </html>

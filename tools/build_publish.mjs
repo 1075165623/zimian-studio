@@ -27,7 +27,7 @@ fs.rmSync(SITE, { recursive: true, force: true });
 copyDir(path.join(ROOT, 'app'), path.join(SITE, 'app'));
 copyDir(path.join(ROOT, 'engine'), path.join(SITE, 'engine'));
 copyDir(path.join(ROOT, 'vendor'), path.join(SITE, 'vendor'));
-for (const f of ['index.html', 'LICENSE-JIZURA.txt', '使用说明.md']) fs.copyFileSync(path.join(ROOT, f), path.join(SITE, f));
+for (const f of ['index.html', 'LICENSE-JIZURA.txt', '使用说明.md', '剪辑台说明.md']) fs.copyFileSync(path.join(ROOT, f), path.join(SITE, f));
 
 /* ---------- 2. 单文件版 ---------- */
 let html = r(path.join(ROOT, 'index.html'));

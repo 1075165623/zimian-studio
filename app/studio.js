@@ -4389,6 +4389,8 @@ function bindViewportDrag() {
 /* 剪映式快捷键（参照剪映快捷键面板：时间线 / 播放器 / 基础） */
 function bindShortcuts() {
   document.addEventListener('keydown', e => {
+    // 剪辑台打开时，键盘全部归剪辑台（否则空格会同时播两边）
+    if (document.body.classList.contains('ed-open')) return;
     // 只有真正在输入文字的控件才算「正在打字」；滑块 / 复选框 / 按钮聚焦时，快捷键（撤销、删除…）照常生效
     const typing = e.target.matches('input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=button]),textarea,select,[contenteditable]');
     const mod = e.ctrlKey || e.metaKey;
