@@ -608,7 +608,7 @@ J.LAYOUTS.mad = {
       const ghost = {
         text, font, size: z ? Math.min(size * 2.2, z.w * 1.9) : size * 2.55,
         x: z ? z.x + z.w / 2 : W * 0.5, y: z ? z.y + z.h * 0.52 : H * 0.53, color: sc.accent,
-        alpha: 0.055 * (1 - env.pOut), track: 0.01, mi: 99, ghost: false, noWeight: true,
+        alpha: 0.12 * (1 - env.pOut), track: 0.01, mi: 99, ghost: false, noWeight: true,
       };
       if (cut.action === 'step' && cut.charTimes) {
         ghost.charFn = (i) => (env.lt < (cut.charTimes[i] || 0) - 1e-4 ? { hide: true } : null);

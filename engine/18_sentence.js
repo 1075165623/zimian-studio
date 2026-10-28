@@ -95,8 +95,8 @@ function build(key, s) {
   }
   if (key === 'sandwich') {
     const big2 = content.length ? content[content.length - 1] : -1;
-    add(main, X + ZW * 0.5, Y + ZH * 0.18, mainSize * 0.72, display, 'center', { maxW: ZW * 0.94, level: 1 });
-    if (big2 >= 0) add(big2, X + ZW * 0.5, Y + ZH * 0.84, mainSize * 0.58, display, 'center', { maxW: ZW * 0.94, level: 1 });
+    add(main, X + ZW * 0.5, Y + ZH * 0.18, mainSize * 0.82, display, 'center', { maxW: ZW * 0.94, level: 1 });
+    if (big2 >= 0) add(big2, X + ZW * 0.5, Y + ZH * 0.84, mainSize * 0.66, display, 'center', { maxW: ZW * 0.94, level: 1 });
     content.filter(i => i !== big2).forEach((i, k) => add(i, X + ZW * (0.18 + k * 0.30), Y + ZH * 0.50, subSize, serif, 'left', { level: 2, maxW: ZW * 0.34 }));
     funcs.forEach((i, k) => add(i, X + ZW * (0.08 + k * 0.18), Y + ZH * 0.66, funcSize, body, 'left', { level: 3 }));
     return items;
