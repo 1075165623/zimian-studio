@@ -448,18 +448,16 @@ function setOverride(li, g, val) {
 function bindPv() {
   const load = $('#btnPvLoad'), exit = $('#btnPvExit'), live = $('#pvLive');
   if (!load || !live) return;
-  const title = $('#pvTitleMain'), lyrics = $('#pvLyricsMain'), credits = $('#pvCreditsMain');
+  const title = $('#pvTitleMain'), credits = $('#pvCreditsMain');
   const slots = $('#pvSlotsMain');
   const syncFields = () => {
     const st = S.project.pvState || J.PV_DEFAULT_STATE();
     title.value = st.title || '明知故犯';
-    lyrics.value = (st.lyrics || []).join('\n');
     credits.value = (st.credits || []).join('\n');
   };
   const readFields = () => {
     const st = S.project.pvState || (S.project.pvState = J.PV_DEFAULT_STATE());
     st.title = title.value.trim() || '明知故犯';
-    st.lyrics = lyrics.value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
     st.credits = credits.value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
   };
   const buildSlots = () => {
@@ -507,9 +505,7 @@ function bindPv() {
     toast('已退出 PV，回到普通编排');
   });
   title.addEventListener('input', () => { readFields(); replan(); });
-  lyrics.addEventListener('input', () => { readFields(); replan(); });
   credits.addEventListener('input', () => { readFields(); replan(); });
-  $('#btnPvAudioMain').addEventListener('click', () => $('#fileAudio').click());
   // 工程已经是 PV：打开控制区并填入当前文字
   if (S.project.pvMode) { show(true); syncFields(); buildSlots(); }
 }

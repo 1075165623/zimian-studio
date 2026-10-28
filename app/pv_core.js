@@ -210,31 +210,45 @@ function charImage(i) { return S.custom[i] || PV_ASSETS.image(PV_ASSETS.portrait
 function drawChar(i, cx, bottom, h, opt = {}) {
   const im = charImage(i);
   if (!im || !im.complete || !im.naturalWidth) return { x: cx - h * .3, y: bottom - h, w: h * .6, h };
-  const ar = im.naturalWidth / im.naturalHeight;
-  let dw = h * ar, dh = h;
-  if (opt.maxW && dw > opt.maxW) { dw = opt.maxW; dh = dw / ar; }
+  const custom = !!S.custom[i];
+  let dw, dh, top;
+  if (custom) {
+    // Uploaded art is never squashed: cover a portrait box, anchor the top
+    // of the drawing to the top of the slot so the face is never cut off.
+    const targetW = Math.max(opt.maxW || h * .62, h * .36);
+    const targetH = h;
+    const scale = Math.max(targetW / im.naturalWidth, targetH / im.naturalHeight);
+    dw = im.naturalWidth * scale; dh = im.naturalHeight * scale;
+    top = -targetH;
+  } else {
+    const ar = im.naturalWidth / im.naturalHeight;
+    dw = h * ar; dh = h;
+    if (opt.maxW && dw > opt.maxW) { dw = opt.maxW; dh = dw / ar; }
+    top = -dh;
+  }
   ctx.save();
   ctx.globalAlpha = opt.alpha == null ? 1 : opt.alpha;
   ctx.translate(cx, bottom); ctx.rotate((opt.rot || 0) * Math.PI / 180);
   if (opt.shadow !== false) {
     ctx.shadowColor = 'rgba(23,30,64,.20)'; ctx.shadowBlur = h * .045; ctx.shadowOffsetY = h * .018;
   }
-  if (opt.tint) {
-    ctx.filter = 'grayscale(.15) brightness(.95)';
-  }
-  try { ctx.drawImage(im, -dw / 2, -dh, dw, dh); } catch (e) {}
+  if (opt.tint) ctx.filter = 'grayscale(.15) brightness(.95)';
+  try { ctx.drawImage(im, -dw / 2, top, dw, dh); } catch (e) {}
   ctx.restore();
-  return { x: cx - dw / 2, y: bottom - dh, w: dw, h: dh };
+  return { x: cx - dw / 2, y: bottom + top, w: dw, h: dh };
 }
 function headCrop(i, x, y, w, h, opt = {}) {
   const im = charImage(i);
   if (!im || !im.complete || !im.naturalWidth) return;
-  const ar = im.naturalWidth / im.naturalHeight;
-  const sh = im.naturalHeight * .56, sw = sh * ar;
+  const iw = im.naturalWidth, ih = im.naturalHeight;
+  const srcH = ih * .62, srcAspect = iw / srcH, dstAspect = w / h;
+  let sw = iw, sh = srcH, sx = 0, sy = 0;
+  if (srcAspect > dstAspect) { sw = srcH * dstAspect; sx = (iw - sw) / 2; }
+  else { sh = Math.min(srcH, iw / dstAspect); sw = sh * dstAspect; sx = (iw - sw) / 2; }
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
   ctx.globalAlpha = opt.alpha == null ? 1 : opt.alpha;
   if (opt.gray) ctx.filter = 'grayscale(.8) contrast(.95)';
-  try { ctx.drawImage(im, 0, 0, sw, sh, x, y, w, h); } catch (e) {}
+  try { ctx.drawImage(im, sx, sy, sw, sh, x, y, w, h); } catch (e) {}
   if (opt.tint) { ctx.globalAlpha = .28; ctx.fillStyle = opt.tint; ctx.fillRect(x, y, w, h); }
   ctx.restore();
   if (opt.border !== false) {
@@ -474,11 +488,13 @@ function draw() {
 }
 
 
-function render(canvasCtx, t, state) {
+function render(canvasCtx, t, state, sceneIndex, sceneStart) {
   ctx = canvasCtx;
   S = state;
   if (!S) return;
-  S.t = t;
+  if (sceneIndex != null && SCENES[sceneIndex]) {
+    S.t = SCENES[sceneIndex].s + Math.max(0, t - (sceneStart || 0));
+  } else S.t = t;
   draw();
 }
 return { render, defaults: DEFAULTS, scenes: SCENES, W, H, DUR };
