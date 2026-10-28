@@ -147,6 +147,7 @@ function defaultClip(kind, patch) {
     asset: null, name: '',
     start: 0, dur: kind === 'audio' ? 8 : 4, in: 0, speed: 1,
     x: 0, y: 0, scale: 1, rot: 0, opacity: 1, blend: 'normal', fit: 'cover',
+    flipX: false, flipY: false, crop: { l: 0, t: 0, r: 0, b: 0 },
     f: { b: 1, c: 1, s: 1, hue: 0, blur: 0, sepia: 0 },
     vol: 1, fadeIn: 0, fadeOut: 0,
     transIn: { type: 'none', dur: 0.45 },
@@ -745,8 +746,17 @@ function drawVisualClip(ctx, clip, lt, outW, outH, k, alphaMul, fast) {
   if (filt !== 'none') ctx.filter = filt;
   ctx.translate(ED.designW / 2 + tr.x, ED.designH / 2 + tr.y);
   if (tr.rot) ctx.rotate(tr.rot * Math.PI / 180);
-  ctx.scale(Math.max(0.01, tr.scale), Math.max(0.01, tr.scale));
-  try { ctx.drawImage(src, -r.w / 2, -r.h / 2, r.w, r.h); } catch (e) {}
+  ctx.scale((clip.flipX ? -1 : 1) * Math.max(0.01, tr.scale), (clip.flipY ? -1 : 1) * Math.max(0.01, tr.scale));
+  const cr = clip.crop || null;
+  try {
+    if (cr && (cr.l || cr.t || cr.r || cr.b)) {
+      const iw = a.w || 1, ih = a.h || 1;
+      const sx = iw * clamp(cr.l || 0, 0, 0.48), sy = ih * clamp(cr.t || 0, 0, 0.48);
+      const sw = Math.max(2, iw * (1 - clamp(cr.l || 0, 0, 0.48) - clamp(cr.r || 0, 0, 0.48)));
+      const sh = Math.max(2, ih * (1 - clamp(cr.t || 0, 0, 0.48) - clamp(cr.b || 0, 0, 0.48)));
+      ctx.drawImage(src, sx, sy, sw, sh, -r.w / 2, -r.h / 2, r.w, r.h);
+    } else ctx.drawImage(src, -r.w / 2, -r.h / 2, r.w, r.h);
+  } catch (e) {}
   ctx.restore();
 }
 
@@ -2408,6 +2418,7 @@ function buildShell() {
     <aside class="ed-side ed-left">
       <div class="ed-side-head"><b>素材库</b><span class="sp"></span>
         <button class="ed-btn sm" id="edImport" title="导入图片 / 视频 / 音频（可多选，Ctrl+I）">＋ 导入</button>
+        <button class="ed-btn sm" id="edImportFolder" title="导入整个文件夹：里面的图片 / 视频 / 音频按文件名顺序进来">夹</button>
       </div>
       <div class="ed-bin-body" id="edBin">
         <div class="ed-gen">
@@ -2425,6 +2436,7 @@ function buildShell() {
         </div>
       </div>
       <input type="file" id="edFile" multiple accept="image/*,video/*,audio/*" hidden>
+      <input type="file" id="edFolder" webkitdirectory directory multiple hidden>
       <input type="file" id="edProjFile" accept=".json,application/json" hidden>
     </aside>
     <section class="ed-center">
@@ -2706,6 +2718,20 @@ function basicHTML(c) {
     ${c.kind === 'video' || c.kind === 'audio' ? `<div class="ed-row two"><label>源入点<input class="ed-in" type="number" data-p="in" step="0.01" min="0" value="${(c.in || 0).toFixed(3)}"></label>
     <label>速度<input class="ed-in" type="number" data-p="speed" step="0.05" min="0.25" max="4" value="${(c.speed || 1).toFixed(2)}"></label></div>` : ''}
     <div class="ed-kfnote">提示：拖时间线片段两端也能改起点 / 时长。</div>
+  </div></div>`;
+  if (!isAud) html += `<div class="ed-sec"><h4>裁切与翻转</h4><div class="ed-sec-body">
+    <div class="ed-row two">
+      <label style="flex:1">左裁<input class="ed-in" type="number" data-p="crop.l" step="0.01" min="0" max="0.48" value="${(c.crop && c.crop.l || 0).toFixed(2)}"></label>
+      <label style="flex:1">上裁<input class="ed-in" type="number" data-p="crop.t" step="0.01" min="0" max="0.48" value="${(c.crop && c.crop.t || 0).toFixed(2)}"></label>
+    </div>
+    <div class="ed-row two">
+      <label style="flex:1">右裁<input class="ed-in" type="number" data-p="crop.r" step="0.01" min="0" max="0.48" value="${(c.crop && c.crop.r || 0).toFixed(2)}"></label>
+      <label style="flex:1">下裁<input class="ed-in" type="number" data-p="crop.b" step="0.01" min="0" max="0.48" value="${(c.crop && c.crop.b || 0).toFixed(2)}"></label>
+    </div>
+    <div class="ed-chips" style="margin-top:6px">
+      <button class="ed-chip${c.flipX ? ' on' : ''}" data-act="flipX">水平翻转</button>
+      <button class="ed-chip${c.flipY ? ' on' : ''}" data-act="flipY">垂直翻转</button>
+    </div>
   </div></div>`;
   html += `<div class="ed-sec"><h4>转场</h4><div class="ed-sec-body">
     ${selRow('入点', 'transIn.type', TRANS_LIST, c.transIn && c.transIn.type || 'none')}
@@ -3163,6 +3189,8 @@ function doAction(act, btn) {
     } break;
     case 'kfp': applyKfPreset(clips, arg); break;
     case 'tp': applyTextPreset(arg); break;
+    case 'flipX': for (const x of clips) x.flipX = !x.flipX; after('水平翻转'); break;
+    case 'flipY': for (const x of clips) x.flipY = !x.flipY; after('垂直翻转'); break;
     case 'demoDoc': if (confirm('用示例片段替换当前时间线？（素材库不会清空）')) { ED.doc = starterDoc(); ED.sel = []; ED.t = 0; designSizes(); recalcDur(); syncDocInputs(); renderBin(); renderInspector(); drawTimeline(); requestRedraw(); snapshot('恢复示例'); toast('已恢复示例'); } break;
     case 'newDoc': if (confirm('新建空工程？当前时间线会被清空（素材库保留）。')) { ED.doc = newDoc(); ED.sel = []; ED.t = 0; designSizes(); recalcDur(); syncDocInputs(); renderBin(); renderInspector(); drawTimeline(); requestRedraw(); snapshot('新建工程'); toast('已新建空工程'); } break;
   }
@@ -3296,18 +3324,24 @@ function bindUI() {
 
   // ── 素材 ──
   $('#edImport').onclick = () => $('#edFile').click();
+  const importAndPlace = async (files) => {
+    const list = await addFiles(files);
+    if (!list.length) return;
+    let t = ED.t;
+    for (const a of list) {
+      const c = assetClip(null, a.id, t);
+      if (c) { ED.doc.clips.push(c); t = clipEnd(c); }
+    }
+    recalcDur(); select([]); renderBin(); drawTimeline(); requestRedraw(); snapshot('导入素材');
+  };
+  $('#edImportFolder').onclick = () => $('#edFolder').click();
+  $('#edFolder').onchange = async (e) => {
+    const files = [...e.target.files]; e.target.value = '';
+    await importAndPlace(files);
+  };
   $('#edFile').onchange = async (e) => {
     const files = [...e.target.files]; e.target.value = '';
-    const list = await addFiles(files);
-    if (list.length) {
-      // 导入后自动放到播放头
-      let t = ED.t;
-      for (const a of list) {
-        const c = assetClip(null, a.id, t);
-        if (c) { ED.doc.clips.push(c); t = clipEnd(c); }
-      }
-      recalcDur(); select([]); renderBin(); drawTimeline(); requestRedraw(); snapshot('导入素材');
-    }
+    await importAndPlace(files);
   };
   $$('#edBin [data-gen]').forEach(b => b.onclick = () => {
     const g = b.dataset.gen;
