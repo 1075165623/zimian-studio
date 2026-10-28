@@ -2051,7 +2051,10 @@ async function loadMediaFile(file, opt = {}) {
     TL.multi = [{ kind: 'media', i: S.mediaSel }];
     applyDefaultLook(m, S.media.length - 1);
     // 视频整段铺开（可选项；默认关，视频会像图片一样先尝试嵌进版式）
-    const spanVideo = a.kind === 'video' && S.beatCfg.videoSpan !== false && opt.videoSpan !== false;
+    // A video dropped in "slot" mode must go into the current line's stage.
+    // The old global "video spans the song" option used to bypass binding and
+    // was the reason a fresh video looked like a dumb full-screen background.
+    const spanVideo = a.kind === 'video' && opt.forceSlot !== true && opt.videoSpan === true && S.beatCfg.videoSpan === true;
     if (spanVideo) {
       m.inLayout = false; m.line = null; m.slotName = null;
       m.loop = false;
@@ -2911,6 +2914,12 @@ function slotInfoOf(m) {
   }
   const cut = cutOfLine(m.line);
   if (!cut) return { line: m.line, layout: null, tid: '这一句已经不在时间线上了' };
+  if (cut.stage) {
+    return {
+      line: m.line, layout: cut.layout, has: true,
+      tid: '第 ' + (m.line + 1) + ' 句 · 舞台「' + (cut.stage.key || '') + '」',
+    };
+  }
   const L = J.LAYOUTS[cut.layout];
   const has = !!(L && L.slot);
   return {

@@ -39,8 +39,11 @@ const clone = o => JSON.parse(JSON.stringify(o));
 J.STAGES = { LAND, PORT, TYPE };
 J.stageFor = (plan, li, hasMedia, seed) => {
   const port = plan.H > plan.W * 1.06;
-  const arr = hasMedia ? (port ? PORT : LAND) : TYPE;
-  return clone(arr[J.h(seed | 0, li + 1, hasMedia ? 0x53544147 : 0x54595045) % arr.length]);
+  // A bound clip must read as a composition, not a full-bleed background.
+  // "bleed" stays available as an explicit/free-layer choice, but never wins
+  // the automatic stage draw for material.
+  const source = hasMedia ? (port ? PORT : LAND).filter(s => s.style !== 'bleed') : TYPE;
+  return clone(source[J.h(seed | 0, li + 1, hasMedia ? 0x53544147 : 0x54595045) % source.length]);
 };
 
 J.applyStages = (project, plan) => {
