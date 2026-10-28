@@ -66,7 +66,7 @@ J.applyStages = (project, plan) => {
         cut.pos = { x: z.x + z.w * q[0], y: z.y + z.h * q[1] };
         const font = P.font || (plan.style.fonts.display && plan.style.fonts.display[0]) || 'gothic_black';
         const base = Math.min(J.fitSize(cut.text, font, z.w * W * 0.88, z.h * H * 0.88, { track: P.track || 0.03 }), H * (stage.style === 'type' ? 0.33 : 0.28));
-        cut.size = Math.max(12, base * (P.sizeK || 1));
+        cut.size = Math.max(12, base);
         cut.params = Object.assign({}, P, { font, pos: cut.pos, sizeK: P.sizeK || 1 });
       } else if (withMedia && cut.layout !== 'mad') {
         // journal material line: the stage underlay draws the card/photo,

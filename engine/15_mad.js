@@ -406,7 +406,7 @@ MAD.apply = (project, audio, plan) => {
       if (!text) return;
       const sizeK = (w.func ? 0.82 : 1) * (w.emo ? 1.10 : 1) * (action === 'echo' ? 1.04 : 1);
       const font = (st.fonts.display && st.fonts.display[0]) || 'gothic_black';
-      const probe = Math.min(J.fitSize(text, font, W * 0.82, H * 0.50, { track: 0.03 }), H * 0.44) * sizeK;
+      const probe = Math.min(J.fitSize(text, font, W * 0.82, H * 0.50, { track: 0.03 }), H * 0.44);
       const pos = action === 'mask' ? { x: 0.5, y: 0.5 } : posOf(sec, k, rng);
       const dur = ce - cs;
       const inDur = A.inDur > 0 ? Math.min(A.inDur, dur * 0.72) : dur;
