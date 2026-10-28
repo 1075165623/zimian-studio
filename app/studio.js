@@ -111,6 +111,7 @@ function boot() {
   if (R) p.fx = Object.assign({}, J.defaultProject().fx, p.fx || {});          // old projects keep their feel, gain new fields
   else p.fx = Object.assign(p.fx, { motion: 0.72, density: 0.55, decor: 0.18, glitch: 0.35, texture: 0.5, chroma: 0.26, koma: 12, onTwos: true, motionBlur: 4 });
   p.timing = Object.assign({ words: {}, lineTimes: {}, lineDurs: {}, lineEnds: {} }, p.timing || {});
+  if (!J.STYLES[p.style]) p.style = 'noir';      // old projects may point at a deleted style key
   // 背景层：形状图层 + 英文仅描边 / 实心+描边叠层（全部默认关，开了才改画面）
   p.text = { outlineEn: false, stack: 0, shapes: { block: false, honey: false, dots: false, noise: false }, amt: 0.45, size: 0.65, drift: 0.5 };
   p.more = true;
