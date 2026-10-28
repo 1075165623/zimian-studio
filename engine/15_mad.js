@@ -193,6 +193,27 @@ MAD.wordTiming = (project, plan, audio) => {
         words.splice(i, 1); times.splice(i, 1); i--;
       }
     }
+    // A lone 的/了/在/中 is a syllable, not a shot. Fold very short function
+    // words into the neighbouring content word so the cut keeps a readable phrase.
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (!w.func || w.n > 1) continue;
+      if (times[i].end - times[i].start > 0.24) continue;
+      if (i > 0 && !words[i - 1].punct) {
+        words[i - 1].text += w.text;
+        words[i - 1].clean += w.clean;
+        words[i - 1].n += w.n;
+        words[i - 1].emo = words[i - 1].emo || w.emo;
+        times[i - 1].end = times[i].end;
+        words.splice(i, 1); times.splice(i, 1); i--;
+      } else if (i + 1 < words.length) {
+        words[i + 1].text = w.text + words[i + 1].text;
+        words[i + 1].clean = w.clean + words[i + 1].clean;
+        words[i + 1].n += w.n;
+        times[i + 1].start = times[i].start;
+        words.splice(i, 1); times.splice(i, 1); i--;
+      }
+    }
     for (let i = 0; i < times.length; i++) {
       if (i + 1 < times.length && times[i].end > times[i + 1].start) times[i].end = times[i + 1].start;
       if (times[i].end <= times[i].start) times[i].end = times[i].start + 0.075;
@@ -303,7 +324,6 @@ function posOf(sec, k, rng) {
 MAD.apply = (project, audio, plan) => {
   if (!plan || !plan.cuts || !plan.lines) return plan;
   if (project.centerFree) return plan;                          // the two-band mode has its own geometry
-  if (project.slotLines && project.slotLines.length) return plan; // material in the layout: keep the old path
   const W = plan.W, H = plan.H, st = plan.style, fx = plan.fx;
   const timing = MAD.wordTiming(project, plan, audio);
   const secs = MAD.sections(plan, timing, audio);
@@ -400,6 +420,7 @@ MAD.apply = (project, audio, plan) => {
         bg: 'none', bgP: {}, cam: 'still', camP: {},
         trans: null, transP: {}, transDur: 0, utext: text, action,
         pos: { x: pos.x, y: pos.y }, size: probe, charTimes: [],
+        wordIndex: k, wordCount: T.words.length,
       };
       // per-character times inside the word (step / slot)
       const chars = [...text.replace(/\s/g, '')];
@@ -520,6 +541,12 @@ J.LAYOUTS.mad = {
         ghost.charFn = (i) => (env.lt < (cut.charTimes[i] || 0) - 1e-4 ? { hide: true } : null);
       }
       env.draw(ghost);
+    }
+    // a thin progress rule: it tells you where you are in the line without adding a caption
+    if (env.pass === 'main' && cut.wordCount > 1) {
+      const y = H * 0.895, prog = J.clamp(cut.wordIndex / Math.max(1, cut.wordCount - 1));
+      env.rect(W * 0.08, y, W * 0.84, Math.max(1, H * 0.0012), sc.fg, 0.14 * (1 - env.pOut), false);
+      env.rect(W * 0.08, y - H * 0.001, Math.max(2, W * 0.84 * prog), Math.max(2, H * 0.0022), sc.accent, 0.88 * (1 - env.pOut), false);
     }
     it.matchFrom = cut.matchFrom || null;
     it.charTimes = cut.charTimes || null;

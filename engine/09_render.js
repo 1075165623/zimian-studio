@@ -202,7 +202,7 @@ class Renderer {
     }
     const shx = J.rs(step, 71) * shake * 16 * u, shy = J.rs(step, 72) * shake * 11 * u;
     // ---------- 形状图层（色块 / 蜂窝 / 网点 / 噪点，垫在字下面慢慢飘） ----------
-    if (!opt.noBgGfx && (!opt.transparent || layer === 'back') && plan.text && plan.text.shapes) {
+    if (!opt.noBgGfx && (!opt.transparent || layer === 'back') && J.drawShapes && plan.text && plan.text.shapes) {
       try { J.drawShapes(ctx, plan, sc, tq, scale); } catch (e) { console.warn('shapes', e); }
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
     }
@@ -218,7 +218,7 @@ class Renderer {
       { pass: 'A', lag: 0.8 / 24, off: [3.2 * chroma * u, 1.9 * chroma * u] },
       { pass: 'main', lag: 0, off: [0, 0] },
     ];
-    const ghostOn = (fx.chroma ?? 0.7) > 0.02 && (st.ghost ?? 1) > 0.02 && !opt.noGhost;
+    const ghostOn = !opt.fast && (fx.chroma ?? 0.7) > 0.02 && (st.ghost ?? 1) > 0.02 && !opt.noGhost;
     // モーフ (統一感): during the first moments of a morph cut its lyric is drawn by drawMorph (glyphs glide / melt)
     const MC = !opt.noTrans && !opt.glyphLog && mainCut && mainCut.morph && mainCut.index > 0 ? mainCut : null;
     const mPrev = MC ? plan.cuts[MC.index - 1] : null, mlt = MC ? tq - MC.start : 0;
@@ -602,15 +602,15 @@ class Renderer {
       ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = glow * 0.55; ctx.drawImage(Sm, 0, 0, cw, ch); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     }
     if (!opt.transparent && !plan.keyBg) {
-      // scanlines
-      const scan = (st.texture.scan || 0) * (fx.texture ?? 0.6);
+      // scanlines / grain are texture: skip them while playing, keep the vignette
+      const scan = opt.fast ? 0 : (st.texture.scan || 0) * (fx.texture ?? 0.6);
       if (scan > 0.03) {
         const pat = ctx.createPattern(this.scan, 'repeat');
         const k = Math.max(1, Math.round(ch / 540));
         ctx.save(); ctx.scale(k, k); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = scan * 0.28; ctx.fillStyle = pat; ctx.fillRect(0, 0, cw / k, ch / k); ctx.restore();
       }
       // grain
-      const gr = (st.texture.grain || 0) * (fx.texture ?? 0.6);
+      const gr = opt.fast ? 0 : (st.texture.grain || 0) * (fx.texture ?? 0.6);
       if (gr > 0.02) {
         const img = this.grain[((step % 4) + 4) % 4];
         const pat = ctx.createPattern(img, 'repeat');

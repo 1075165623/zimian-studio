@@ -136,8 +136,7 @@ function boot() {
   if ([...$('#selRes').options].some(o => +o.value === p.res)) $('#selRes').value = p.res;
   if ([...$('#selFps').options].some(o => +o.value === p.fps)) $('#selFps').value = p.fps;
   $('#swExtra').checked = !!p.extra;
-  if ($('#swChoreo')) $('#swChoreo').checked = p.choreo !== false;
-  if ($('#swGarnish')) $('#swGarnish').checked = !!p.garnish;
+
   if ($('#motionBlur')) { $('#motionBlur').value = p.fx.motionBlur | 0; $('#oMotionBlur').textContent = p.fx.motionBlur | 0; }
   if ($('#segGenre')) $$('#segGenre button').forEach(b => b.classList.toggle('on', b.dataset.v === (p.genre || 'mad')));
   if ($('#segKoma')) $$('#segKoma button').forEach(b => b.classList.toggle('on', +b.dataset.v === (p.fx.koma || 0)));
@@ -158,7 +157,7 @@ function boot() {
     return { v: 1, at: Date.now(), project: JSON.parse(JSON.stringify(S.project)), media };
   }
 
-  // 效果库（app/catalog.js）用这几个入口；先挂上再生成，出问题也不会让整页卡死
+  // 对外接口（自动化测试 / 控制台调试用）
   S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, importDrop, filesFromDrop, sortDropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip, syncMediaList, syncMediaState, projectSnapshot, applyGenre, wordSheet: () => (J.MAD && J.MAD.sheet ? J.MAD.sheet(S.plan) : '') };
 
   replan();
@@ -230,6 +229,22 @@ function buildFontSelects() {
 
 /* ───────────────────────── 风格 ───────────────────────── */
 
+/* 配色在界面上的中文名 / 气质（引擎内部仍用原 key） */
+const STYLE_META = {
+  noir: ['黑场橙', '黑白 + 琥珀，重击底子'],
+  crimson: ['深红信号', '红黑 + 青绿，故障'],
+  hud: ['暗夜 HUD', '炭灰 + 橙，仪器感'],
+  specimen: ['标本纸', '墨黑 + 米色，抒情'],
+  paper: ['纸与墨', '米白 + 洋红，手帐'],
+  mono: ['单色 RGB', '灰阶 + RGB 重影'],
+  mint: ['薄荷终端', '黑 + 荧光绿'],
+  rouge: ['胭脂渐变', '灰 + 红渐变'],
+  caution: ['警戒黄', '黄 + 红蓝，工业'],
+  magenta: ['霓虹洋红', '高饱和粉 + 蓝'],
+  transit: ['交通牌', '橄榄 + 黄，标识'],
+  blueprint: ['蓝图', '鲜蓝 + 白 + 黑'],
+};
+
 /* 一键成片先选类型，而不是直接随机「浅底 + 彩字」 */
 const GENRES = {
   mad: {
@@ -243,7 +258,7 @@ const GENRES = {
     fx: { motion: 0.46, density: 0.42, decor: 0.22, glitch: 0.06, texture: 0.72, chroma: 0.14, motionBlur: 2, koma: 12, onTwos: true, flash: true },
   },
   journal: {
-    label: '手帐', style: 'paper', choreo: false, unify: false, typeset: false, garnish: true,
+    label: '手帐', style: 'paper', choreo: false, unify: false, typeset: false, garnish: false,
     fonts: { display: 'klee', serif: 'mincho', body: 'gothic_med' },
     fx: { motion: 0.32, density: 0.5, decor: 0.78, glitch: 0.02, texture: 0.9, chroma: 0.08, motionBlur: 0, koma: 0, onTwos: false, flash: false },
   },
@@ -259,10 +274,29 @@ function applyGenre(kind) {
   S.project.fonts = S.project.fonts || {};
   for (const [role, key] of Object.entries(G.fonts)) S.project.fonts[role] = key;
   S.project.fx = Object.assign({}, S.project.fx, G.fx);
+  // Each template owns a small, deliberate technique set. A one-click template
+  // should not quietly re-enable the old 900-piece sampler.
+  S.project.enabled = Object.fromEntries(J.GROUP_KEYS.map(g => [g, Object.fromEntries(J.order(g).map(k => [k, true]))]));
+  if (kind === 'journal') {
+    const only = (g, keys) => {
+      const map = S.project.enabled[g] || (S.project.enabled[g] = {});
+      for (const k of Object.keys(map)) map[k] = keys.includes(k);
+    };
+    only('layout', ['journalText', 'journalPhoto']);
+    only('enter', ['cut']);            // the journal layouts animate the page themselves
+    only('exit', ['cut']);
+    only('hold', ['still']);
+    only('decor', []);
+    only('bg', []);
+    only('cam', ['push', 'still']);
+    only('treat', ['none']);
+    only('trans', []);
+    S.project.fx.decor = 0;
+    S.project.fx.glitch = 0;
+  }
   S.fontsKey = '';
   $$('#segGenre button').forEach(b => b.classList.toggle('on', b.dataset.v === kind));
   $$('.st').forEach(b => b.classList.toggle('on', b.dataset.k === G.style));
-  const cb = $('#swChoreo'), cg = $('#swGarnish'); if (cb) cb.checked = G.choreo; if (cg) cg.checked = G.garnish;
   const mb = $('#motionBlur'); if (mb) { mb.value = G.fx.motionBlur; $('#oMotionBlur').textContent = G.fx.motionBlur; }
   $$('#segKoma button').forEach(b => b.classList.toggle('on', +b.dataset.v === (G.fx.koma || 0)));
   replan();
@@ -272,26 +306,41 @@ function applyGenre(kind) {
 function buildStyleGrid() {
   const box = $('#styleGrid');
   box.innerHTML = '';
-  for (const k of J.STYLE_ORDER) {
-    const st = J.STYLES[k]; if (!st) continue;
+  // 66 套配色是引擎的资产，但一次全铺出来只会让人眼花。这里只给 8 套主推，
+  // 其余 4 套折进「更多配色」；每张卡只保留 3 个颜色 + 名字 + 一句气质。
+  const MAIN = ['noir', 'crimson', 'hud', 'specimen', 'paper', 'mono', 'mint', 'rouge'];
+  const MORE = ['caution', 'magenta', 'transit', 'blueprint'];
+  const make = (k) => {
+    const st = J.STYLES[k]; if (!st) return null;
     const sc = (st.schemes && st.schemes[0]) || {};
+    const meta = STYLE_META[k] || [st.name || k, st.desc || ''];
     const el = document.createElement('div');
     el.className = 'st' + (k === S.project.style ? ' on' : '');
     el.dataset.k = k;
-    el.title = (st.name || k) + (st.desc ? ' — ' + st.desc : '');
+    el.title = meta[0] + ' — ' + meta[1];
     el.innerHTML = `<div class="st-swatch">
         <i style="background:${sc.bg || '#111'}"></i>
         <i style="background:${sc.fg || '#fff'}"></i>
         <i style="background:${sc.accent || '#888'}"></i>
-      </div><div class="st-name">${st.name || k}</div>`;
+      </div><span class="st-txt"><b class="st-name">${meta[0]}</b><small class="st-desc">${meta[1]}</small></span>`;
     el.onclick = () => {
       S.project.style = k;
       $$('.st').forEach(e => e.classList.toggle('on', e.dataset.k === k));
       updateSums();
       replan();
     };
-    box.appendChild(el);
-  }
+    return el;
+  };
+  const main = document.createElement('div');
+  main.className = 'styles';
+  for (const k of MAIN) { const el = make(k); if (el) main.appendChild(el); }
+  box.appendChild(main);
+  const more = document.createElement('details');
+  more.className = 'style-more';
+  more.innerHTML = '<summary>更多配色（' + MORE.filter(k => J.STYLES[k]).length + '）</summary><div class="styles"></div>';
+  const moreGrid = more.querySelector('.styles');
+  for (const k of MORE) { const el = make(k); if (el) moreGrid.appendChild(el); }
+  box.appendChild(more);
 }
 
 /* ───────────────────────── 逐行手法 ───────────────────────── */
@@ -430,7 +479,9 @@ function sizeCanvas() {
   if (cssW > maxW) { cssW = maxW; cssH = cssW / ar; }
   if (cssH > maxH) { cssH = maxH; cssW = cssH * ar; }
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const pw = Math.round(Math.min(S.plan.W, cssW * dpr));
+  // Preview is capped: the export still renders at the chosen resolution, but the
+  // on-screen canvas does not need 1920px while a video is playing on a laptop.
+  const pw = Math.round(Math.min(S.plan.W, cssW * dpr, 1440));
   const ph = Math.round(pw / ar);
   c.width = pw; c.height = ph;
   c.style.width = Math.round(cssW) + 'px';
@@ -444,7 +495,12 @@ function draw() {
   if (!c.width || !S.plan) return;
   const ctx = c.getContext('2d');
   const t0 = performance.now();
-  S.renderer.frame(ctx, S.plan, S.t, { scale: c.width / S.plan.W, fast: S.playing && S.slow, overlay: drawMediaOverlay, underlay: drawMediaUnder, slot: paintSlot });
+  S.renderer.frame(ctx, S.plan, S.t, {
+    scale: c.width / S.plan.W,
+    fast: S.playing || S.slow,          // playing: skip bloom/chroma blur, keep the motion
+    noMotionBlur: S.playing,            // sub-frames are for the export / paused stills
+    overlay: drawMediaOverlay, underlay: drawMediaUnder, slot: paintSlot,
+  });
   const dt = performance.now() - t0;
   S.slow = S.playing ? (dt > 32 ? true : dt < 14 ? false : S.slow) : false;
 }
@@ -2316,7 +2372,7 @@ function paintDirectMedia(env, m, lt) {
   ctx.save();
   ctx.setTransform(k, 0, 0, k, 0, 0);
   ctx.globalAlpha = J.clamp(evalProp(m, 'opacity', lt), 0, 1);
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = S.playing ? 'medium' : 'high';
   try { ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh); } catch (e) {}
   ctx.restore();
 }
@@ -2423,8 +2479,16 @@ const LAYOUT_CN = k => (J.LAYOUTS[k] && (J.LAYOUTS[k].cn || J.LAYOUTS[k].name)) 
 
 function cutOfLine(line) {
   if (!S.plan || line == null || line < 0) return null;
-  for (const c of S.plan.cuts) if (c.line === line && c.end - c.start > 0.15) return c;
-  return null;
+  let first = null, start = Infinity, end = -Infinity;
+  for (const c of S.plan.cuts) {
+    if (c.line !== line) continue;
+    if (!first) first = c;
+    start = Math.min(start, c.start); end = Math.max(end, c.end);
+  }
+  if (!first) return null;
+  // A MAD line is made of word cuts, so use the whole line for the material's
+  // lifetime and for the slot geometry — not the first 0.2 s word.
+  return Object.assign({}, first, { start, end, dur: Math.max(0.05, end - start) });
 }
 
 function slotNamesOf(layout) {
@@ -2610,6 +2674,13 @@ function syncSlotClips() {
     }
     const cut = cutOfLine(m.line);
     const L = cut && J.LAYOUTS[cut.layout];
+    if (cut && cut.layout === 'mad') {
+      // word-level choreography has no slot: the clip is a full-bleed background
+      m.orphan = false;
+      m.start = cut.start;
+      m.dur = Math.max(0.2, cut.end - cut.start);
+      continue;
+    }
     if (!cut || !L || !L.slot) {                     // 这一句没了 / 换成了没有插槽的版式 → 先按自由层画
       if (!m.orphan) {
         m.orphan = true;
@@ -2666,7 +2737,7 @@ function paintSlot(slot) {
   if (fit === 'contain') { ctx.globalAlpha = op; ctx.fillStyle = slot.paper; ctx.fillRect(0, 0, slot.w, slot.h); }
   try { if (tone.desat > 0.01) ctx.filter = 'saturate(' + (1 - tone.desat).toFixed(2) + ')'; } catch (e) {}
   ctx.globalAlpha = op;
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = S.playing ? 'medium' : 'high';
   ctx.translate(dx, dy);
   if (rot) ctx.rotate(rot);
   try {
@@ -3324,7 +3395,7 @@ function initFolds() {
 function updateSums() {
   const p = S.project;
   const st = J.STYLES[p.style];
-  $('#sumStyle').textContent = (st && st.name) || p.style;
+  $('#sumStyle').textContent = (STYLE_META[p.style] && STYLE_META[p.style][0]) || (st && st.name) || p.style;
   const ov = Object.keys(p.overrides || {}).filter(k => p.overrides[k] && Object.keys(p.overrides[k]).length).length;
   $('#sumLines').textContent = ov ? ov + ' 行已指定' : '全部自动';
   $('#sumFeel').textContent = (TASTE[S.taste] && TASTE[S.taste].short) || '平衡';
@@ -3772,26 +3843,7 @@ function bind() {
     toast('逐词时间已回到自动：按字数和标点估算，并吸附鼓点');
   });
 
-  // 效果库：默认只看 10 个重击动作，整库折到「高级」
-  $('#libAdvanced').addEventListener('change', e => {
-    $('#libBody').hidden = !e.target.checked;
-  });
-  $('#madVocab').addEventListener('click', e => {
-    const b = e.target.closest('.mv'); if (!b) return;
-    const A = {
-      hit: '重击入场：130–160% → 100%，3–5 帧带过冲，1 帧闪白 + 2–3 帧微抖。',
-      step: '逐字硬切：每个字踩着音节直接出现，不淡入，间隔 = 音节间隔。',
-      through: '穿字：上一个词冲进镜头，下一个词从里面出来；用在段落转换。',
-      mask: '遮罩条：硬边色块横扫，文字只在色块里显示，随后收走。',
-      slot: '老虎机滚字：单字纵向高速滚动 + 动态模糊，停在目标字上。',
-      track: '字距爆开：重拍瞬间字距拉开，6–10 帧内收回。',
-      echo: '残影堆叠：同一个词复制 5–8 层，逐层缩小/偏移，在拍点收成一层。',
-      slice: '切片错位：字被横切成条带，各条左右错位后弹回。',
-      stroke: '描边/实心/反白闪切：重拍时切换 1–2 帧。',
-      match: '匹配切：上一个词结束时的位置/大小/旋转，就是下一个词的起点。',
-    };
-    toast(A[b.dataset.act] || b.textContent);
-  });
+
 
   // 画幅 / 分辨率 / 帧率
   $('#segAspect').addEventListener('click', e => {
@@ -3870,10 +3922,8 @@ function bind() {
   sw('#swNew', 'more');
   sw('#swTypo', 'typo');
   sw('#swKinetic', 'kinetic');
-  sw('#swChoreo', 'choreo');
   sw('#swUnify', 'unify');
   sw('#swTypeset', 'typeset');
-  sw('#swGarnish', 'garnish');
 
   // 字体
   const fs = (id, role) => $(id).addEventListener('change', e => {
