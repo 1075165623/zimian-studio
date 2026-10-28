@@ -164,8 +164,13 @@ const journalPhoto = {
 J.register('layout', 'journalText', journalText, 'journal');
 J.register('layout', 'journalPhoto', journalPhoto, 'journal');
 
-/* The visible auto-pick pool is deliberately tiny: paper, photo, and the
-   neutral teaching fallback. The 911-item library is gone from the app. */
+/* Keep the full library order for the advanced library / per-line pickers,
+   but keep the AUTO pick pool tiny: paper, photo, and the neutral fallback. */
+J.LIB_ORDER = J.LIB_ORDER || {};
+J.LIB_ORDER.layout = J.LAYOUT_ORDER.slice();
 J.LAYOUT_ORDER.length = 0;
 J.LAYOUT_ORDER.push('journalText', 'journalPhoto', 'center', 'title', 'interlude');
+// the new journal pages are intentionally plain; old slot atmosphere is opt-in only
+J.slotAtmosphere = null;
+J.slotAtmosphereFront = null;
 })();

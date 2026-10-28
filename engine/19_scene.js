@@ -197,9 +197,12 @@ trans('invertFlash', { dur: 0.16, draw(ctx, A, B, p, info) {
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
 } });
 
-/* These are a scene layer, not new random library entries: the old base
-   planner must keep its restrained none/push defaults. 18_sentence assigns
-   the keys directly. */
+/* Keep the full library order for the advanced library, while the auto
+   planner stays restrained: none/push are the defaults; 18_sentence assigns
+   scene keys directly. */
+J.LIB_ORDER = J.LIB_ORDER || {};
+for (const g of J.GROUP_KEYS) if (!J.LIB_ORDER[g] || !J.LIB_ORDER[g].length) J.LIB_ORDER[g] = J.order(g).slice();
+J.libOrder = g => (J.LIB_ORDER && J.LIB_ORDER[g] && J.LIB_ORDER[g].length ? J.LIB_ORDER[g] : J.order(g));
 J.BG_ORDER.length = 0; J.BG_ORDER.push('none');
 J.CAMERA_ORDER.length = 0; J.CAMERA_ORDER.push('push', 'still');
 J.TRANS_ORDER.length = 0;

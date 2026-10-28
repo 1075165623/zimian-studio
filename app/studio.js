@@ -313,7 +313,7 @@ function buildStyleGrid() {
   // 66 套配色是引擎的资产，但一次全铺出来只会让人眼花。这里只给 8 套主推，
   // 其余 4 套折进「更多配色」；每张卡只保留 3 个颜色 + 名字 + 一句气质。
   const MAIN = ['noir', 'crimson', 'hud', 'specimen', 'paper', 'mono', 'mint', 'rouge'];
-  const MORE = ['caution', 'magenta', 'transit', 'blueprint'];
+  const MORE = J.STYLE_ORDER.filter(k => !MAIN.includes(k) && J.STYLES[k]);
   const make = (k) => {
     const st = J.STYLES[k]; if (!st) return null;
     const sc = (st.schemes && st.schemes[0]) || {};
@@ -341,7 +341,7 @@ function buildStyleGrid() {
   box.appendChild(main);
   const more = document.createElement('details');
   more.className = 'style-more';
-  more.innerHTML = '<summary>更多配色（' + MORE.filter(k => J.STYLES[k]).length + '）</summary><div class="styles"></div>';
+  more.innerHTML = '<summary>全部配色（' + MORE.length + '）</summary><div class="styles all"></div>';
   const moreGrid = more.querySelector('.styles');
   for (const k of MORE) { const el = make(k); if (el) moreGrid.appendChild(el); }
   box.appendChild(more);
@@ -398,7 +398,7 @@ function buildLineList() {
     for (const sel of row.querySelectorAll('select[data-g]')) {
       const g = sel.dataset.g;
       sel.innerHTML = '<option value="">自动</option>' +
-        J.order(g).map(k => `<option value="${k}">${escapeHtml(J.registry(g)[k].name)}</option>`).join('');
+        (J.libOrder ? J.libOrder(g) : J.order(g)).map(k => J.registry(g)[k] ? `<option value="${k}">${escapeHtml(J.registry(g)[k].name)}</option>` : '').join('');
       sel.value = mine[g] || '';
       sel.onchange = () => {
         const v = sel.value;
