@@ -313,6 +313,7 @@ MAD.apply = (project, audio, plan) => {
     const o = ov[li] || {};
     return !!(o.lock || o.layout || o.enter || o.exit || o.hold || o.decor || o.treat || o.single || o.cuts || o.bg || o.cam || o.cutTech || o.cutLayouts);
   });
+  const backupCuts = plan.cuts.slice(), backupEvents = plan.events.slice();
   const oldScheme = {};
   plan.cuts.forEach(c => { if (c.line >= 0 && oldScheme[c.line] == null) oldScheme[c.line] = c.scheme | 0; });
   const removed = new Set();
@@ -433,7 +434,7 @@ MAD.apply = (project, audio, plan) => {
     });
     if (localPrev) prevCut = localPrev;
   });
-  if (!newCuts.length) return plan;
+  if (!newCuts.length) { plan.cuts = backupCuts; plan.events = backupEvents; return plan; }
   plan.cuts.push(...newCuts);
   plan.cuts.sort((a, b) => a.start - b.start);
   plan.cuts.forEach((c, i) => { c.index = i; delete c.durOwn; c.dur = Math.max(0.02, c.end - c.start); });
@@ -672,7 +673,12 @@ const basePlan = J.plan;
 J.plan = function (project, audio) {
   const plan = basePlan(project, audio);
   if (!project || project.choreo === false) return plan;
+  const backup = { cuts: plan.cuts.slice(), events: plan.events.slice() };
   try { return MAD.apply(project, audio, plan); }
-  catch (e) { console.warn('MAD choreography failed, falling back to line cuts', e); return plan; }
+  catch (e) {
+    console.warn('MAD choreography failed, falling back to line cuts', e);
+    plan.cuts = backup.cuts; plan.events = backup.events;
+    return plan;
+  }
 };
 })();
