@@ -428,6 +428,7 @@ MAD.apply = (project, audio, plan) => {
       if (k === 0 && sec.kind === 'chorus') { pushEv(cs, 'flash', 0.9, 2 * F, cut); pushEv(cs, 'zoom', 0.7, 3 * F, cut); }
       const on = onsetNear((audio && audio.onsets) || plan.onsets, cs, 0.055);
       if (on && on.amp > 0.72) pushEv(cs, 'shake', 0.5 + on.amp * 0.6, 2 * F, cut);
+      if (on && on.amp > 0.86 && sec.kind === 'chorus' && action !== 'hit' && action !== 'echo') pushEv(cs, 'flash', 0.55, F, cut);
       newCuts.push(cut);
       localPrev = cut;
       if (plan.evOwner && !cut._ownerSet) cut._ownerSet = true;

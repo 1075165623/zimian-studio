@@ -15,7 +15,7 @@ J.defaultProject = () => ({
   themeId: null,                  // おまかせのテーマ (J.THEMES key) — only おまかせ reads it
   title: '', artist: '',
   lyrics: J.SAMPLE_LYRICS,
-  style: 'noir', mood: null,
+  style: 'noir', mood: null, genre: 'mad',
   choreo: true,                    // word-level MAD choreography (15_mad.js)
   garnish: false,                  // hand-journal side garnish: off by default
   extra: false,                   // random picks may use the parts added after the first version (追加分)
