@@ -643,9 +643,16 @@
         <i class="ch-ar"></i>
       </summary>
       <div class="ch-body">
-        <p class="tip tight">44 秒蓝白网格字 PV：超大窄体英文、宋体歌词、蓝色卡片、轨道线、星芒、手绘玫瑰。转场 / 装饰 / 镜头都注册在高级手法库里，是这一包的专用新手法。</p>
-        <button class="btn primary pv-open" id="btnPvOpen">打开 PV 模板</button>
-        <p class="tip tight">支持 7 个立绘槽位逐张替换，也可以导入音乐同步预览。底部 staff 可直接粘贴。</p>
+        <p class="tip tight">44 秒蓝白网格字 PV：直接写进主时间线 / 主播放器，不是弹窗。转场 / 装饰 / 镜头是高级手法库里的 PV· 新手法。</p>
+        <div class="row-btns"><button class="btn primary tiny" id="btnPvLoad">载入 PV 时间线</button><button class="btn tiny" id="btnPvExit">退出 PV</button></div>
+        <div id="pvLive" hidden>
+          <label class="pv-inline"><span>标题</span><input id="pvTitleMain" maxlength="16" value="明知故犯"></label>
+          <label class="pv-inline"><span>歌词（12 行）</span><textarea id="pvLyricsMain" rows="6"></textarea></label>
+          <label class="pv-inline"><span>底部 staff（一行一条）</span><textarea id="pvCreditsMain" rows="4"></textarea></label>
+          <div class="pv-slots-mini" id="pvSlotsMain"></div>
+          <div class="row-btns"><button class="btn tiny" id="btnPvAudioMain">导入音乐</button></div>
+        </div>
+        <p class="tip tight">载入后主时间线会变 12 段 PV 分镜；音频用主音频轨，立绘 7 个槽位逐张替换。</p>
       </div>
     </details>
 
@@ -739,6 +746,9 @@
 <script src="engine/18_sentence.js?v=2026110101"></script>
 <script src="engine/19_scene.js?v=2026110101"></script>
 <script src="engine/20_tail.js?v=2026110101"></script>
+<script src="app/pv_assets.js?v=2026110101"></script>
+<script src="app/pv_core.js?v=2026110101"></script>
+<script src="engine/21_pv.js?v=2026110101"></script>
 <script src="app/pv_pack.js?v=2026110101"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
@@ -748,13 +758,6 @@
 <script src="app/mov_muxer.js?v=2026110101"></script>
 <script src="app/zip.js?v=2026110101"></script>
 <script src="app/project_io.js?v=2026110101"></script>
-<div class="pv-modal" id="pvModal" hidden>
-  <div class="pv-modal-bg" id="pvModalBg"></div>
-  <div class="pv-modal-box">
-    <button class="pv-modal-x" id="btnPvClose" title="关闭">×</button>
-    <iframe id="pvFrame" title="PV专区" src="about:blank"></iframe>
-  </div>
-</div>
 <script src="app/studio.js?v=2026110101"></script>
 <script src="app/pet.js?v=2026110101"></script>
 <script src="app/catalog.js?v=2026110101"></script>

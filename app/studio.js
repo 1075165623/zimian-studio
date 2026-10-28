@@ -446,25 +446,72 @@ function setOverride(li, g, val) {
 }
 
 function bindPv() {
-  const modal = $('#pvModal'), frame = $('#pvFrame'), bg = $('#pvModalBg');
-  const open = $('#btnPvOpen'), close = $('#btnPvClose');
-  if (!modal || !frame || !open) return;
-  const openPv = () => {
-    modal.hidden = false;
-    frame.src = 'pv.html?embed=1&v=' + Date.now();
-    document.body.classList.add('pv-open');
+  const load = $('#btnPvLoad'), exit = $('#btnPvExit'), live = $('#pvLive');
+  if (!load || !live) return;
+  const title = $('#pvTitleMain'), lyrics = $('#pvLyricsMain'), credits = $('#pvCreditsMain');
+  const slots = $('#pvSlotsMain');
+  const syncFields = () => {
+    const st = S.project.pvState || J.PV_DEFAULT_STATE();
+    title.value = st.title || '明知故犯';
+    lyrics.value = (st.lyrics || []).join('\n');
+    credits.value = (st.credits || []).join('\n');
   };
-  const closePv = () => {
-    modal.hidden = true;
-    frame.src = 'about:blank';
-    document.body.classList.remove('pv-open');
+  const readFields = () => {
+    const st = S.project.pvState || (S.project.pvState = J.PV_DEFAULT_STATE());
+    st.title = title.value.trim() || '明知故犯';
+    st.lyrics = lyrics.value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    st.credits = credits.value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
   };
-  open.addEventListener('click', openPv);
-  if (close) close.addEventListener('click', closePv);
-  if (bg) bg.addEventListener('click', closePv);
-  window.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !modal.hidden) { e.preventDefault(); closePv(); }
+  const buildSlots = () => {
+    slots.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const lab = document.createElement('label');
+      lab.className = 'pv-slot-mini';
+      lab.title = 'PV 立绘 ' + (i + 1) + '：点击替换';
+      const im = document.createElement('img');
+      im.src = (J.PV_IMAGES[i] && J.PV_IMAGES[i].src) || PV_ASSETS.portrait(i);
+      const num = document.createElement('b'); num.textContent = '0' + (i + 1);
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.hidden = true;
+      inp.addEventListener('change', () => {
+        const f = inp.files && inp.files[0]; if (!f) return;
+        const img = new Image();
+        img.onload = () => { J.PV_IMAGES[i] = img; S.need = true; buildSlots(); toast('PV 立绘 ' + (i + 1) + ' 已替换'); };
+        img.src = URL.createObjectURL(f);
+      });
+      lab.append(im, num, inp); slots.appendChild(lab);
+    }
+  };
+  const show = v => {
+    live.hidden = !v;
+    $('#btnPvLoad').textContent = v ? '重新载入' : '载入 PV 时间线';
+    $('#btnPvExit').style.opacity = v ? '1' : '.55';
+  };
+  const loadPv = () => {
+    S.project.pvMode = true;
+    S.project.aspect = '16:9';
+    S.project.pvState = J.PV_DEFAULT_STATE();
+    J.PV_IMAGES = [];
+    S.project.overrides = {};
+    S.t = 0; S.playing = false;
+    const card = load.closest('details'); if (card) card.open = true;
+    show(true); syncFields(); buildSlots();
+    replan();
+    toast('PV 时间线已载入：12 个分镜 / 44 秒');
+  };
+  load.addEventListener('click', loadPv);
+  exit.addEventListener('click', () => {
+    S.project.pvMode = false;
+    show(false);
+    S.t = 0; S.playing = false;
+    replan();
+    toast('已退出 PV，回到普通编排');
   });
+  title.addEventListener('input', () => { readFields(); replan(); });
+  lyrics.addEventListener('input', () => { readFields(); replan(); });
+  credits.addEventListener('input', () => { readFields(); replan(); });
+  $('#btnPvAudioMain').addEventListener('click', () => $('#fileAudio').click());
+  // 工程已经是 PV：打开控制区并填入当前文字
+  if (S.project.pvMode) { show(true); syncFields(); buildSlots(); }
 }
 
 const RAND_POOL = { layout: null, enter: null, hold: null, exit: null, decor: null, treat: null };

@@ -1,12 +1,8 @@
-/* ============================================================
-   字面工房 — PV专区
-   44 秒、1920×1080 的单一 PV 模板：
-   蓝白网格纸 / 超大窄体英文 / 宋体中文歌词 / 白色描边立绘 /
-   圆角蓝色卡片 / 轨道线 / 星芒 / 手绘玫瑰 / 底部可编辑 staff。
-   立绘默认用 SVG 占位，可上传替换；不包含任何原视频人物素材。
-   ============================================================ */
-(() => {
+/* PV_CORE — PV专区场景渲染核心，供主时间线/主播放器调用。 */
+window.PV_CORE = (() => {
 'use strict';
+let ctx = null;
+let S = null;
 const W = 1920, H = 1080, DUR = 44;
 const C = {
   blue: '#6175C7', blueD: '#40549F', blueL: '#8E9CDC',
@@ -21,13 +17,6 @@ const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
 const easeOut = x => 1 - Math.pow(1 - clamp(x), 3);
 const easeInOut = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
 
-if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('pv-embed');
-const cv = $('#pvCanvas'), ctx = cv.getContext('2d');
-const S = {
-  t: 0, playing: true, last: 0, title: '明知故犯',
-  sub: '冷空气的气味，掺杂些许心碎',
-  lyrics: [], credits: [], custom: [], audioEl: null, audioUrl: null,
-};
 
 const DEFAULTS = {
   title: '明知故犯',
@@ -484,193 +473,13 @@ function draw() {
   ctx.restore();
 }
 
-/* ───────────── UI ───────────── */
-function parseLyrics(v) { return String(v || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean); }
-function parseCredits(v) { return String(v || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean); }
-function applyFields() {
-  S.title = $('#pvTitle').value.trim() || DEFAULTS.title;
-  S.sub = $('#pvSub').value.trim() || DEFAULTS.sub;
-  S.lyrics = parseLyrics($('#pvLyrics').value);
-  S.credits = parseCredits($('#pvCredits').value);
-  renderTimelineLabels();
+
+function render(canvasCtx, t, state) {
+  ctx = canvasCtx;
+  S = state;
+  if (!S) return;
+  S.t = t;
   draw();
 }
-function resetFields() {
-  $('#pvTitle').value = DEFAULTS.title;
-  $('#pvSub').value = DEFAULTS.sub;
-  $('#pvLyrics').value = DEFAULTS.lyrics.join('\n');
-  $('#pvCredits').value = DEFAULTS.credits.join('\n');
-  S.custom = [];
-  buildSlots();
-  applyFields(); toast('已恢复示例');
-}
-function buildSlots() {
-  const box = $('#pvSlots'); if (!box) return;
-  box.innerHTML = '';
-  for (let i = 0; i < 7; i++) {
-    const lab = document.createElement('label');
-    lab.className = 'pv-slot' + (S.custom[i] ? ' has' : '');
-    lab.title = '角色 ' + String(i + 1).padStart(2, '0') + '：点击上传 / 替换';
-    const img = document.createElement('img');
-    img.src = S.custom[i] ? S.custom[i].src : PV_ASSETS.portrait(i);
-    img.alt = '角色 ' + (i + 1);
-    const num = document.createElement('b'); num.textContent = '0' + (i + 1);
-    const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = 'image/*'; inp.hidden = true;
-    inp.addEventListener('change', () => {
-      const f = inp.files && inp.files[0]; if (!f) return;
-      const im = new Image();
-      im.onload = () => {
-        S.custom[i] = im;
-        buildSlots(); draw(); toast('角色 ' + (i + 1) + ' 已替换');
-      };
-      im.src = URL.createObjectURL(f);
-    });
-    lab.appendChild(img); lab.appendChild(num); lab.appendChild(inp);
-    box.appendChild(lab);
-  }
-}
-function loadSlotFiles(files) {
-  const list = [...(files || [])].slice(0, 7);
-  list.forEach((f, i) => {
-    const im = new Image();
-    im.onload = () => {
-      S.custom[i] = im;
-      if (i === list.length - 1) { buildSlots(); draw(); toast('已载入 ' + list.length + ' 张立绘'); }
-    };
-    im.src = URL.createObjectURL(f);
-  });
-}
-function setPlaying(v) {
-  S.playing = !!v;
-  $('#pvPlay').textContent = S.playing ? '暂停' : '播放';
-  const a = S.audioEl;
-  if (!a) return;
-  if (S.playing) {
-    if (Math.abs(a.currentTime - S.t) > .12) a.currentTime = S.t;
-    a.play().catch(() => {});
-  } else a.pause();
-}
-function seekAudio(t) {
-  if (S.audioEl && S.audioEl.src && Number.isFinite(S.audioEl.duration)) {
-    try { S.audioEl.currentTime = clamp(t, 0, Math.max(0, S.audioEl.duration - .02)); } catch (e) {}
-  }
-}
-function buildTimeline() {
-  const tr = $('#pvTrack');
-  tr.querySelectorAll('.pv-seg').forEach(x => x.remove());
-  for (const sc of SCENES) {
-    const d = document.createElement('div');
-    d.className = 'pv-seg' + (['dark', 'cry', 'end'].includes(sc.kind) ? ' dark' : '');
-    d.style.left = (sc.s / DUR * 100) + '%';
-    d.style.width = ((sc.e - sc.s) / DUR * 100) + '%';
-    d.textContent = sc.label;
-    d.title = sc.label + ' · ' + sc.s + '–' + sc.e + 's';
-    tr.insertBefore(d, $('#pvHead'));
-  }
-  renderTimelineLabels();
-}
-function renderTimelineLabels() {
-  // scene name + playhead; segments already carry labels
-  const sc = SCENES.find(x => S.t >= x.s && S.t < x.e) || SCENES[SCENES.length - 1];
-  $('#pvSceneName').textContent = sc.label;
-}
-function seek(t) {
-  S.t = clamp(+t || 0, 0, DUR - .001);
-  seekAudio(S.t);
-  $('#pvScrub').value = S.t;
-  $('#pvTime').textContent = fmt(S.t);
-  updateHead(); renderTimelineLabels(); draw();
-}
-function updateHead() {
-  $('#pvHead').style.left = (S.t / DUR * 100) + '%';
-  $('#pvTime').textContent = fmt(S.t);
-  $('#pvScrub').value = S.t;
-}
-function fmt(t) {
-  const m = Math.floor(t / 60), s = t - m * 60;
-  return String(m).padStart(2, '0') + ':' + s.toFixed(2).padStart(5, '0');
-}
-function toast(msg) {
-  const el = $('#pvToast'); el.textContent = msg; el.classList.add('on');
-  clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1700);
-}
-let last = performance.now();
-function tick(now) {
-  const dt = Math.min(.06, Math.max(0, (now - last) / 1000)); last = now;
-  if (S.playing) {
-    if (S.audioEl && S.audioEl.src && !S.audioEl.paused) {
-      S.t = Math.min(DUR, S.audioEl.currentTime || 0);
-      if (S.t >= DUR - .02) { setPlaying(false); S.t = DUR - .001; }
-    } else {
-      S.t += dt;
-      if (S.t >= DUR) S.t = 0;
-    }
-    updateHead(); renderTimelineLabels();
-  }
-  draw();
-  requestAnimationFrame(tick);
-}
-function init() {
-  S.lyrics = DEFAULTS.lyrics.slice(); S.credits = DEFAULTS.credits.slice();
-  buildTimeline();
-  buildSlots();
-  $('#pvScrub').min = 0; $('#pvScrub').max = DUR; $('#pvScrub').step = .01;
-  $('#pvScrub').addEventListener('input', e => { setPlaying(false); seek(+e.target.value); });
-  $('#pvTrack').addEventListener('click', e => {
-    const r = e.currentTarget.getBoundingClientRect();
-    seek((e.clientX - r.left) / r.width * DUR);
-  });
-  $('#pvPlay').addEventListener('click', () => {
-    setPlaying(!S.playing);
-    if (S.playing && S.audioEl && S.audioEl.src) {
-      if (Math.abs(S.audioEl.currentTime - S.t) > .12) S.audioEl.currentTime = S.t;
-      S.audioEl.play().catch(() => {});
-    }
-    last = performance.now();
-  });
-  $('#pvApply').addEventListener('click', applyFields);
-  $('#pvReset').addEventListener('click', resetFields);
-  ['pvTitle', 'pvSub', 'pvLyrics', 'pvCredits'].forEach(id => $('#' + id).addEventListener('input', applyFields));
-  $('#pvFiles').addEventListener('change', e => {
-    loadSlotFiles(e.target.files);
-    e.target.value = '';
-  });
-  $('#pvClearFiles').addEventListener('click', () => {
-    S.custom = []; $('#pvFiles').value = ''; buildSlots(); draw(); toast('已恢复 SVG 占位立绘');
-  });
-  $('#pvPng').addEventListener('click', () => {
-    const a = document.createElement('a');
-    a.download = 'PV-' + S.t.toFixed(2).replace('.', '_') + '.png';
-    a.href = cv.toDataURL('image/png'); a.click();
-  });
-  // audio: one track, synced to the 44 s timeline
-  const au = new Audio(); au.preload = 'auto'; au.crossOrigin = 'anonymous'; S.audioEl = au;
-  au.addEventListener('ended', () => { setPlaying(false); S.t = Math.min(DUR, au.duration || DUR); seek(S.t); });
-  au.addEventListener('loadedmetadata', () => { $('#pvAudioPlay').textContent = '重播音乐'; });
-  $('#pvAudio').addEventListener('change', e => {
-    const f = e.target.files && e.target.files[0]; if (!f) return;
-    if (S.audioUrl) URL.revokeObjectURL(S.audioUrl);
-    S.audioUrl = URL.createObjectURL(f); au.src = S.audioUrl;
-    $('#pvAudioName').textContent = f.name;
-    S.t = 0; setPlaying(false); seek(0);
-    toast('音乐已载入：' + f.name);
-  });
-  $('#pvAudioPlay').addEventListener('click', () => {
-    if (!au.src) { toast('先选择一首音乐'); return; }
-    if (S.t >= DUR - .05) S.t = 0;
-    au.currentTime = S.t;
-    au.play().then(() => { S.playing = true; $('#pvPlay').textContent = '暂停'; }).catch(() => toast('浏览器拦截了自动播放，再点一次'));
-  });
-  window.addEventListener('keydown', e => {
-    if (e.code === 'Space' && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) {
-      e.preventDefault(); $('#pvPlay').click();
-    }
-  });
-  requestAnimationFrame(tick);
-  PV_ASSETS.preload().then(() => draw());
-}
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => draw());
-init();
-window.PV = { seek, draw, state: S, scenes: SCENES, canvas: cv, applyFields };
+return { render, defaults: DEFAULTS, scenes: SCENES, W, H, DUR };
 })();

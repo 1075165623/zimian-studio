@@ -791,3 +791,13 @@ input[type=range]::-webkit-slider-thumb{
 .pv-modal-x{position:absolute;right:12px;top:9px;z-index:3;width:32px;height:32px;border:1px solid #C5CEE8;border-radius:50%;background:rgba(255,255,255,.92);color:#40549F;font-size:22px;line-height:1;cursor:pointer}
 .pv-modal-x:hover{background:#fff;border-color:#6175C7}
 @media (max-width:760px){.pv-modal-box{width:100vw;height:100vh;border-radius:0}}
+
+.pv-inline{display:block;margin:7px 0}
+.pv-inline span{display:block;font-size:9.5px;color:var(--ink-3);margin-bottom:3px}
+.pv-inline input,.pv-inline textarea{width:100%;border:1px solid var(--line);border-radius:6px;background:#fff;padding:5px 6px;font:11px/1.45 inherit;color:var(--ink);resize:vertical;outline:none}
+.pv-inline input:focus,.pv-inline textarea:focus{border-color:var(--c)}
+.pv-slots-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:7px 0}
+.pv-slot-mini{position:relative;aspect-ratio:1/1;border:1px dashed #CBD5E8;border-radius:6px;overflow:hidden;cursor:pointer;background:#FAFBFE}
+.pv-slot-mini img{width:100%;height:100%;object-fit:cover}
+.pv-slot-mini b{position:absolute;left:3px;top:2px;font-size:8px;background:rgba(255,255,255,.8);padding:0 2px;border-radius:2px;color:#6175C7}
+#btnPvExit{opacity:.55}
