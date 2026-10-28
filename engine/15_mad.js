@@ -511,6 +511,7 @@ J.LAYOUTS.mad = {
     if (!text) return null;
     const font = P.font && J.FONTS[P.font] ? P.font : ((env.st.fonts.display && env.st.fonts.display[0]) || 'gothic_black');
     const pos = P.pos || cut.pos || { x: 0.5, y: 0.5 };
+    const z = cut.stage && cut.stage.text ? cut.stage.text : null;
     const base = cut.size || Math.min(J.fitSize(text, font, W * 0.82, H * 0.50, { track: 0.03 }), H * 0.44);
     const size = Math.max(12, base * (P.sizeK || 1));
     const it = {
@@ -524,17 +525,18 @@ J.LAYOUTS.mad = {
       const m = J.measure(it);
       const k = J.clamp(env.pIn, 0, 1);
       const bw = m.w * (0.55 + 0.45 * k) + size * 0.35, bh = size * 0.18;
-      env.rect(W / 2 - bw / 2, it.y + size * 0.52, bw, Math.max(2, bh), sc.accent, 0.92 * (1 - env.pOut), false);
+      env.rect(it.x - bw / 2, it.y + size * 0.52, bw, Math.max(2, bh), sc.accent, 0.92 * (1 - env.pOut), false);
     }
     if (cut.action === 'mask') {
       const m = J.measure(it);
-      env.rect(W * 0.5 - m.w * 0.64, it.y - m.h * 0.75, m.w * 1.28, m.h * 1.5, sc.accent, 0.10 * (1 - env.pOut), false);
+      env.rect(it.x - m.w * 0.64, it.y - m.h * 0.75, m.w * 1.28, m.h * 1.5, sc.accent, 0.10 * (1 - env.pOut), false);
     }
     // 一颗巨大的底字：不是装饰，是把画面从「字幕」拉到「版面」的锚点。
     // 逐字硬切时底字也跟着逐字出现（不剧透）；老虎机/遮罩条不画，免得抢走揭示。
     if (!['slot', 'mask'].includes(cut.action)) {
       const ghost = {
-        text, font, size: size * 2.55, x: W * 0.5, y: H * 0.53, color: sc.accent,
+        text, font, size: z ? Math.min(size * 2.2, z.w * 1.9) : size * 2.55,
+        x: z ? z.x + z.w / 2 : W * 0.5, y: z ? z.y + z.h * 0.52 : H * 0.53, color: sc.accent,
         alpha: 0.055 * (1 - env.pOut), track: 0.01, mi: 99, ghost: false, noWeight: true,
       };
       if (cut.action === 'step' && cut.charTimes) {
@@ -544,9 +546,11 @@ J.LAYOUTS.mad = {
     }
     // a thin progress rule: it tells you where you are in the line without adding a caption
     if (env.pass === 'main' && cut.wordCount > 1) {
-      const y = H * 0.895, prog = J.clamp(cut.wordIndex / Math.max(1, cut.wordCount - 1));
-      env.rect(W * 0.08, y, W * 0.84, Math.max(1, H * 0.0012), sc.fg, 0.14 * (1 - env.pOut), false);
-      env.rect(W * 0.08, y - H * 0.001, Math.max(2, W * 0.84 * prog), Math.max(2, H * 0.0022), sc.accent, 0.88 * (1 - env.pOut), false);
+      const px = z ? z.x : W * 0.08, pw = z ? z.w : W * 0.84;
+      const y = z ? Math.min(H * 0.94, z.y + z.h + H * 0.018) : H * 0.895;
+      const prog = J.clamp(cut.wordIndex / Math.max(1, cut.wordCount - 1));
+      env.rect(px, y, pw, Math.max(1, H * 0.0012), sc.fg, 0.14 * (1 - env.pOut), false);
+      env.rect(px, y - H * 0.001, Math.max(2, pw * prog), Math.max(2, H * 0.0022), sc.accent, 0.88 * (1 - env.pOut), false);
     }
     it.matchFrom = cut.matchFrom || null;
     it.charTimes = cut.charTimes || null;

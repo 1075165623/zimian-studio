@@ -2383,6 +2383,7 @@ function paintMedia(env, t, front) {
   const ctx = env.ctx, W = env.W, H = env.H;
   const k = (ctx.canvas.width || W) / W || 1;
   const scheme = env.sc || fallbackScheme();
+  const stagedCut = !front && env.cut && env.cut.stage;
   const T = S.project.timing || {};
   const bl = T.bpm > 0 ? 60 / T.bpm : 0, off = T.offset || 0;
   ctx.save();
@@ -2391,6 +2392,7 @@ function paintMedia(env, t, front) {
   const list = S.media.slice().sort((a, b) => (b.lane | 0) - (a.lane | 0));
   for (const m of list) {
     if (m.inLayout && !m.orphan) {
+      if (stagedCut && (m.line === env.cut.line || (m.spanSlot && m.spanLines && m.spanLines.includes(env.cut.line)))) continue;   // drawn by paintStageMedia
       // 视频嵌进版式时：有插槽的段落铺模糊视频背景；没有插槽的段落不模糊，直接压在文字后面
       if (!front && t >= m.start - 1e-4 && t <= m.start + m.dur + 1e-4) {
         const cut = env.cut;
@@ -2472,8 +2474,85 @@ function paintMedia(env, t, front) {
   }
   ctx.restore();
 }
+/* 嵌套舞台：把素材画成构图的一部分，而不是一整块背景板。
+   版式 / 文字区由 engine/17_stage.js 决定，这里只负责把当前这一句的
+   图片或视频裁进照片窗 / 竖窗 / 横幅 / 满幅。 */
+function drawCover(ctx, img, iw, ih, x, y, w, h) {
+  if (!iw || !ih || !(w > 0) || !(h > 0)) return;
+  const sa = iw / ih, pa = w / h;
+  let dw, dh, dx, dy;
+  if (sa > pa) { dh = h; dw = h * sa; dx = x + (w - dw) / 2; dy = y; }
+  else { dw = w; dh = w / sa; dx = x; dy = y + (h - dh) / 2; }
+  try { ctx.drawImage(img, dx, dy, dw, dh); } catch (e) {}
+}
+function paintStageMedia(env, t) {
+  const cut = env && env.cut, stage = cut && cut.stage, panel = stage && stage.panel;
+  if (!panel || !S.media.length || cut.line < 0) return false;
+  const m = S.media.find(x => x.inLayout && !x.orphan &&
+    (x.line === cut.line || (x.spanSlot && x.spanLines && x.spanLines.includes(cut.line))) &&
+    t >= x.start - 0.04 && t <= x.start + x.dur + 0.04);
+  if (!m) return false;
+  const img = sourceOf(m, t - m.start);
+  if (!img) return false;
+  const ctx = env.ctx, W = env.W, H = env.H, sc = env.sc || fallbackScheme();
+  const iw = m.iw || img.videoWidth || img.naturalWidth || img.width || 0;
+  const ih = m.ih || img.videoHeight || img.naturalHeight || img.height || 0;
+  if (!iw || !ih) return false;
+  const x = panel.x * W, y = panel.y * H, w = panel.w * W, h = panel.h * H;
+  const u = Math.min(W, H);
+  const line = env.plan && env.plan.lines && env.plan.lines[cut.line];
+  const lt = Math.max(0, t - (line ? line.start : cut.start));
+  const enterA = J.clamp((lt - 0.02) / 0.34);
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = enterA;
+
+  if (stage.style === 'bleed') {
+    drawCover(ctx, img, iw, ih, 0, 0, W, H);
+    // a colour scrim + a side gradient: the type keeps a quiet column
+    ctx.fillStyle = J.rgba(sc.bg, 0.30); ctx.fillRect(0, 0, W, H);
+    const left = (stage.text ? stage.text.x : 0.08) < 0.5;
+    const g = ctx.createLinearGradient(left ? 0 : W, 0, left ? W * 0.78 : W * 0.22, 0);
+    g.addColorStop(0, J.rgba(sc.bg, 0.74)); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    return true;
+  }
+
+  if (stage.style === 'band') {
+    const edge = Math.max(2, u * 0.0025);
+    drawCover(ctx, img, iw, ih, x, y, w, h);
+    ctx.fillStyle = J.rgba(sc.bg, 0.12); ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = sc.accent; ctx.fillRect(x + w * 0.08, y + h - edge * 1.5, w * 0.16, edge);
+    ctx.restore();
+    return true;
+  }
+
+  // card / window: a printed panel with the photo inset, never a sticker pile
+  const isLight = J.lum(sc.bg) > 0.5;
+  const paper = isLight ? J.mix(sc.bg, '#FFFFFF', 0.58) : J.mix(sc.bg, '#FFFFFF', 0.12);
+  const radius = stage.style === 'window' ? Math.min(w, h) * 0.20 : Math.min(w, h) * 0.035;
+  const inset = Math.min(w, h) * (stage.style === 'window' ? 0.035 : 0.045);
+  ctx.shadowColor = 'rgba(0,0,0,0.28)'; ctx.shadowBlur = u * 0.045; ctx.shadowOffsetY = u * 0.016;
+  ctx.fillStyle = paper;
+  J.roundPath(ctx, x, y, w, h, radius); ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  const px = x + inset, py = y + inset, pw = w - inset * 2, ph = h - inset * 2;
+  ctx.save();
+  J.roundPath(ctx, px, py, pw, ph, Math.max(1, radius - inset * 0.35)); ctx.clip();
+  drawCover(ctx, img, iw, ih, px, py, pw, ph);
+  ctx.restore();
+  ctx.strokeStyle = J.rgba(sc.fg, 0.15); ctx.lineWidth = Math.max(1, u * 0.0016);
+  J.roundPath(ctx, px, py, pw, ph, Math.max(1, radius - inset * 0.35)); ctx.stroke();
+  // one accent tick: a printer's mark, not scrapbooking
+  ctx.fillStyle = sc.accent;
+  ctx.fillRect(x + w * 0.07, y + h - inset * 0.55, w * 0.20, Math.max(2, u * 0.0032));
+  ctx.restore();
+  return true;
+}
+
 const drawMediaOverlay = (env, t) => paintMedia(env, t, true);    // 文字之上
-const drawMediaUnder = (env, t) => paintMedia(env, t, false);     // 文字之下
+const drawMediaUnder = (env, t) => { paintStageMedia(env, t); paintMedia(env, t, false); }; // 文字之下
 
 /* ─────────────────── 素材插槽：让素材真的「进」到版面里 ───────────────────
    版式（信纸 / 拍立得 / 明信片 / 邮票…）在画自己那张纸的时候留了插槽

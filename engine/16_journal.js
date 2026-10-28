@@ -51,30 +51,54 @@ function page(env) {
 
 const journalText = {
   name: '手帐·纸页', cn: '手帐·纸页', fits: () => true, portrait: 1.2, treat: 'safe',
-  plan: (rng, cut, st) => ({ font: FONT(st, ['serif', 'display']), track: rng.range(0.015, 0.06) }),
+  plan: (rng, cut, st) => {
+    const hv = J.h(J.sid(String(cut.text || '')), 0x4a52);
+    return {
+      font: FONT(st, ['serif', 'display']), track: rng.range(0.015, 0.06),
+      variant: ['plain', 'grid', 'kraft'][hv % 3],
+      align: ['center', 'center', 'left', 'lower'][Math.floor(hv / 3) % 4],
+    };
+  },
   render(env) {
     if (env.pass && env.pass !== 'main') return null;   // no chromatic ghost on paper — it reads as blur
     const p = page(env);
     if (!p) return null;
     const { W, H, sc } = env, P = env.cut.params || {}, u = U(env);
-    const maxW = p.w * 0.78, maxH = p.h * 0.5;
+    const v = P.variant || 'plain';
+    if (v === 'kraft') {
+      env.rrect(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h, u * 0.008, J.mix(sc.bg, '#C9A77B', 0.35), p.a * 0.55, false);
+    }
+    if (v === 'grid') {
+      for (let i = 1; i < 7; i++) {
+        const x = p.x - p.w / 2 + p.w * i / 7;
+        env.rect(x, p.y - p.h / 2 + u * 0.05, Math.max(1, u * 0.001), p.h - u * 0.10, sc.fg, 0.055 * p.a, false);
+      }
+      for (let i = 1; i < 5; i++) {
+        const y = p.y - p.h / 2 + p.h * i / 5;
+        env.rect(p.x - p.w / 2 + u * 0.05, y, p.w - u * 0.10, Math.max(1, u * 0.001), sc.fg, 0.055 * p.a, false);
+      }
+    }
+    const align = P.align === 'left' ? 'left' : P.align === 'lower' ? 'center' : 'center';
+    const tx = align === 'left' ? p.x - p.w / 2 + p.w * 0.12 : p.x;
+    const ty = P.align === 'lower' ? p.y + p.h * 0.20 : p.y - u * 0.02;
+    const maxW = p.w * (align === 'left' ? 0.68 : 0.78), maxH = p.h * 0.5;
     const size = Math.min(J.fitSize(env.cut.text, P.font, maxW, maxH, { track: P.track, lead: 1.22 }), H * 0.2);
     const bb = J.mainDraw(env, {
-      text: env.cut.text, font: P.font, size, x: W / 2, y: p.y - u * 0.02,
-      color: sc.fg, track: P.track, lead: 1.22, align: 'center', mi: 0, alpha: p.a,
+      text: env.cut.text, font: P.font, size, x: tx, y: ty,
+      color: sc.fg, track: P.track, lead: 1.22, align, mi: 0, alpha: p.a,
     });
     // secondary line only when there is a real translation
     if (env.cut.note && String(env.cut.note).trim() && String(env.cut.note).trim() !== env.cut.text) {
       env.draw({
         text: String(env.cut.note).trim(), font: FONT(env.st, ['body']), size: Math.max(11, u * 0.024),
-        x: W / 2, y: H / 2 + p.h * 0.34, track: 0.16, color: sc.sub,
+        x: tx, y: p.y + p.h * 0.30, track: 0.16, color: sc.sub,
         alpha: 0.85 * J.clamp((env.lt - 0.2) / 0.4) * (1 - env.pOut), ghost: false,
       });
     }
     // a small, date-like mark — deliberately not the fake "No. 01" filler
     env.draw({
       text: J.fmtTime(env.cut.start), font: FONT(env.st, ['mono']), size: Math.max(9, u * 0.014),
-      x: W / 2, y: H / 2 + p.h * 0.43, track: 0.2, color: sc.sub, alpha: 0.42 * p.a, ghost: false,
+      x: tx, y: p.y + p.h * 0.43, track: 0.2, color: sc.sub, alpha: 0.42 * p.a, ghost: false,
     });
     return bb;
   },
