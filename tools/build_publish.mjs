@@ -33,8 +33,15 @@ for (const f of ['index.html', 'LICENSE-JIZURA.txt', '使用说明.md']) fs.copy
 let html = r(path.join(ROOT, 'index.html'));
 
 // CSS 内联（href 上可能带 ?v= 版本号，取文件时要去掉）
+// 字体 woff2 在单文件版里转成 base64，双击离线打开也能保持字体的「性格」。
+const inlineFontUrls = (css, cssRel) => css.replace(/url\((["']?)([^"')]+\.woff2)\1\)/g, (m, q, u) => {
+  const file = path.resolve(ROOT, path.dirname(cssRel), u);
+  if (!fs.existsSync(file)) return m;
+  return 'url("data:font/woff2;base64,' + fs.readFileSync(file).toString('base64') + '")';
+});
 html = html.replace(/<link rel="stylesheet" href="([^"]+)">/g, (_, href) => {
-  const css = r(path.join(ROOT, href.split('?')[0]));
+  const rel = href.split('?')[0];
+  const css = inlineFontUrls(r(path.join(ROOT, rel)), rel);
   return '<style>\n' + css + '\n</style>';
 });
 

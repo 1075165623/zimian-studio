@@ -732,3 +732,29 @@ input[type=range]::-webkit-slider-thumb{
 .tb-right #btnAiRef{order:-1;margin-right:6px}
 .proj-state{font-size:10.5px;color:#B45309;margin-top:5px;min-height:14px;line-height:1.4}
 .proj-state:empty{display:none}
+
+/* ─────────── 编舞类型 / 词级时间 ─────────── */
+.genre-row{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+.genre-lab{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.genre-row .seg{margin-left:auto}
+.genre-row .seg button{flex:1;padding:5px 6px;font-size:11px}
+.sheet{
+  width:100%;min-height:106px;max-height:220px;resize:vertical;
+  margin:6px 0 4px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink-1);
+  font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  white-space:pre;overflow:auto;tab-size:8;
+}
+.sheet:focus{outline:2px solid var(--cs);border-color:var(--cl)}
+#foldWords .row-btns{margin-top:2px}
+#segKoma button{padding:3px 7px;font-size:10.5px}
+
+/* 重击动词汇（效果库首屏） */
+.mad-vocab{margin:4px 0 8px}
+.mv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin:6px 0 8px}
+.mv{
+  height:28px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  color:var(--ink-2);font-size:11px;cursor:pointer;transition:.12s;
+}
+.mv:hover{border-color:var(--cl);background:var(--cs);color:var(--c)}
+.mv:active{transform:translateY(1px)}

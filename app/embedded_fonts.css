@@ -1,0 +1,110 @@
+/* 字面工房-MAD — embedded offline Chinese web fonts.
+   Generated from SIL Open Font License 1.1 sources; see fonts/OFL-NOTICE.txt.
+   Family names intentionally match engine/02b_lang.js J.LANG_FACES / J.FONTS.
+   font-display:block keeps text hidden until the face is ready (export-safe).
+   Paths are relative to this CSS file (app/embedded_fonts.css -> app/fonts/).
+*/
+
+@font-face {
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-weight: 300;
+  font-display: block;
+  src: url("fonts/notosanssc-300.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("fonts/notosanssc-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("fonts/notosanssc-700.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans SC";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url("fonts/notosanssc-900.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Serif SC";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("fonts/notoserifsc-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Serif SC";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url("fonts/notoserifsc-900.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "ZCOOL QingKe HuangYou";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/zcoolqingkehuangyou-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "ZCOOL KuaiLe";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/zcoolkuaile-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "ZCOOL XiaoWei";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/zcoolxiaowei-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Ma Shan Zheng";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/mashanzheng-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "LXGW WenKai";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/lxgwwenkai-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "LXGW WenKai";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("fonts/lxgwwenkai-700.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Long Cang";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("fonts/longcang-400.woff2") format("woff2");
+}

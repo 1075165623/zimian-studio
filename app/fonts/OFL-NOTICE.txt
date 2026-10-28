@@ -1,0 +1,52 @@
+OFL NOTICE — 字面工房-MAD embedded Chinese web fonts
+==============================================================
+
+All font files in this directory are subsets of fonts licensed under the
+SIL Open Font License, Version 1.1 (OFL-1.1). They may be redistributed
+and embedded in this offline web application under the OFL terms.
+The fonts are unmodified in design; only glyphs/tables were subset.
+
+OFL-1.1: https://openfontlicense.org/open-font-license-official-text/
+Reserved Font Name: see the individual upstream OFL.txt files linked below.
+
+Font families and upstream sources
+----------------------------------
+* Noto Sans SC (300, 500, 700, 900)
+  Upstream: https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf
+  OFL text: https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/OFL.txt
+* Noto Serif SC (500, 900)
+  Upstream: https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf
+  OFL text: https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/OFL.txt
+* ZCOOL QingKe HuangYou (400)
+  Upstream: https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolqingkehuangyou/ZCOOLQingKeHuangYou-Regular.ttf
+  OFL text: https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolqingkehuangyou/OFL.txt
+* ZCOOL KuaiLe (400)
+  Upstream: https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolkuaile/ZCOOLKuaiLe-Regular.ttf
+  OFL text: https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolkuaile/OFL.txt
+* ZCOOL XiaoWei (400)
+  Upstream: https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolxiaowei/ZCOOLXiaoWei-Regular.ttf
+  OFL text: https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolxiaowei/OFL.txt
+* Ma Shan Zheng (400)
+  Upstream: https://raw.githubusercontent.com/google/fonts/main/ofl/mashanzheng/MaShanZheng-Regular.ttf
+  OFL text: https://raw.githubusercontent.com/google/fonts/main/ofl/mashanzheng/OFL.txt
+* LXGW WenKai (400, 700)
+  Upstream: https://github.com/lxgw/LxgwWenKai
+  OFL text: https://raw.githubusercontent.com/lxgw/LxgwWenKai/main/OFL.txt
+* Long Cang (400)
+  Upstream: https://raw.githubusercontent.com/google/fonts/main/ofl/longcang/LongCang-Regular.ttf
+  OFL text: https://raw.githubusercontent.com/google/fonts/main/ofl/longcang/OFL.txt
+
+Character set
+-------------
+3519 Han characters + ASCII + punctuation/symbols (3771 codepoints total).
+Base 3500-character list:
+  https://github.com/wy-luke/All-Chinese-Character-Set
+  https://raw.githubusercontent.com/wy-luke/All-Chinese-Character-Set/main/source/3500.txt
+
+Additional characters came from the project's required lyric sample plus
+printable ASCII and common Chinese/PV punctuation. No Windows system
+fonts (SimHei, SimSun, STXingkai, etc.) were used.
+
+Files are WOFF2 subsets generated with fontTools; the CSS is
+app/embedded_fonts.css and the machine-readable manifest is
+app/font_manifest.json.

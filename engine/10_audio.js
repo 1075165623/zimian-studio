@@ -13,24 +13,72 @@ J.analyzeAudio = async (file) => {
   const sr = audioBuffer.sampleRate, len = audioBuffer.length, ch = audioBuffer.numberOfChannels;
   const mono = new Float32Array(len);
   for (let c = 0; c < ch; c++) { const d = audioBuffer.getChannelData(c); for (let i = 0; i < len; i++) mono[i] += d[i] / ch; }
-  const rate = 50, hop = Math.round(sr / rate), n = Math.floor(len / hop);
+  // 100 Hz analysis: energy + a 3-band split (low = kick, mid = snare/vocal, high = hat/air).
+  // The old version only kept a high-passed flux and never exposed the detected onsets, so the
+  // planner could only follow a uniform BPM grid. The bands now give real hits to cut on.
+  const rate = 100, hop = Math.max(1, Math.round(sr / rate)), n = Math.floor(len / hop);
   const energy = new Float32Array(n), flux = new Float32Array(n);
-  let prevHP = 0, prevX = 0;
+  const lowB = new Float32Array(n), midB = new Float32Array(n), highB = new Float32Array(n);
+  let prevHP = 0, prevX = 0, lpLow = 0, lpMid = 0;
+  const aLow = 1 - Math.exp(-2 * Math.PI * 150 / sr), aMid = 1 - Math.exp(-2 * Math.PI * 2400 / sr);
   for (let f = 0; f < n; f++) {
-    let e = 0, eh = 0;
+    let e = 0, eh = 0, el = 0, em = 0, eg = 0;
     for (let i = f * hop, end = Math.min(len, (f + 1) * hop); i < end; i++) {
       const x = mono[i]; e += x * x;
       const hp = 0.92 * (prevHP + x - prevX); prevHP = hp; prevX = x; eh += hp * hp;
+      lpLow += aLow * (x - lpLow); lpMid += aMid * (x - lpMid);
+      const lo = lpLow, mid = lpMid - lpLow, hi = x - lpMid;
+      el += lo * lo; em += mid * mid; eg += hi * hi;
     }
     energy[f] = Math.sqrt(e / hop);
     flux[f] = Math.sqrt(eh / hop);
+    lowB[f] = Math.sqrt(el / hop); midB[f] = Math.sqrt(em / hop); highB[f] = Math.sqrt(eg / hop);
   }
-  // onset strength: positive change of log high-passed energy vs local mean
+  // onset strength per band: log rise against the local mean of the previous 4 frames
+  const bandOnset = (arr) => {
+    const out = new Float32Array(n);
+    for (let f = 1; f < n; f++) {
+      const cur = Math.log(1e-4 + arr[f]);
+      let m = 0, k = 0; for (let j = Math.max(0, f - 4); j < f; j++) { m += Math.log(1e-4 + arr[j]); k++; }
+      out[f] = Math.max(0, cur - m / Math.max(1, k));
+    }
+    return out;
+  };
+  const oLow = bandOnset(lowB), oMid = bandOnset(midB), oHigh = bandOnset(highB);
   const onset = new Float32Array(n);
-  for (let f = 1; f < n; f++) {
-    const cur = Math.log(1e-4 + flux[f]);
-    let m = 0, k = 0; for (let j = Math.max(0, f - 4); j < f; j++) { m += Math.log(1e-4 + flux[j]); k++; }
-    onset[f] = Math.max(0, cur - m / Math.max(1, k));
+  for (let f = 0; f < n; f++) onset[f] = oLow[f] * 1.0 + oMid[f] * 0.9 + oHigh[f] * 0.45;
+  // peak picking (adaptive threshold, 120 ms minimum gap) — used by the planner for real accents
+  const pickPeaks = (arr, thr = 0.02, gapSec = 0.12) => {
+    const out = [], gap = Math.max(1, Math.round(gapSec * rate));
+    let last = -1e9, p95 = 0;
+    const tmp = Array.from(arr).sort((a, b) => a - b);
+    p95 = tmp[Math.floor(tmp.length * 0.98)] || 0.0001;
+    for (let f = 1; f < n - 1; f++) {
+      const v = arr[f];
+      if (v < arr[f - 1] || v < arr[f + 1]) continue;
+      let m = 0, c = 0; for (let j = Math.max(0, f - 6); j < f; j++) { m += arr[j]; c++; }
+      m /= Math.max(1, c);
+      if (v < m * 1.45 + thr) continue;
+      if (f - last < gap) {
+        if (out.length && v > out[out.length - 1].v) { out[out.length - 1] = { f, v }; last = f; }
+        continue;
+      }
+      out.push({ f, v }); last = f;
+    }
+    for (const o of out) o.amp = Math.min(1, o.v / p95);
+    return out;
+  };
+  const kP = pickPeaks(oLow, 0.015), sP = pickPeaks(oMid, 0.018), hP = pickPeaks(oHigh, 0.022);
+  const all = [];
+  for (const o of kP) all.push({ t: o.f / rate, amp: o.amp, kind: 'kick' });
+  for (const o of sP) all.push({ t: o.f / rate, amp: o.amp * 0.95, kind: 'snare' });
+  for (const o of hP) all.push({ t: o.f / rate, amp: o.amp * 0.6, kind: 'hat' });
+  all.sort((a, b) => a.t - b.t);
+  const onsets = [];
+  for (const o of all) {
+    const prev = onsets[onsets.length - 1];
+    if (prev && o.t - prev.t < 0.055) { if (o.amp > prev.amp) { prev.amp = o.amp; prev.kind = o.kind; } continue; }
+    onsets.push(o);
   }
   // tempo via autocorrelation (70..180 BPM)
   const minLag = Math.round(rate * 60 / 180), maxLag = Math.round(rate * 60 / 70);
@@ -68,6 +116,8 @@ J.analyzeAudio = async (file) => {
   return {
     name: file.name, duration: audioBuffer.duration, sampleRate: sr, buffer: audioBuffer,
     bpm: Math.round(60 / period * 10) / 10, beats, energy: energyN, energyRate: rate, peaks,
+    onsets: onsets.map(o => ({ t: +o.t.toFixed(4), amp: +o.amp.toFixed(3), kind: o.kind })),
+    kicks: kP.map(o => +((o.f / rate).toFixed(4))), snares: sP.map(o => +((o.f / rate).toFixed(4))),
   };
 };
 

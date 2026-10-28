@@ -16,6 +16,8 @@ J.defaultProject = () => ({
   title: '', artist: '',
   lyrics: J.SAMPLE_LYRICS,
   style: 'noir', mood: null,
+  choreo: true,                    // word-level MAD choreography (15_mad.js)
+  garnish: false,                  // hand-journal side garnish: off by default
   extra: false,                   // random picks may use the parts added after the first version (追加分)
   wa: true,                       // …and the 和風 motifs (提灯・障子・家紋…) — applied after 'extra'
   horror: false,                  // parts sets (independent of 'extra'): ホラー (also enables the ホラー mood)
@@ -23,15 +25,15 @@ J.defaultProject = () => ({
   kinetic: true,                  // キネティック parts
   lang: 'auto',                   // 歌詞の言語: 'auto' | 'ja' | 'zh-Hant' | 'zh-Hans' | 'ko' — picks the faces each font key is drawn with
   keyBg: 'off',                   // 合成用の背景: 'off' | 'green' (グリーンバック) | 'black' (ブラックバック)
-  unify: false,                   // 統一感: part palettes, repeats shown the same way, キメ, モーフ, 太さ
-  typeset: false,                 // 文字整列: kana tracking, small particles / big first character, Latin sizing, 0.2 s lead, restraint
+  unify: true,                    // 統一感: part palettes, repeats shown the same way, キメ, モーフ, 太さ
+  typeset: true,                  // 中文排版：虚词小一档、情感词大一档（ja 仍走假名规则）
   centerDir: 'tb',                // 中央を空ける on tall frames: 'tb' = top / bottom, 'lr' = left / right
   centerFree: false,              // 中央を空ける: lay the cuts out in side bands (left / right or top / bottom) around a character
   seed: 20260922,
   aspect: '16:9', res: 1080, fps: 24,
-  fx: { motion: 0.7, glitch: 0.55, chroma: 0.7, decor: 0.5, density: 0.55, texture: 0.6, flash: true, onTwos: true, koma: 12, hud: 'auto', bgSwitch: 0.35, hideNo: false, hideTime: false },
+  fx: { motion: 0.7, glitch: 0.55, chroma: 0.7, decor: 0.5, density: 0.55, texture: 0.6, flash: true, onTwos: true, koma: 12, motionBlur: 4, hud: 'auto', bgSwitch: 0.35, hideNo: false, hideTime: false },
   enabled: Object.fromEntries(J.GROUP_KEYS.map(g => [g, Object.fromEntries(J.order(g).map(k => [k, true]))])),
-  timing: { bpm: 0, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineDurs: {}, lineEnds: {}, lineScale: 1 },
+  timing: { bpm: 0, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineDurs: {}, lineEnds: {}, lineScale: 1, words: {} },
   overrides: {},
   locks: { tech: {}, params: {} },   // groups and values Randomize / Shuffle must not change (UI side only)
   colors: { enabled: false },
@@ -59,11 +61,26 @@ J.parseLyrics = (raw) => {
     let s = s0; const times = [];
     let m;
     while ((m = s.match(/^\[(\d+):(\d+(?:[.:]\d+)?)\]/))) { times.push(+m[1] * 60 + parseFloat(m[2].replace(':', '.'))); s = s.slice(m[0].length); }
+    // 增强型 LRC：<00:12.34>词<00:12.80>词 — word-level timestamps inside one line.
+    // The plain text stays the same; the tags are kept on the line for the choreographer.
+    let wordLrc = null;
+    if (/<\d+:\d+(?:[.:]\d+)?>/.test(s)) {
+      const wt = [], re = /<(\d+):(\d+(?:[.:]\d+)?)>/g;
+      let last = 0, mm2, cur = null;
+      while ((mm2 = re.exec(s))) {
+        const seg = s.slice(last, mm2.index);
+        if (cur != null) wt.push({ t: cur, text: seg });
+        cur = +mm2[1] * 60 + parseFloat(mm2[2].replace(':', '.'));
+        last = re.lastIndex;
+      }
+      if (cur != null) wt.push({ t: cur, text: s.slice(last) });
+      if (wt.length) { wordLrc = wt; s = wt.map(x => x.text).join(''); }
+    }
     s = s.trim();
     // 間奏: [間奏] / [間奏 8] (8 seconds) — also [interlude] [inst] [间奏] [간주]; no lyrics, only background and decorations
     const im = s.match(/^\[\s*(間奏|间奏|interlude|instrumental|inst|간주)(?:\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(?:s|sec|秒|초)?)?\s*\]$/i);
     if (im) {
-      const base = { text: '', interlude: true, secs: im[2] ? parseFloat(im[2]) : null, note: null, impact: false, emph: [], manual: null, gapBefore: pendingGap, src: ri };
+      const base = { text: '', interlude: true, secs: im[2] ? parseFloat(im[2]) : null, note: null, impact: false, emph: [], manual: null, wordLrc: null, gapBefore: pendingGap, src: ri };
       pendingGap = false;
       if (times.length) times.forEach(t => lines.push(Object.assign({}, base, { lrc: t })));
       else lines.push(Object.assign({}, base, { lrc: null }));
@@ -83,7 +100,7 @@ J.parseLyrics = (raw) => {
       s = manual.join(latin ? ' ' : '');
     }
     if (!s) continue;
-    const base = { text: s, note, impact, emph, manual, gapBefore: pendingGap, src: ri };
+    const base = { text: s, note, impact, emph, manual, wordLrc, gapBefore: pendingGap, src: ri };
     pendingGap = false;
     if (times.length) times.forEach(t => lines.push(Object.assign({}, base, { lrc: t })));
     else lines.push(Object.assign({}, base, { lrc: null }));
@@ -311,6 +328,8 @@ J.plan = (project, audio) => {
     keyBg: J.keyMode ? J.keyMode(project) : null,   // 'green' | 'black' | null — 合成用の背景
     centerFree: !!zones, zones,
     typeset: !!project.typeset, unify: !!project.unify,
+    choreo: false, garnish: !!project.garnish,   // set true only after the word-level layer actually rebuilt the cuts
+    onsets: audio && audio.onsets ? audio.onsets : null,
     text: project.text || null,                             // 文字层：英文描边 / 实心+描边叠层 / 形状图层
     lang: J.resolveLang ? J.resolveLang(project) : 'ja',   // 歌詞の言語 (auto → detected)
   };
@@ -404,7 +423,7 @@ J.plan = (project, audio) => {
     const manualDur = project.timing && project.timing.lineDurs && project.timing.lineDurs[li] != null;
     const visEnd = manualDur ? e : Math.min(e, s + Math.max(3.6, n * 0.5 + 1.2));
     const D = visEnd - s;
-    plan.lines.push({ index: li, src: ln.src, lrc: ln.lrc, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, chunks: null, seed: lineSeed });
+    plan.lines.push({ index: li, src: ln.src, lrc: ln.lrc, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, wordLrc: ln.wordLrc || null, chunks: null, seed: lineSeed });
     const chunks = ln.manual || (plan.lang === 'en' ? J.phraseChunks(J.chunkText(ln.text)) : J.chunkText(ln.text));
     plan.lines[li].chunks = chunks;
     const L = J.lerp(1.3, 0.5, fx.density);

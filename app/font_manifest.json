@@ -1,0 +1,93 @@
+[
+  {
+    "family": "Noto Sans SC",
+    "weight": 300,
+    "file": "notosanssc-300.woff2",
+    "glyphs": 4128,
+    "bytes": 518848
+  },
+  {
+    "family": "Noto Sans SC",
+    "weight": 500,
+    "file": "notosanssc-500.woff2",
+    "glyphs": 4128,
+    "bytes": 539540
+  },
+  {
+    "family": "Noto Sans SC",
+    "weight": 700,
+    "file": "notosanssc-700.woff2",
+    "glyphs": 4128,
+    "bytes": 545108
+  },
+  {
+    "family": "Noto Sans SC",
+    "weight": 900,
+    "file": "notosanssc-900.woff2",
+    "glyphs": 4128,
+    "bytes": 530124
+  },
+  {
+    "family": "Noto Serif SC",
+    "weight": 500,
+    "file": "notoserifsc-500.woff2",
+    "glyphs": 4127,
+    "bytes": 697920
+  },
+  {
+    "family": "Noto Serif SC",
+    "weight": 900,
+    "file": "notoserifsc-900.woff2",
+    "glyphs": 4127,
+    "bytes": 676624
+  },
+  {
+    "family": "ZCOOL QingKe HuangYou",
+    "weight": 400,
+    "file": "zcoolqingkehuangyou-400.woff2",
+    "glyphs": 3743,
+    "bytes": 580420
+  },
+  {
+    "family": "ZCOOL KuaiLe",
+    "weight": 400,
+    "file": "zcoolkuaile-400.woff2",
+    "glyphs": 3771,
+    "bytes": 432172
+  },
+  {
+    "family": "ZCOOL XiaoWei",
+    "weight": 400,
+    "file": "zcoolxiaowei-400.woff2",
+    "glyphs": 3741,
+    "bytes": 896780
+  },
+  {
+    "family": "Ma Shan Zheng",
+    "weight": 400,
+    "file": "mashanzheng-400.woff2",
+    "glyphs": 3740,
+    "bytes": 1616184
+  },
+  {
+    "family": "LXGW WenKai",
+    "weight": 400,
+    "file": "lxgwwenkai-400.woff2",
+    "glyphs": 3994,
+    "bytes": 848484
+  },
+  {
+    "family": "LXGW WenKai",
+    "weight": 700,
+    "file": "lxgwwenkai-700.woff2",
+    "glyphs": 3994,
+    "bytes": 861828
+  },
+  {
+    "family": "Long Cang",
+    "weight": 400,
+    "file": "longcang-400.woff2",
+    "glyphs": 3739,
+    "bytes": 1457840
+  }
+]

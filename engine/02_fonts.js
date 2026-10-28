@@ -32,6 +32,7 @@ J.FONTS = {
   klee:          { label: 'Klee One',                  family: '"Klee One"', weight: 600, kind: 'hand', fb: JP_SERIF_FB, gf: 'Klee+One:wght@600' },
   shippori:      { label: 'Shippori Mincho B1',        family: '"Shippori Mincho B1"', weight: 800, kind: 'mincho', fb: JP_SERIF_FB, gf: 'Shippori+Mincho+B1:wght@800' },
   sansui:        { label: 'IBM Plex Sans JP',          family: '"IBM Plex Sans JP"', weight: 500, kind: 'gothic', fb: JP_SANS_FB, gf: 'IBM+Plex+Sans+JP:wght@400;500;700' },
+  longcang:      { label: 'Long Cang 龙藏',             family: '"Long Cang"', weight: 400, kind: 'hand', fb: JP_SERIF_FB, gf: null },
 };
 J.GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Noto+Sans+JP:wght@300;500;700;900&family=Noto+Serif+JP:wght@300;500;700&family=Zen+Kaku+Gothic+New:wght@900&family=Zen+Old+Mincho:wght@900&family=Kaisei+Tokumin:wght@800&family=M+PLUS+Rounded+1c:wght@800&family=Mochiy+Pop+One&family=DotGothic16&family=Yuji+Syuku&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap';
 
@@ -82,6 +83,7 @@ J.fontCSS = (key, px) => {
    adding faces to the catalogue therefore costs nothing until a style or setting picks them */
 const cssJobs = new Map();
 function attachFamily(spec) {
+  if (J.EMBEDDED_FONTS) return Promise.resolve();     // app/embedded_fonts.css carries the faces offline
   if (!spec || typeof document === 'undefined' || !document.head) return Promise.resolve();
   if (cssJobs.has(spec)) return cssJobs.get(spec);
   const job = new Promise(res => {

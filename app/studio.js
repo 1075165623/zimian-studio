@@ -83,7 +83,8 @@ function boot() {
   } else {
   Object.assign(p, {
     lyrics: SAMPLE,
-    style: 'tcg',                       // 默认：二次元渐层（粉色糖果）
+    style: 'noir',                      // 默认：高反差黑白 + 一个强调色（MAD / 文字 PV 的底）
+    genre: 'mad',                       // mad | lyric | journal —— 一键成片先选类型
     lang: 'zh-Hans',
     aspect: '16:9',
     res: 1080,
@@ -95,17 +96,21 @@ function boot() {
     kinetic: true,
     horror: false,
     wa: true,
-    unify: false,
-    typeset: false,
-    variety: 0.45,
+    unify: true,                        // 重复副歌用同一套编排回来
+    typeset: true,                      // 中文排版：虚词小一档、情感词大一档
+    choreo: true,                       // 词级编舞（15_mad.js）
+    garnish: false,                     // 两侧补白：手帐风才开，默认关
+    variety: 0.35,
     what: true,
     includeAudio: true,
     audioName: '',
     overrides: {},
     slotLines: [],          // 有素材要「进版式」的歌词行：planner 会优先给这些行挑能放素材的版式
-    timing: { bpm: 96, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineDurs: {}, lineEnds: {}, lineScale: 1 },
+    timing: { bpm: 96, offset: 0.4, snap: true, tail: 0.9, lineTimes: {}, lineDurs: {}, lineEnds: {}, lineScale: 1, words: {} },
   });
-  p.fx = Object.assign(p.fx, { motion: 0.65, density: 0.5, decor: 0.45, glitch: 0.45, texture: 0.55, chroma: 0.34 });
+  if (R) p.fx = Object.assign({}, J.defaultProject().fx, p.fx || {});          // old projects keep their feel, gain new fields
+  else p.fx = Object.assign(p.fx, { motion: 0.72, density: 0.55, decor: 0.18, glitch: 0.35, texture: 0.5, chroma: 0.26, koma: 12, onTwos: true, motionBlur: 4 });
+  p.timing = Object.assign({ words: {}, lineTimes: {}, lineDurs: {}, lineEnds: {} }, p.timing || {});
   // 背景层：形状图层 + 英文仅描边 / 实心+描边叠层（全部默认关，开了才改画面）
   p.text = { outlineEn: false, stack: 0, shapes: { block: false, honey: false, dots: false, noise: false }, amt: 0.45, size: 0.65, drift: 0.5 };
   p.more = true;
@@ -131,6 +136,11 @@ function boot() {
   if ([...$('#selRes').options].some(o => +o.value === p.res)) $('#selRes').value = p.res;
   if ([...$('#selFps').options].some(o => +o.value === p.fps)) $('#selFps').value = p.fps;
   $('#swExtra').checked = !!p.extra;
+  if ($('#swChoreo')) $('#swChoreo').checked = p.choreo !== false;
+  if ($('#swGarnish')) $('#swGarnish').checked = !!p.garnish;
+  if ($('#motionBlur')) { $('#motionBlur').value = p.fx.motionBlur | 0; $('#oMotionBlur').textContent = p.fx.motionBlur | 0; }
+  if ($('#segGenre')) $$('#segGenre button').forEach(b => b.classList.toggle('on', b.dataset.v === (p.genre || 'mad')));
+  if ($('#segKoma')) $$('#segKoma button').forEach(b => b.classList.toggle('on', +b.dataset.v === (p.fx.koma || 0)));
 
   buildStyleGrid();
   buildFontSelects();
@@ -149,14 +159,15 @@ function boot() {
   }
 
   // 效果库（app/catalog.js）用这几个入口；先挂上再生成，出问题也不会让整页卡死
-  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, importDrop, filesFromDrop, sortDropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip, syncMediaList, syncMediaState, projectSnapshot };
+  S.api = { replan, setOverride, toast, targetLine, applySubText, parseCues, cuesToLrc, loadAudioFile, drawWave, loadMediaFile, addImageFiles, dropFiles, importDrop, filesFromDrop, sortDropFiles, exportPNG, tlGeom, drawTimeline, removeMedia, selectMedia, draw, drawMediaOverlay, drawMediaUnder, undo, redo, snapSlotDrop: dropSlotClip, syncMediaList, syncMediaState, projectSnapshot, applyGenre, wordSheet: () => (J.MAD && J.MAD.sheet ? J.MAD.sheet(S.plan) : '') };
 
   replan();
   commit(); syncHistBtns();          // 历史的第 0 步：刚打开时的样子
 
   if (S.plan && S.plan.cuts.length) {
-    const c = S.plan.cuts[0];
-    // 停在第一句排好版的中段（不是入场刚开始那一帧），一进来看到的是一张完整的画面
+    // 词级编舞下第一帧只是一个字；打开时停在一个「重击/残影」词的中段，先看到这一版的力度。
+    const cs = S.plan.cuts;
+    const c = cs.find(x => x.action === 'hit' || x.action === 'echo') || cs[Math.max(0, Math.floor(cs.length * 0.35))] || cs[0];
     seek(J.clamp(c.start + (c.end - c.start) * 0.55, 0, S.plan.duration - 0.1));
   }
   requestAnimationFrame(tick);
@@ -204,7 +215,11 @@ function ensureFonts() {
   const key = txt + '|' + keys.join(',') + '|' + J.lang;
   if (key === S.fontsKey) return;
   S.fontsKey = key;
-  J.ensureFonts(txt, keys).then(() => { S.need = true; }).catch(() => {});
+  J.ensureFonts(txt, keys).then(() => {
+    // word sizes were measured before the embedded faces were ready; re-lay them once
+    S.need = true;
+    if (S.project && S.project.choreo !== false) replan();
+  }).catch(() => {});
 }
 
 function buildFontSelects() {
@@ -214,6 +229,45 @@ function buildFontSelects() {
 }
 
 /* ───────────────────────── 风格 ───────────────────────── */
+
+/* 一键成片先选类型，而不是直接随机「浅底 + 彩字」 */
+const GENRES = {
+  mad: {
+    label: '重击 MAD', style: 'noir', choreo: true, unify: true, typeset: true, garnish: false,
+    fonts: { display: 'gothic_black', serif: 'mincho_black', body: 'gothic_med' },
+    fx: { motion: 0.78, density: 0.6, decor: 0.12, glitch: 0.42, texture: 0.52, chroma: 0.30, motionBlur: 4, koma: 12, onTwos: true, flash: true },
+  },
+  lyric: {
+    label: '抒情 PV', style: 'specimen', choreo: true, unify: true, typeset: true, garnish: false,
+    fonts: { display: 'mincho_black', serif: 'mincho', body: 'mincho' },
+    fx: { motion: 0.46, density: 0.42, decor: 0.22, glitch: 0.06, texture: 0.72, chroma: 0.14, motionBlur: 2, koma: 12, onTwos: true, flash: true },
+  },
+  journal: {
+    label: '手帐', style: 'paper', choreo: false, unify: false, typeset: false, garnish: true,
+    fonts: { display: 'klee', serif: 'mincho', body: 'gothic_med' },
+    fx: { motion: 0.32, density: 0.5, decor: 0.78, glitch: 0.02, texture: 0.9, chroma: 0.08, motionBlur: 0, koma: 0, onTwos: false, flash: false },
+  },
+};
+function applyGenre(kind) {
+  const G = GENRES[kind]; if (!G) return;
+  S.project.genre = kind;
+  S.project.style = G.style;
+  S.project.choreo = G.choreo;
+  S.project.unify = G.unify;
+  S.project.typeset = G.typeset;
+  S.project.garnish = G.garnish;
+  S.project.fonts = S.project.fonts || {};
+  for (const [role, key] of Object.entries(G.fonts)) S.project.fonts[role] = key;
+  S.project.fx = Object.assign({}, S.project.fx, G.fx);
+  S.fontsKey = '';
+  $$('#segGenre button').forEach(b => b.classList.toggle('on', b.dataset.v === kind));
+  $$('.st').forEach(b => b.classList.toggle('on', b.dataset.k === G.style));
+  const cb = $('#swChoreo'), cg = $('#swGarnish'); if (cb) cb.checked = G.choreo; if (cg) cg.checked = G.garnish;
+  const mb = $('#motionBlur'); if (mb) { mb.value = G.fx.motionBlur; $('#oMotionBlur').textContent = G.fx.motionBlur; }
+  $$('#segKoma button').forEach(b => b.classList.toggle('on', +b.dataset.v === (G.fx.koma || 0)));
+  replan();
+  toast('已套用「' + G.label + '」模板 · ' + (G.choreo ? '词级编舞' : '逐行版式'));
+}
 
 function buildStyleGrid() {
   const box = $('#styleGrid');
@@ -3695,6 +3749,50 @@ function bind() {
   });
   $('#snap').addEventListener('change', e => { S.project.timing.snap = e.target.checked; replan(); });
 
+  // 逐词时间：生成 / 应用 / 回到自动
+  const wordSheet = () => (J.MAD && J.MAD.sheet ? J.MAD.sheet(S.plan) : '');
+  $('#btnWordSheet').addEventListener('click', () => {
+    const el = $('#wordSheet');
+    el.value = wordSheet();
+    toast('已生成逐词时间表：改完点「应用」；清空则回到自动估算');
+  });
+  $('#btnWordApply').addEventListener('click', () => {
+    const txt = $('#wordSheet').value.trim();
+    if (!txt) return;
+    const words = J.MAD.parseSheet(txt);
+    if (!Object.keys(words).length) { toast('时间表格式不对：每行需要 行号 / 词 / 起点 / 终点'); return; }
+    S.project.timing.words = words;
+    replan();
+    toast('已应用 ' + Object.keys(words).length + ' 行的逐词时间');
+  });
+  $('#btnWordAuto').addEventListener('click', () => {
+    S.project.timing.words = {};
+    $('#wordSheet').value = '';
+    replan();
+    toast('逐词时间已回到自动：按字数和标点估算，并吸附鼓点');
+  });
+
+  // 效果库：默认只看 10 个重击动作，整库折到「高级」
+  $('#libAdvanced').addEventListener('change', e => {
+    $('#libBody').hidden = !e.target.checked;
+  });
+  $('#madVocab').addEventListener('click', e => {
+    const b = e.target.closest('.mv'); if (!b) return;
+    const A = {
+      hit: '重击入场：130–160% → 100%，3–5 帧带过冲，1 帧闪白 + 2–3 帧微抖。',
+      step: '逐字硬切：每个字踩着音节直接出现，不淡入，间隔 = 音节间隔。',
+      through: '穿字：上一个词冲进镜头，下一个词从里面出来；用在段落转换。',
+      mask: '遮罩条：硬边色块横扫，文字只在色块里显示，随后收走。',
+      slot: '老虎机滚字：单字纵向高速滚动 + 动态模糊，停在目标字上。',
+      track: '字距爆开：重拍瞬间字距拉开，6–10 帧内收回。',
+      echo: '残影堆叠：同一个词复制 5–8 层，逐层缩小/偏移，在拍点收成一层。',
+      slice: '切片错位：字被横切成条带，各条左右错位后弹回。',
+      stroke: '描边/实心/反白闪切：重拍时切换 1–2 帧。',
+      match: '匹配切：上一个词结束时的位置/大小/旋转，就是下一个词的起点。',
+    };
+    toast(A[b.dataset.act] || b.textContent);
+  });
+
   // 画幅 / 分辨率 / 帧率
   $('#segAspect').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -3738,6 +3836,30 @@ function bind() {
     applyTaste(b.dataset.v);
   });
 
+  // 一键成片：先选类型（重击 MAD / 抒情 PV / 手帐），再各自套模板
+  $('#segGenre').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    applyGenre(b.dataset.v);
+  });
+
+  // 动态模糊子帧数 / コマ打ち
+  $('#motionBlur').addEventListener('input', e => {
+    const v = +e.target.value | 0;
+    S.project.fx.motionBlur = v;
+    if (S.plan && S.plan.fx) S.plan.fx.motionBlur = v;
+    $('#oMotionBlur').textContent = v;
+    S.need = true;
+  });
+  $('#segKoma').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const v = +b.dataset.v | 0;
+    S.project.fx.koma = v;
+    S.project.fx.onTwos = v > 0;
+    $$('#segKoma button').forEach(x => x.classList.toggle('on', x === b));
+    replan();
+    toast(v ? 'コマ打ち：每秒 ' + v + ' 张（' + (v === 12 ? '2 コマ' : v === 8 ? '3 コマ' : '1 コマ') + '）' : 'コマ打ち关闭：逐帧');
+  });
+
   // 编排开关
   const sw = (id, key) => $(id).addEventListener('change', e => {
     S.project[key] = e.target.checked;
@@ -3748,8 +3870,10 @@ function bind() {
   sw('#swNew', 'more');
   sw('#swTypo', 'typo');
   sw('#swKinetic', 'kinetic');
+  sw('#swChoreo', 'choreo');
   sw('#swUnify', 'unify');
   sw('#swTypeset', 'typeset');
+  sw('#swGarnish', 'garnish');
 
   // 字体
   const fs = (id, role) => $(id).addEventListener('change', e => {
@@ -3802,6 +3926,7 @@ function bind() {
   $('#btnLeft').onclick = () => togglePanel('left');
   $('#btnRight').onclick = () => togglePanel('right');
 
+  $('#btnOneShot').onclick = () => applyGenre(S.project.genre || 'mad');
   $('#btnShuffleAll').onclick = () => {
     S.project.seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
     S.project.overrides = {};

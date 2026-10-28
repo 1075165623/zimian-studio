@@ -54,8 +54,75 @@ class Renderer {
 
   ensure(c, w, h) { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } return c; }
 
-  /* main entry: draw frame at time t into ctx (canvas px = design * scale) */
+  /* main entry: sub-frame motion blur (180° shutter) for the fast choreography cuts.
+     Only the frames that actually move are accumulated: a 4–8 sample stack around an
+     impact / through-cut. Static holds and the BPM-quantised コマ打ち stay crisp. */
   frame(ctx, plan, t, opt = {}) {
+    const N = Math.round((plan.fx && plan.fx.motionBlur) || 0);
+    const stepDur = J.stepDur(plan.fx, plan.fps);
+    const tq = Math.floor(t / stepDur + 1e-6) * stepDur;
+    if (N >= 2 && plan.choreo && !opt._mb && !opt.fast && !opt.noMotionBlur && !opt.noPost && !opt.glyphLog && this.mbWanted(plan, tq)) {
+      this.frameMB(ctx, plan, t, tq, opt, N);
+      return;
+    }
+    return this._frame(ctx, plan, t, opt);
+  }
+  mbWanted(plan, t) {
+    if (!plan.cuts || !plan.cuts.length) return false;
+    const c = J.cutAt(plan, t);
+    if (c) {
+      const lt = t - c.start;
+      if (lt >= 0 && lt < 0.22 && /^(hit|echo|slice|through|track|match)$/.test(c.action || '')) return true;
+    }
+    for (const ev of plan.events) {
+      if (ev.t > t + 0.06) break;
+      if (Math.abs(ev.t - t) < 0.055 && /^(flash|shake|zoom|invert)$/.test(ev.type)) return true;
+    }
+    return false;
+  }
+  frameMB(ctx, plan, t, tq, opt, N) {
+    const cw = ctx.canvas.width, ch = ctx.canvas.height;
+    N = J.clamp(N | 0, 2, 8);
+    const A = this.ensure(this.mbA || (this.mbA = mk(2, 2)), cw, ch), ax = A.getContext('2d');
+    const B = this.ensure(this.mbB || (this.mbB = mk(2, 2)), cw, ch), bx = B.getContext('2d');
+    ax.setTransform(1, 0, 0, 1, 0, 0); ax.globalAlpha = 1; ax.globalCompositeOperation = 'source-over'; ax.filter = 'none';
+    ax.clearRect(0, 0, cw, ch);
+    // 'lighter' is the only blend that averages opaque sub-frames without leaving the
+    // accumulated layer translucent (source-over at 1/N leaves ~0.68 alpha at N=4).
+    ax.globalCompositeOperation = 'lighter';
+    const shutter = 0.5 / (plan.fps || 24);
+    const curCut = J.cutAt(plan, tq);
+    const floor = curCut ? curCut.start + 1e-4 : 0;   // a hard cut has no shutter across the previous shot
+    for (let i = 0; i < N; i++) {
+      const tt = Math.max(floor, t - shutter * (i / Math.max(1, N - 1)));
+      bx.setTransform(1, 0, 0, 1, 0, 0); bx.globalAlpha = 1; bx.globalCompositeOperation = 'source-over'; bx.filter = 'none';
+      bx.clearRect(0, 0, cw, ch);
+      this._frame(bx, plan, tt, Object.assign({}, opt, { _mb: true, noPost: true, noHud: true, noTrans: true, noGhost: true }));
+      ax.globalAlpha = 1 / N; ax.drawImage(B, 0, 0);
+    }
+    ax.globalAlpha = 1; ax.globalCompositeOperation = 'source-over';
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'copy';
+    ctx.drawImage(A, 0, 0); ctx.restore();
+    // post / HUD / overlay once on the accumulated frame (not N times)
+    const scale = opt.scale || 1, fx = plan.fx, fps = plan.fps;
+    const stepDur = J.stepDur(fx, fps), clock = J.komaOf(fx) > 0 ? stepDur : 1 / 24;
+    const mainCut = J.cutAt(plan, tq);
+    const sc = plan.style.schemes[mainCut ? mainCut.scheme % plan.style.schemes.length : 0] || plan.style.schemes[0];
+    const step = Math.floor(tq / clock + 1e-6);
+    const beat = plan.beats && plan.beats.length ? (function (beats, t2) { let lo = 0, hi = beats.length - 1, i = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (beats[m] <= t2) { i = m; lo = m + 1; } else hi = m - 1; } if (i < 0) return null; const len = i + 1 < beats.length ? beats[i + 1] - beats[i] : 0.5; return { since: t2 - beats[i], len, index: i }; })(plan.beats, tq) : null;
+    const allowFilter = this.filterOK && !opt.fast;
+    if (!opt.noPost) {
+      this.post(ctx, plan, t, tq, step, sc, scale, opt, allowFilter);
+      if (plan.keyBg && J.KEY_BG[plan.keyBg]) this.keyFinish(ctx, plan.keyBg, opt);
+    }
+    if (opt.overlay) {
+      const oenv = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: tq - (mainCut ? mainCut.start : 0), ltb: tq - (mainCut ? mainCut.start : 0), step, scale, allowFilter, energy: null, beat });
+      try { opt.overlay(oenv, t, tq); } catch (e) { console.warn('overlay', e); }
+    }
+  }
+
+  /* main entry: draw frame at time t into ctx (canvas px = design * scale) */
+  _frame(ctx, plan, t, opt = {}) {
     const W = plan.W, H = plan.H, scale = opt.scale || 1;
     const cw = ctx.canvas.width, ch = ctx.canvas.height;
     const fx = plan.fx, st = plan.style, fps = plan.fps;

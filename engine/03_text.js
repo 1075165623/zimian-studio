@@ -24,10 +24,29 @@ function isParticle(arr, i) {
   return nextOK && cp !== 'S' && cp !== 'P' && !(cp === 'H' && cn === 'H');
 }
 /* per character: f = size factor, gap = extra space before it (in em) */
+const ZH_FUNC = new Set([...'的了在是我你不就也都还很又而把被给让着过吗呢吧啊呀哦嗯这那个一上下里中和与或但要会能可没有到从对为以之其她它们之乎者也而且然后所以因为如果虽然但是']);
+const ZH_EMO = new Set([...'爱梦光夜星泪风花心痛死生永远黎明凤凰自由孤独温柔拥抱吻别离殇破碎燃烧沉默呐喊海天空雨雪月日火冰灵魂信仰希望绝望回忆青春少年故乡远方']);
 J.typesetLine = (arr) => {
   const out = arr.map(() => ({ f: 1, gap: 0, adv: 1 }));
   if (!J.TYPESET) return out;
   const content = arr.filter(c => !/\s/.test(c)).length;
+  // 中文排版不是日文排版的换皮：没有假名和助词，规则按「虚词小一档、情感词大一档、
+  // 标点收一点、拉丁字前后留气口」来做，并且以词为单位（分词在 08_planner / 15_mad）。
+  if (J.lang === 'zh-Hans' || J.lang === 'zh-Hant') {
+    let seen = false;
+    arr.forEach((ch, i) => {
+      const o = out[i], c = cls(ch);
+      if (c === 'S') return;
+      if (c === 'P') { o.f = 0.92; o.adv = 0.94; return; }
+      if (c === 'L') { o.f = 1.02; }
+      else if (ZH_FUNC.has(ch)) { o.f = 0.78; o.adv = 0.96; }
+      else if (ZH_EMO.has(ch)) { o.f = 1.08; }
+      if (!seen && content >= 3 && (c === 'K' || c === 'H' || c === 'T')) { o.f = Math.max(o.f, 1.16); seen = true; }
+      const pc = i > 0 ? cls(arr[i - 1]) : '';
+      if (i > 0 && pc !== 'S' && pc !== 'P' && ((c === 'L') !== (pc === 'L'))) o.gap = 0.14;
+    });
+    return out;
+  }
   let first = true;
   arr.forEach((ch, i) => {
     const c = cls(ch), o = out[i];

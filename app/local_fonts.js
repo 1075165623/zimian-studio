@@ -1,133 +1,42 @@
 /* ============================================================
-   本地字体层 —— 用 Windows 自带的中文字体替换 Google Fonts
-   引擎原本按「角色」取字体（gothic_black / mincho / dela …），
-   这里把这些角色重新指到本机字体上：
-     · 完全离线可用，不会等 Google 的 5 秒超时
-     · 中文显示效果反而更接近国内 PV / 歌词视频的观感
-   注意：J.FONTS 里的 family 要带引号，LANG_FACES 里的不带（引擎会自己加），
-   否则字体名会被拼成 ""黑体"" 而全部退回默认字体。
+   字体选择器 —— 不再把角色映射到本机字体
+   ------------------------------------------------------------
+   旧版本在这里把 gothic_black → SimHei、brush → STXingkai …
+   这样每台电脑看到的「性格」都不一样，风格会塌。
+   现在字体由 app/embedded_fonts.css 内嵌的 woff2 子集提供
+   （Noto Sans/Serif SC、站酷、霞鹜文楷、马善政），
+   本文件只负责：① 告诉引擎不要再去请求 Google Fonts；
+   ② 给界面提供「主字 / 衬线 / 正文」的可选列表。
    ============================================================ */
 (() => {
 'use strict';
 
-/* 角色 → [本机字体, 字重]。用英文字体名，DirectWrite 同样识别。 */
-const LOCAL = {
-  gothic_black:  ['SimHei',           400],
-  gothic_bold:   ['Microsoft YaHei',  700],
-  gothic_med:    ['Microsoft YaHei',  400],
-  gothic_light:  ['Microsoft YaHei',  300],
-  zenkaku:       ['SimHei',           400],
-  sansui:        ['DengXian',         400],
-  mincho_black:  ['STZhongsong',      700],
-  mincho_bold:   ['STZhongsong',      400],
-  mincho:        ['SimSun',           400],
-  mincho_light:  ['FangSong',         400],
-  tokumin:       ['STZhongsong',      400],
-  shippori:      ['STZhongsong',      400],
-  dela:          ['STHupo',           400],
-  round:         ['YouYuan',          400],
-  pop:           ['方正摩登体 简',     400],
-  kiwi:          ['YouYuan',          400],
-  klee:          ['FZShuTi',          400],
-  brush:         ['STXingkai',        400],
-  reggae:        ['STXinwei',         400],
-  rampart:       ['STCaiyun',         400],
-  potta:         ['STLiti',           400],
-  dot:           ['方正摩登体 简',     400],
-  mono:          ['Consolas',         400],
-};
+// 引擎的字体加载器（02_fonts.js）看到这个开关就不再发网络请求。
+J.EMBEDDED_FONTS = true;
 
-/* 界面里显示的名字 */
-const LABEL = {
-  gothic_black: '黑体', gothic_bold: '雅黑 粗', gothic_med: '雅黑 中', gothic_light: '雅黑 细',
-  zenkaku: '黑体 全角', sansui: '等线',
-  mincho_black: '中宋 粗', mincho_bold: '中宋', mincho: '宋体', mincho_light: '仿宋',
-  tokumin: '中宋', shippori: '中宋',
-  dela: '琥珀', round: '幼圆', pop: '摩登体', kiwi: '幼圆',
-  klee: '舒体', brush: '行楷', reggae: '新魏', rampart: '彩云', potta: '隶书',
-  dot: '摩登体', mono: '等宽',
-};
-
-const SERIF_KEYS = ['mincho_black', 'mincho_bold', 'mincho', 'mincho_light', 'tokumin', 'shippori', 'brush', 'potta'];
-const FB_SANS  = '"Microsoft YaHei","SimHei",sans-serif';
-const FB_SERIF = '"SimSun","STZhongsong",serif';
-
-/* 1. style 自己的角色表：family 必须带引号 */
-for (const [key, [family, weight]] of Object.entries(LOCAL)) {
-  const f = J.FONTS[key];
-  if (!f) continue;
-  Object.assign(f, {
-    label: LABEL[key] || family,
-    family: '"' + family + '"',
-    weight,
-    fb: SERIF_KEYS.includes(key) ? FB_SERIF : FB_SANS,
-    gf: null,
-    local: family,
-  });
-}
-
-/* 2. 中文语言面：family 不带引号（引擎会包一层），并清掉 gf 以免请求 Google */
-const L = J.LANG_FACES && J.LANG_FACES['zh-Hans'];
-if (L) {
-  const F = (family, weight) => ({ family, weight, gf: null, local: family });
-  L.sans = F('Microsoft YaHei', 500);
-  L.serif = F('SimSun', 500);
-  L.fbSans = FB_SANS;
-  L.fbSerif = FB_SERIF;
-  for (const key of Object.keys(L.map)) {
-    const loc = LOCAL[key];
-    if (loc) L.map[key] = F(loc[0], loc[1]);
-  }
-  // 其他语言面也不要去请求 Google（text 里若混了假名/拉丁，仍用本机字体兜住）
-  for (const code of ['ja', 'zh-Hant', 'ko']) {
-    const M = J.LANG_FACES[code];
-    if (!M) continue;
-    M.fbSans = FB_SANS;
-    M.fbSerif = FB_SERIF;
-    for (const key of Object.keys(M.map || {})) {
-      const loc = LOCAL[key];
-      if (loc) M.map[key] = { family: loc[0], weight: loc[1], gf: null, local: loc[0] };
-    }
-  }
-}
-
-/* 3. 完全不碰网络：只等本机字体就绪 */
-J.ensureFonts = async (text, keys) => {
-  if (!document.fonts || !document.fonts.load) return;
-  const uniq = [...new Set([...(text || '字')])].join('') || '字';
-  const list = (keys && keys.length ? keys : Object.keys(J.FONTS)).filter(k => J.FONTS[k]);
-  const faces = list.map(k => (J.faceOf ? J.faceOf(k) : J.FONTS[k])).filter(Boolean);
-  const seen = new Set(), jobs = [];
-  for (const f of faces) {
-    const fam = String(f.family || '').replace(/"/g, '').split(',')[0].trim();
-    if (!fam) continue;
-    const spec = `${f.weight || 400} 64px "${fam}"`;
-    if (seen.has(spec)) continue;
-    seen.add(spec);
-    jobs.push(document.fonts.load(spec, uniq).catch(() => null));
-  }
-  await Promise.all(jobs);
-  if (document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
-  J.glyphs.clear();
-  J.metrics.clear();
-};
-
-/* 4. 给界面用：按气质分组的可选字体 */
-J.LOCAL_FONT_PICKS = [
-  { key: 'gothic_black', name: '黑体',   note: '方正、有分量' },
-  { key: 'gothic_bold',  name: '雅黑粗', note: '干净、百搭' },
-  { key: 'gothic_light', name: '雅黑细', note: '轻盈、文艺' },
-  { key: 'mincho_black', name: '中宋粗', note: '衬线、有底气' },
-  { key: 'mincho',       name: '宋体',   note: '古典、书面' },
-  { key: 'mincho_light', name: '仿宋',   note: '纤细、手写感' },
-  { key: 'dela',         name: '琥珀',   note: '圆胖、综艺' },
-  { key: 'round',        name: '幼圆',   note: '可爱、亲和' },
-  { key: 'brush',        name: '行楷',   note: '毛笔、情绪' },
-  { key: 'reggae',       name: '新魏',   note: '刚硬、碑刻' },
-  { key: 'rampart',      name: '彩云',   note: '空心描边' },
-  { key: 'potta',        name: '隶书',   note: '古拙、稳' },
-  { key: 'klee',         name: '舒体',   note: '随性、手写' },
-  { key: 'pop',          name: '摩登体', note: '几何、未来' },
-  { key: 'sansui',       name: '等线',   note: '中性、屏幕' },
+// 界面里显示的名字：角色 key → 中文名 + 一句气质说明
+const PICK = [
+  ['gothic_black', 'Noto 黑 900', '高反差、重击'],
+  ['gothic_bold',  'Noto 黑 700', '干净、百搭'],
+  ['gothic_med',   'Noto 黑 500', '中性、屏幕'],
+  ['mincho_black', 'Noto 宋 900', '衬线、有底气'],
+  ['mincho_bold',  'Noto 宋 700', '标题、书卷'],
+  ['mincho',       'Noto 宋 500', '正文、古典'],
+  ['dela',         '站酷庆科黄油', '粗圆、综艺'],
+  ['round',        '站酷快乐',     '圆胖、亲和'],
+  ['pop',          '站酷快乐',     '可爱、弹跳'],
+  ['kiwi',         '站酷快乐',     '软、轻'],
+  ['klee',         '霞鹜文楷',     '手写、温度'],
+  ['brush',        '马善政毛笔',   '毛笔、情绪'],
+  ['longcang',     '龙藏行书',     '飞白、狂草'],
+  ['reggae',       '站酷庆科黄油', '刚硬、招牌'],
+  ['rampart',      '站酷庆科黄油', '空心感、图形'],
+  ['potta',        '马善政毛笔',   '古拙、稳'],
+  ['sansui',       'Noto 黑 500',  '等宽感、冷静'],
+  ['mono',         'IBM Plex Mono','时间码 / 编号'],
 ];
+J.LOCAL_FONT_PICKS = PICK.filter(([k]) => J.FONTS[k]).map(([key, name, note]) => ({ key, name, note }));
+
+// 给「字体」卡片一句状态：当前是内嵌字体，不依赖本机安装
+J.FONT_PACK_LABEL = '内嵌子集';
 })();

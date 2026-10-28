@@ -47,6 +47,8 @@ function dots(ctx, x, y, w, h, r, col, a, rows, cols) {
 J.garnishSides = (env, o = {}) => {
   const { W, H, sc, ctx } = env;
   if (!W || !H || !sc) return;
+  // 手帐拼贴风的补白默认关；只有工程明确打开，或这一版式自己要求时才画。
+  if (!(env.plan && env.plan.garnish === true) && !o.force) return;
   if (env.pass && env.pass !== 'main') return;                 // 只画一遍：补白不参与色差重影
   if (H > W * 1.06) return;                                    // 竖画幅：纸已经占满，不加
   const a0 = J.clamp((env.lt - 0.22) / 0.5) * (1 - J.clamp((env.pOut - 0.25) / 0.75));
@@ -64,7 +66,8 @@ J.garnishSides = (env, o = {}) => {
   if (W - rEdge > W * 0.075) bands.push({ dir: 1, x0: rEdge, x1: W });
   if (!bands.length) return;
 
-  const label = (o.text != null ? String(o.text) : romaOf(env)) || 'MEMORY';
+  // 副信息只来自双语轨（歌词里 | 后面的翻译 / 拼音），没有就不画，绝不用 MEMORY 凑数。
+  const label = (o.text != null ? String(o.text) : ((env.cut && env.cut.note) || romaOf(env) || '')).trim();
   const accent = o.color || sc.accent || sc.fg;
   const ink = J.lum(sc.bg || '#ffffff') < 0.5 ? (sc.fg || '#fff') : (sc.ink || sc.fg || '#111');
   const sub = sc.sub || ink;
@@ -91,10 +94,10 @@ J.garnishSides = (env, o = {}) => {
     ctx.save();
     ctx.beginPath(); ctx.rect(b.x0, 0, bw, H); ctx.clip();
 
-    // 竖排英文（自下而上）
-    env.draw({
-      text: label.slice(0, 20), font, size: tSize, x: cur(tX), y: H * 0.5,
-      rot: b.dir < 0 ? -90 : 90, track: 0.34, color: ink, alpha: a * 0.85, ghost: false,
+    // 竖排副信息（自下而上）：有双语轨才画
+    if (label) env.draw({
+      text: label.slice(0, 24), font, size: tSize, x: cur(tX), y: H * 0.5,
+      rot: b.dir < 0 ? -90 : 90, track: 0.30, color: ink, alpha: a * 0.85, ghost: false,
     });
     // 色块：一根竖条 + 一小块压在下面
     seg(barX0, barX0 + barW, H * 0.17, H * 0.34, accent, a * 0.92);
