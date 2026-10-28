@@ -46,14 +46,14 @@
       beats: [], onsets: [], style, fx: project.fx || {}, seed: project.seed | 0,
       choreo: false, pv: true, mad: null, stages: {}, sentences: [],
     };
-    const n = Math.min(SCENES.length, rows.length);
-    // With a full 12-line subtitle sheet, the PV blocks follow the real
-    // subtitle times. With a shorter sheet, distribute the 12 fixed PV
-    // compositions across the real duration; no overlapping text blocks.
-    const useLineTimes = !!(tm && tm.starts && rows.length >= SCENES.length);
-    SCENES.forEach((sc, i) => {
+    const n = Math.max(1, Math.min(SCENES.length, rows.length));
+    // One PV cut per real subtitle line. If the song has fewer than 12
+    // lines, the last line gets the end composition; no invented lyric is
+    // pushed to the end and no second text layer is created.
+    for (let i = 0; i < n; i++) {
+      const sc = (i === n - 1 && n < SCENES.length) ? SCENES[SCENES.length - 1] : SCENES[i];
       let s, e;
-      if (useLineTimes && tm.starts[rows[i].ti] != null) {
+      if (tm && tm.starts && rows[i] && tm.starts[rows[i].ti] != null) {
         const ti = rows[i].ti;
         s = Math.max(0, +tm.starts[ti]);
         e = Math.max(s + .2, +tm.ends[ti] || s + 1);
@@ -61,7 +61,7 @@
         s = total * sc.s / (CORE.DUR || 44);
         e = total * sc.e / (CORE.DUR || 44);
       }
-      if (i === SCENES.length - 1) e = total;
+      if (i === n - 1) e = total;
       e = Math.min(total, e);
       if (!(e > s)) e = Math.min(total, s + .2);
       const text = (lyrics[i] || '').trim();
@@ -72,13 +72,13 @@
       plan.cuts.push({
         text, lineText: text, note: null, line: i, start: s, end: e,
         dur: e - s, layout: 'pv', enter: 'cut', exit: 'cut', hold: 'still',
-        inDur: .04, outDur: 0, params: { scene: i, pvState: state },
+        inDur: .04, outDur: 0, params: { scene: SCENES.indexOf(sc), pvState: state },
         decor: [], scheme: 0, seed: i + 1, emph: false, words: text ? [text] : [],
         stagger: 0, treat: 'none', treatP: {}, bg: 'none', bgP: {},
         cam: 'still', camP: {}, trans: null, transP: {}, transDur: 0,
         pv: true,
       });
-    });
+    }
     return plan;
   };
 
