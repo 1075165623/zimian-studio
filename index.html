@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
@@ -154,6 +154,8 @@
                   <button class="btn tiny" id="btnWordSheet">生成 / 刷新</button>
                   <button class="btn tiny" id="btnWordApply">应用</button>
                   <button class="btn tiny" id="btnWordAuto">自动</button>
+                  <button class="btn tiny" id="btnWordImport" title="支持逐字 YRC / QRC / ASS 卡拉 OK；KRC 需要先解密">导入逐字</button>
+                  <input type="file" id="wordFile" accept=".yrc,.qrc,.ass,.krc,.lrc,.txt" hidden>
                 </div>
               </div>
             </details>
@@ -649,36 +651,38 @@
 </footer>
 
 <!-- 引擎 -->
-<script src="vendor/mp4-muxer.min.js?v=2026103001"></script>
-<script src="engine/01_util.js?v=2026103001"></script>
-<script src="engine/02_fonts.js?v=2026103001"></script>
-<script src="engine/02b_lang.js?v=2026103001"></script>
-<script src="engine/03_text.js?v=2026103001"></script>
-<script src="engine/04_styles.js?v=2026103001"></script>
-<script src="engine/05_anim.js?v=2026103001"></script>
-<script src="engine/05b_registry.js?v=2026103001"></script>
-<script src="engine/06_layouts.js?v=2026103001"></script>
-<script src="engine/07_decor.js?v=2026103001"></script>
-<script src="engine/08_planner.js?v=2026103001"></script>
-<script src="engine/08b_omakase.js?v=2026103001"></script>
-<script src="engine/09_render.js?v=2026103001"></script>
-<script src="engine/10_audio.js?v=2026103001"></script>
-<script src="engine/11_export.js?v=2026103001"></script>
-<script src="engine/11r_shapes.js?v=2026103001"></script>
-<script src="engine/12_slot.js?v=2026103001"></script>
-<script src="engine/16_journal.js?v=2026103001"></script>
-<script src="engine/15_mad.js?v=2026103001"></script>
-<script src="engine/17_stage.js?v=2026103101"></script>
+<script src="vendor/mp4-muxer.min.js?v=2026110101"></script>
+<script src="engine/01_util.js?v=2026110101"></script>
+<script src="engine/02_fonts.js?v=2026110101"></script>
+<script src="engine/02b_lang.js?v=2026110101"></script>
+<script src="engine/03_text.js?v=2026110101"></script>
+<script src="engine/04_styles.js?v=2026110101"></script>
+<script src="engine/05_anim.js?v=2026110101"></script>
+<script src="engine/05b_registry.js?v=2026110101"></script>
+<script src="engine/06_layouts.js?v=2026110101"></script>
+<script src="engine/07_decor.js?v=2026110101"></script>
+<script src="engine/08_planner.js?v=2026110101"></script>
+<script src="engine/08b_omakase.js?v=2026110101"></script>
+<script src="engine/09_render.js?v=2026110101"></script>
+<script src="engine/10_audio.js?v=2026110101"></script>
+<script src="engine/11_export.js?v=2026110101"></script>
+<script src="engine/11r_shapes.js?v=2026110101"></script>
+<script src="engine/12_slot.js?v=2026110101"></script>
+<script src="engine/16_journal.js?v=2026110101"></script>
+<script src="engine/15_mad.js?v=2026110101"></script>
+<script src="engine/17_stage.js?v=2026110101"></script>
+<script src="engine/18_sentence.js?v=2026110101"></script>
+<script src="engine/19_scene.js?v=2026110101"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
-<script src="app/names_zh.js?v=2026103001"></script>
-<script src="app/labels_zh.js?v=2026103001"></script>
-<script src="app/local_fonts.js?v=2026103001"></script>
-<script src="app/mov_muxer.js?v=2026103001"></script>
-<script src="app/zip.js?v=2026103001"></script>
-<script src="app/project_io.js?v=2026103001"></script>
-<script src="app/studio.js?v=2026103001"></script>
-<script src="app/pet.js?v=2026103001"></script>
-<script src="app/ai_ref.js?v=2026103001"></script>
+<script src="app/names_zh.js?v=2026110101"></script>
+<script src="app/labels_zh.js?v=2026110101"></script>
+<script src="app/local_fonts.js?v=2026110101"></script>
+<script src="app/mov_muxer.js?v=2026110101"></script>
+<script src="app/zip.js?v=2026110101"></script>
+<script src="app/project_io.js?v=2026110101"></script>
+<script src="app/studio.js?v=2026110101"></script>
+<script src="app/pet.js?v=2026110101"></script>
+<script src="app/ai_ref.js?v=2026110101"></script>
 </body>
 </html>

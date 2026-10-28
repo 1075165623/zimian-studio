@@ -170,7 +170,7 @@ function lrcTimes(words, tags) {
 
 MAD.wordTiming = (project, plan, audio) => {
   const snap = !(project.timing && project.timing.snap === false);
-  const onsets = (audio && audio.onsets) || plan.onsets || [];
+  const onsets = (audio && audio.vocalOnsets && audio.vocalOnsets.length ? audio.vocalOnsets : audio && audio.onsets) || plan.onsets || [];
   const beats = plan.beats || [];
   const explicit = (project.timing && project.timing.words) || {};
   const out = [];
@@ -283,15 +283,23 @@ const ACTION = {
   slice:  { label: '切片错位', enter: 'sliceHit',   hold: 'still',      inDur: 0.16 },
   stroke: { label: '描边闪切', enter: 'strokeFlash',hold: 'strokePulse',inDur: 0.22 },
   match:  { label: '匹配切',   enter: 'match',      hold: 'still',      inDur: 0.17 },
+  rise:   { label: '上滚揭示', enter: 'riseMask',   hold: 'still',      inDur: 0.24 },
+  diag:   { label: '斜缝揭示', enter: 'diagMask',   hold: 'still',      inDur: 0.24 },
+  spring: { label: '弹簧落下', enter: 'springDrop', hold: 'still',      inDur: 0.30 },
+  anchor: { label: '缩成锚点', enter: 'anchorShrink', hold: 'anchorShrink', inDur: 0.26 },
+  circle: { label: '手绘圈',   enter: 'circleMark', hold: 'circleMark',  inDur: 0.28 },
+  under:  { label: '手绘下划线', enter: 'underlineMark', hold: 'underlineMark', inDur: 0.26 },
+  flip:   { label: '字符翻转', enter: 'flipX',      hold: 'still',      inDur: 0.24 },
+  long:   { label: '长音拉伸', enter: 'cut',        hold: 'stretchLong',inDur: 0.10 },
 };
 MAD.actions = Object.keys(ACTION);
 
 const POOL = {
-  verse:  ['step', 'mask', 'track', 'slot', 'step', 'mask', 'slice'],
-  pre:    ['step', 'track', 'slice', 'stroke', 'mask', 'hit'],
-  chorus: ['hit', 'echo', 'slice', 'track', 'slot', 'hit', 'stroke'],
-  bridge: ['slot', 'mask', 'hit', 'echo', 'track'],
-  outro:  ['echo', 'mask', 'step', 'track'],
+  verse:  ['step', 'mask', 'track', 'slot', 'rise', 'diag', 'under', 'mask'],
+  pre:    ['step', 'track', 'spring', 'anchor', 'circle', 'mask', 'hit'],
+  chorus: ['hit', 'echo', 'flip', 'long', 'circle', 'slice', 'track', 'hit'],
+  bridge: ['slot', 'rise', 'under', 'hit', 'echo', 'anchor'],
+  outro:  ['echo', 'mask', 'rise', 'track', 'long'],
 };
 
 function pickAction(sec, w, k, n, prev, rng) {
@@ -483,6 +491,69 @@ MAD.sheet = (plan) => {
   }
   return out.join('\n');
 };
+/* Word-timed subtitle formats. Only formats we can parse locally and legally;
+   KRC is encrypted, so it is rejected instead of pretending to decode it. */
+MAD.parseWordFile = (text, name = '') => {
+  const src = String(text || '').replace(/\r/g, '');
+  const low = String(name || '').toLowerCase();
+  const lines = [];
+  const push = (text2, startMs, endMs, words) => {
+    const clean = String(text2 || '').replace(/\s+/g, '');
+    if (!clean || !words.length) return;
+    lines.push({ text: clean, start: startMs / 1000, end: endMs / 1000, words: words.map(w => ({ w: w.w, start: w.s / 1000, end: w.e / 1000 })) });
+  };
+  if (low.endsWith('.yrc') || /^\s*\[\d+,\d+\]\(/m.test(src)) {
+    for (const row of src.split('\n')) {
+      const m = row.match(/^\[(\d+),(\d+)\](.*)$/);
+      if (!m) continue;
+      const start = +m[1], dur = +m[2], body = m[3], words = [];
+      const re = /\((\d+),(\d+),(-?\d+)\)([^(]*)/g;
+      let q;
+      while ((q = re.exec(body))) { const w = q[4].trim(); if (w) words.push({ w, s: +q[1], e: +q[1] + +q[2] }); }
+      push(words.map(w => w.w).join(''), start, start + dur, words);
+    }
+    return lines.length ? { lines } : null;
+  }
+  if (low.endsWith('.qrc') || /^\s*\[\d+,\d+\][^(]*\(/m.test(src)) {
+    for (const row of src.split('\n')) {
+      const m = row.match(/^\[(\d+),(\d+)\](.*)$/);
+      if (!m) continue;
+      const start = +m[1], dur = +m[2], body = m[3], words = [];
+      const re = /([^()]*)\((\d+),(\d+)\)/g;
+      let q;
+      while ((q = re.exec(body))) { const w = q[1].trim(); if (w) words.push({ w, s: +q[2], e: +q[2] + +q[3] }); }
+      push(words.map(w => w.w).join(''), start, start + dur, words);
+    }
+    return lines.length ? { lines } : null;
+  }
+  if (low.endsWith('.ass') || /^\[Events\]/mi.test(src)) {
+    const t = s => {
+      const m = String(s).trim().match(/^(\d+):(\d+):(\d+)[.:](\d+)$/);
+      return m ? (+m[1] * 3600 + +m[2] * 60 + +m[3]) * 1000 + +m[4] * (m[4].length === 2 ? 10 : 1) : null;
+    };
+    let inEvents = false;
+    for (const row of src.split('\n')) {
+      if (/^\[Events\]/i.test(row.trim())) { inEvents = true; continue; }
+      if (!inEvents || !/^Dialogue:/i.test(row)) continue;
+      const cols = row.slice(9).split(',');
+      if (cols.length < 10) continue;
+      const st = t(cols[1]), en = t(cols[2]), body = cols.slice(9).join(',');
+      if (st == null || en == null) continue;
+      const words = [], re = /\{\\k(f?)(\d+)\}([^{]*)/g;
+      let q, ms = st, plain = '';
+      while ((q = re.exec(body))) {
+        const d = +q[2] * 10, text2 = (q[3] || '').replace(/\\N/gi, '').replace(/\{[^}]*\}/g, '');
+        if (text2.trim()) words.push({ w: text2.trim(), s: ms, e: ms + d });
+        ms += d; plain += text2;
+      }
+      if (!words.length) { const clean = body.replace(/\{[^}]*\}/g, '').replace(/\\N/gi, ''); if (clean.trim()) words.push({ w: clean.trim(), s: st, e: en }); }
+      push(words.map(w => w.w).join(''), st, en, words);
+    }
+    return lines.length ? { lines } : null;
+  }
+  return null;
+};
+
 MAD.parseSheet = (text) => {
   const out = {};
   String(text || '').split(/\r?\n/).forEach(row => {
@@ -663,6 +734,87 @@ J.ENTER.match = {
   },
 };
 
+J.ENTER.riseMask = {
+  name: '上滚揭示', apply(env, it, p) {
+    const e = E.outExpo(p), m = it._m || (it._m = J.measure(it));
+    it.y += (1 - e) * it.size * 0.42;
+    it.clipY = [-m.h * 0.7, m.h * 0.7];
+    it.alpha = 1;
+  },
+};
+J.ENTER.diagMask = {
+  name: '斜缝揭示', apply(env, it, p) {
+    const e = E.outExpo(p), m = it._m || (it._m = J.measure(it));
+    it.clipFn = (ctx) => {
+      ctx.beginPath();
+      ctx.moveTo(-m.w * 0.7, -m.h);
+      ctx.lineTo(-m.w * 0.7 + m.w * 1.5 * e, -m.h);
+      ctx.lineTo(-m.w * 0.7 + m.w * 1.5 * e - m.h * 0.35, m.h);
+      ctx.lineTo(-m.w * 0.7 - m.h * 0.35, m.h);
+      ctx.closePath();
+    };
+    it.alpha = 1;
+  },
+};
+J.ENTER.springDrop = {
+  name: '弹簧瀑布', apply(env, it) {
+    const n = (it._m || (it._m = J.measure(it))).lay.N || 1;
+    it.charFns.push((i) => {
+      const q = J.clamp((env.lt - i * 0.03) / 0.28);
+      if (q <= 0) return { hide: true };
+      return { dy: (1 - E.outSpring(q)) * it.size * 0.55 };
+    });
+    it.alpha = 1;
+  },
+};
+function markCircle(env, it, bb, q) {
+  if (!bb) return;
+  const ctx = env.ctx, r = Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0) * 0.58;
+  const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+  ctx.save(); ctx.globalAlpha = 0.9; ctx.strokeStyle = env.sc.accent;
+  ctx.lineWidth = Math.max(2, it.size * 0.012);
+  ctx.beginPath(); ctx.ellipse(cx, cy, r * 1.12 * q, r * 0.86 * q, -0.12, 0, J.TAU); ctx.stroke(); ctx.restore();
+}
+function markUnderline(env, it, bb, q) {
+  if (!bb) return;
+  const ctx = env.ctx;
+  ctx.save(); ctx.globalAlpha = 0.9; ctx.strokeStyle = env.sc.accent;
+  ctx.lineWidth = Math.max(2, it.size * 0.018);
+  ctx.beginPath(); ctx.moveTo(bb.x0, bb.y1 + it.size * 0.08);
+  ctx.lineTo(J.lerp(bb.x0, bb.x1, q), bb.y1 + it.size * 0.08); ctx.stroke(); ctx.restore();
+}
+J.ENTER.circleMark = {
+  name: '手绘圈', apply(env, it, p) {
+    const q = E.outExpo(p);
+    it.post = (e2, it2, bb) => markCircle(e2, it2, bb, q);
+    it.alpha = 1;
+  },
+};
+J.ENTER.underlineMark = {
+  name: '手绘下划线', apply(env, it, p) {
+    const q = E.outExpo(p);
+    it.post = (e2, it2, bb) => markUnderline(e2, it2, bb, q);
+    it.alpha = 1;
+  },
+};
+J.ENTER.flipX = {
+  name: '翻面', apply(env, it, p) {
+    it.sx = Math.max(0.02, E.outSpring(p));
+    it.alpha = Math.min(1, p * 5);
+  },
+};
+J.ENTER.anchorShrink = {
+  name: '缩成锚点', apply(env, it, p) {
+    const e = E.outExpo(p);
+    it.size *= J.lerp(1.55, 0.82, e);
+    it.alpha = Math.min(1, p * 5);
+  },
+};
+
+J.HOLD.circleMark = { name: '手绘圈保持', apply(env, it) { it.post = (e, it2, bb) => markCircle(e, it2, bb, 1); } };
+J.HOLD.underlineMark = { name: '下划线保持', apply(env, it) { it.post = (e, it2, bb) => markUnderline(e, it2, bb, 1); } };
+J.HOLD.anchorShrink = { name: '锚点', apply(env, it) { it.size *= 0.82; } };
+J.HOLD.stretchLong = { name: '长音拉伸', apply(env, it) { const k = J.clamp(env.lt / Math.max(0.4, env.cut.dur)); it.track = (it.track || 0) + k * 0.16; it.size *= 1 + k * 0.05; } };
 J.HOLD.echoSnap = {
   name: '残影', apply(env, it) {
     const k = J.clamp((env.lt - 0.025) / 0.30);

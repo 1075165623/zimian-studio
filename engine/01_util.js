@@ -23,6 +23,7 @@ J.E = {
   inOutExpo: x => { x = J.clamp(x); if (x <= 0 || x >= 1) return x; return x < 0.5 ? Math.pow(2, 20 * x - 10) / 2 : (2 - Math.pow(2, -20 * x + 10)) / 2; },
   outBack: (x, s = 1.9) => { x = J.clamp(x); const c = s + 1; return 1 + c * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2); },
   outElastic: x => { x = J.clamp(x); if (x === 0 || x === 1) return x; return Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * (J.TAU / 3)) + 1; },
+  outSpring: (x, k = 7) => { x = J.clamp(x); if (x === 0 || x === 1) return x; return 1 - Math.exp(-k * x) * Math.cos(k * 1.15 * x); },
   inOutSine: x => { x = J.clamp(x); return -(Math.cos(Math.PI * x) - 1) / 2; },
 };
 

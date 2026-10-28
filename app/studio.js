@@ -250,17 +250,17 @@ const STYLE_META = {
 const GENRES = {
   mad: {
     label: '重击 MAD', style: 'noir', choreo: true, unify: true, typeset: true, garnish: false,
-    fonts: { display: 'gothic_black', serif: 'mincho_black', body: 'gothic_med' },
+    fonts: { display: 'gothic_black', serif: 'mincho_black', body: 'round' },   // Noto Black + ZCOOL KuaiLe tags
     fx: { motion: 0.78, density: 0.6, decor: 0.12, glitch: 0.42, texture: 0.52, chroma: 0.30, motionBlur: 4, koma: 12, onTwos: true, flash: true },
   },
   lyric: {
     label: '抒情 PV', style: 'specimen', choreo: true, unify: true, typeset: true, garnish: false,
-    fonts: { display: 'mincho_black', serif: 'mincho', body: 'mincho' },
+    fonts: { display: 'mincho_black', serif: 'mincho', body: 'klee' },           // Noto Serif 900 + LXGW WenKai
     fx: { motion: 0.46, density: 0.42, decor: 0.22, glitch: 0.06, texture: 0.72, chroma: 0.14, motionBlur: 2, koma: 12, onTwos: true, flash: true },
   },
   journal: {
     label: '手帐', style: 'paper', choreo: false, unify: false, typeset: false, garnish: false,
-    fonts: { display: 'klee', serif: 'mincho', body: 'gothic_med' },
+    fonts: { display: 'brush', serif: 'klee', body: 'klee' },                  // Ma Shan Zheng + LXGW WenKai
     fx: { motion: 0.32, density: 0.5, decor: 0.78, glitch: 0.02, texture: 0.9, chroma: 0.08, motionBlur: 0, koma: 0, onTwos: false, flash: false },
   },
 };
@@ -3927,6 +3927,26 @@ function bind() {
     $('#wordSheet').value = '';
     replan();
     toast('逐词时间已回到自动：按字数和标点估算，并吸附鼓点');
+  });
+  $('#btnWordImport').addEventListener('click', () => $('#wordFile').click());
+  $('#wordFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try {
+      const r = J.MAD.parseWordFile(await f.text(), f.name);
+      if (!r) { toast('这个逐字格式读不出来：支持 YRC / QRC / ASS 卡拉OK；KRC 是加密格式，请先合法解密'); return; }
+      S.project.lyrics = r.lines.map(l => l.text).join('\n');
+      S.project.timing.lineTimes = {};
+      S.project.timing.words = {};
+      r.lines.forEach((l, i) => {
+        S.project.timing.lineTimes[i] = +l.start.toFixed(3);
+        S.project.timing.words[i] = l.words.map(w => ({ w: w.w, start: +w.start.toFixed(3), end: +w.end.toFixed(3) }));
+      });
+      S.project.overrides = {};
+      $('#lyrics').value = S.project.lyrics;
+      replan();
+      toast('已导入 ' + r.lines.length + ' 句逐字时间');
+    } catch (err) { toast('逐字文件读取失败：' + (err && err.message || err)); }
+    e.target.value = '';
   });
 
 

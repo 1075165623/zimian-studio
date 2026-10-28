@@ -18,21 +18,23 @@ J.analyzeAudio = async (file) => {
   // planner could only follow a uniform BPM grid. The bands now give real hits to cut on.
   const rate = 100, hop = Math.max(1, Math.round(sr / rate)), n = Math.floor(len / hop);
   const energy = new Float32Array(n), flux = new Float32Array(n);
-  const lowB = new Float32Array(n), midB = new Float32Array(n), highB = new Float32Array(n);
-  let prevHP = 0, prevX = 0, lpLow = 0, lpMid = 0;
+  const lowB = new Float32Array(n), midB = new Float32Array(n), highB = new Float32Array(n), vocalB = new Float32Array(n);
+  let prevHP = 0, prevX = 0, lpLow = 0, lpMid = 0, lpV300 = 0, lpV3000 = 0;
   const aLow = 1 - Math.exp(-2 * Math.PI * 150 / sr), aMid = 1 - Math.exp(-2 * Math.PI * 2400 / sr);
+  const aV300 = 1 - Math.exp(-2 * Math.PI * 300 / sr), aV3000 = 1 - Math.exp(-2 * Math.PI * 3000 / sr);
   for (let f = 0; f < n; f++) {
-    let e = 0, eh = 0, el = 0, em = 0, eg = 0;
+    let e = 0, eh = 0, el = 0, em = 0, eg = 0, ev = 0;
     for (let i = f * hop, end = Math.min(len, (f + 1) * hop); i < end; i++) {
       const x = mono[i]; e += x * x;
       const hp = 0.92 * (prevHP + x - prevX); prevHP = hp; prevX = x; eh += hp * hp;
       lpLow += aLow * (x - lpLow); lpMid += aMid * (x - lpMid);
-      const lo = lpLow, mid = lpMid - lpLow, hi = x - lpMid;
-      el += lo * lo; em += mid * mid; eg += hi * hi;
+      lpV300 += aV300 * (x - lpV300); lpV3000 += aV3000 * (x - lpV3000);
+      const lo = lpLow, mid = lpMid - lpLow, hi = x - lpMid, vo = lpV3000 - lpV300;
+      el += lo * lo; em += mid * mid; eg += hi * hi; ev += vo * vo;
     }
     energy[f] = Math.sqrt(e / hop);
     flux[f] = Math.sqrt(eh / hop);
-    lowB[f] = Math.sqrt(el / hop); midB[f] = Math.sqrt(em / hop); highB[f] = Math.sqrt(eg / hop);
+    lowB[f] = Math.sqrt(el / hop); midB[f] = Math.sqrt(em / hop); highB[f] = Math.sqrt(eg / hop); vocalB[f] = Math.sqrt(ev / hop);
   }
   // onset strength per band: log rise against the local mean of the previous 4 frames
   const bandOnset = (arr) => {
@@ -44,7 +46,7 @@ J.analyzeAudio = async (file) => {
     }
     return out;
   };
-  const oLow = bandOnset(lowB), oMid = bandOnset(midB), oHigh = bandOnset(highB);
+  const oLow = bandOnset(lowB), oMid = bandOnset(midB), oHigh = bandOnset(highB), oVocal = bandOnset(vocalB);
   const onset = new Float32Array(n);
   for (let f = 0; f < n; f++) onset[f] = oLow[f] * 1.0 + oMid[f] * 0.9 + oHigh[f] * 0.45;
   // peak picking (adaptive threshold, 120 ms minimum gap) — used by the planner for real accents
@@ -68,7 +70,7 @@ J.analyzeAudio = async (file) => {
     for (const o of out) o.amp = Math.min(1, o.v / p95);
     return out;
   };
-  const kP = pickPeaks(oLow, 0.015), sP = pickPeaks(oMid, 0.018), hP = pickPeaks(oHigh, 0.022);
+  const kP = pickPeaks(oLow, 0.015), sP = pickPeaks(oMid, 0.018), hP = pickPeaks(oHigh, 0.022), vP = pickPeaks(oVocal, 0.010, 0.09);
   const all = [];
   for (const o of kP) all.push({ t: o.f / rate, amp: o.amp, kind: 'kick' });
   for (const o of sP) all.push({ t: o.f / rate, amp: o.amp * 0.95, kind: 'snare' });
@@ -117,6 +119,7 @@ J.analyzeAudio = async (file) => {
     name: file.name, duration: audioBuffer.duration, sampleRate: sr, buffer: audioBuffer,
     bpm: Math.round(60 / period * 10) / 10, beats, energy: energyN, energyRate: rate, peaks,
     onsets: onsets.map(o => ({ t: +o.t.toFixed(4), amp: +o.amp.toFixed(3), kind: o.kind })),
+    vocalOnsets: vP.map(o => ({ t: +((o.f / rate).toFixed(4)), amp: +o.amp.toFixed(3), kind: 'vocal' })),
     kicks: kP.map(o => +((o.f / rate).toFixed(4))), snares: sP.map(o => +((o.f / rate).toFixed(4))),
   };
 };
