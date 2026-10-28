@@ -306,9 +306,12 @@ J.plan = (project, audio) => {
   const tm = J.computeTiming(project, parsed, audio);
   // 文字整列: the lyrics appear 0.2 s before the voice (reading ahead feels in time)
   if (project.typeset) {
-    const LEAD = 0.2;
-    tm.starts = tm.starts.map(t => Math.max(0, t - LEAD));
-    tm.ends = tm.ends.map((t, i) => Math.max(tm.starts[i] + 0.3, t - LEAD));
+    const LEAD = 0.2, ET = project.timing || {};
+    // Explicit lineTimes came from the timeline / subtitles and are already
+    // in display time. Subtracting the lead again made every line jump -0.2s
+    // on the first drag (the text “抽搐 / 缩短” bug).
+    tm.starts = tm.starts.map((t, i) => ET.lineTimes && ET.lineTimes[i] != null ? t : Math.max(0, t - LEAD));
+    tm.ends = tm.ends.map((t, i) => ET.lineTimes && ET.lineTimes[i] != null ? Math.max(tm.starts[i] + 0.3, t) : Math.max(tm.starts[i] + 0.3, t - LEAD));
   }
   const [W, H] = J.designSize(project.aspect);
   // enabled map: anything not explicitly switched off is on (new pack entries appear enabled in old projects);

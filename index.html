@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
@@ -634,28 +634,6 @@
       </div>
     </details>
 
-    <!-- PV 专区：高级手法库里的全新手法包 -->
-    <details class="card pv-card" data-tone="pv" data-fold="pv">
-      <summary class="ch">
-        <i class="ch-ico">✦</i>
-        <span class="ch-t">PV专区</span>
-        <span class="ch-s">新手法包</span>
-        <i class="ch-ar"></i>
-      </summary>
-      <div class="ch-body">
-        <p class="tip tight">44 秒蓝白网格字 PV：直接写进主时间线 / 主播放器，不是弹窗。转场 / 装饰 / 镜头是高级手法库里的 PV· 新手法。</p>
-        <div class="row-btns"><button class="btn primary tiny" id="btnPvLoad">载入 PV 时间线</button><button class="btn tiny" id="btnPvExit">退出 PV</button></div>
-        <div id="pvLive" hidden>
-          <label class="pv-inline"><span>标题</span><input id="pvTitleMain" maxlength="16" value="明知故犯"></label>
-          <label class="check pv-title-toggle"><input type="checkbox" id="pvTitleOn" checked> 显示标题（独立文字层）</label>
-          <div class="pv-title-pos"><label>X <input type="range" id="pvTitleX" min="8" max="92" value="50"></label><label>Y <input type="range" id="pvTitleY" min="8" max="88" value="22"></label></div>
-          <label class="pv-inline"><span>底部 staff（一行一条）</span><textarea id="pvCreditsMain" rows="4"></textarea></label>
-          <div class="pv-slots-mini" id="pvSlotsMain"></div>
-        </div>
-        <p class="tip tight">歌词 / 字幕 / 音乐统一用左侧「声音与字幕」导入；载入后主时间线会按真实音频与字幕时长变成 PV 分镜。立绘 7 个槽位逐张替换。</p>
-      </div>
-    </details>
-
     <!-- 桌面宠物 -->
     <details class="card" data-tone="pet" data-fold="pet">
       <summary class="ch">
@@ -746,10 +724,6 @@
 <script src="engine/18_sentence.js?v=2026110101"></script>
 <script src="engine/19_scene.js?v=2026110101"></script>
 <script src="engine/20_tail.js?v=2026110101"></script>
-<script src="app/pv_assets.js?v=2026110101"></script>
-<script src="app/pv_core.js?v=2026110101"></script>
-<script src="engine/21_pv.js?v=2026110101"></script>
-<script src="app/pv_pack.js?v=2026110101"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
 <script src="app/names_zh.js?v=2026110101"></script>
@@ -764,6 +738,3 @@
 <script src="app/ai_ref.js?v=2026110101"></script>
 </body>
 </html>
-
-
-
