@@ -25,16 +25,18 @@ function tape(env, x, y, w, h, col, a, rot) {
 
 function page(env) {
   const { W, H, sc, ctx } = env;
-  const u = U(env), port = isPort(env);
-  const w = port ? W * 0.84 : Math.min(W * 0.74, H * 1.08);
-  const h = port ? Math.min(H * 0.7, w * 1.18) : H * 0.72;
+  const u = U(env), port = isPort(env), P = (env.cut && env.cut.params) || {};
+  const baseW = port ? W * 0.84 : Math.min(W * 0.74, H * 1.08);
+  const baseH = port ? Math.min(H * 0.7, baseW * 1.18) : H * 0.72;
+  const w = baseW * (P.pageW || 1);
+  const h = baseH * (P.pageH || 1);
   const e = J.clamp((env.lt - 0.03) / 0.42);
   const a = J.clamp(e * 2.2) * (1 - J.clamp((env.pOut - 0.35) / 0.65));
   if (a <= 0.003) return null;
   const rise = (1 - E.outCubic(e)) * u * 0.08;
   const rot = 0;
   ctx.save();
-  ctx.translate(W / 2, H / 2 + rise);
+  ctx.translate(W / 2 + (P.pageX || 0) * W, H / 2 + rise + (P.pageY || 0) * H);
   ctx.rotate(rot * J.DEG);
   ctx.globalAlpha = a;
   ctx.shadowColor = 'rgba(0,0,0,0.28)'; ctx.shadowBlur = u * 0.05; ctx.shadowOffsetY = u * 0.018;
@@ -46,7 +48,7 @@ function page(env) {
   // one tape strip, not a scrapbook pile
   tape(env, 0, -h / 2 - u * 0.005, w * 0.22, u * 0.032, J.rgba(sc.accent, 0.50), a, -2.5);
   ctx.restore();
-  return { x: W / 2, y: H / 2 + rise, w, h, a, rot };
+  return { x: W / 2 + (P.pageX || 0) * W, y: H / 2 + rise + (P.pageY || 0) * H, w, h, a, rot };
 }
 
 const journalText = {
@@ -103,6 +105,24 @@ const journalText = {
     return bb;
   },
 };
+
+/* Two extra page compositions built on the same stable page renderer:
+   left editorial page and lower-third page. They are real registered
+   layouts, so the auto pool can alternate them without the old pack's
+   heavyweight paper props. */
+const journalAlt = (key, label, align, variant, pageP) => ({
+  name: label, cn: label, fits: () => true, portrait: 1.2, treat: 'safe',
+  plan: (rng, cut, st) => Object.assign(journalText.plan(rng, cut, st), { align, variant }, pageP),
+  render(env) {
+    const P = env.cut.params || {};
+    env.cut.params = Object.assign({}, P, { align, variant }, pageP);
+    const bb = journalText.render(env);
+    env.cut.params = P;
+    return bb;
+  },
+});
+J.register('layout', 'journalLeft', journalAlt('journalLeft', '手帐·左页', 'left', 'grid', { pageW: 0.62, pageX: -0.16 }), 'journal');
+J.register('layout', 'journalLower', journalAlt('journalLower', '手帐·下页', 'lower', 'kraft', { pageW: 0.90, pageH: 0.55, pageY: 0.15 }), 'journal');
 
 const journalPhoto = {
   name: '手帐·照片', cn: '手帐·照片', fits: () => true, portrait: 1.2, treat: 'safe',
@@ -165,11 +185,15 @@ J.register('layout', 'journalText', journalText, 'journal');
 J.register('layout', 'journalPhoto', journalPhoto, 'journal');
 
 /* Keep the full library order for the advanced library / per-line pickers,
-   but keep the AUTO pick pool tiny: paper, photo, and the neutral fallback. */
+   but the journal auto pool is a curated page set: new paper/photo plus a
+   few old clean typographic layouts, so a hand-journal is not one card 14×. */
 J.LIB_ORDER = J.LIB_ORDER || {};
 J.LIB_ORDER.layout = J.LAYOUT_ORDER.slice();
+J.JOURNAL_LAYOUTS = [
+  'journalText', 'journalLeft', 'journalLower', 'center', 'journalPhoto',
+];
 J.LAYOUT_ORDER.length = 0;
-J.LAYOUT_ORDER.push('journalText', 'journalPhoto', 'center', 'title', 'interlude');
+J.LAYOUT_ORDER.push(...J.JOURNAL_LAYOUTS);
 // the new journal pages are intentionally plain; old slot atmosphere is opt-in only
 J.slotAtmosphere = null;
 J.slotAtmosphereFront = null;

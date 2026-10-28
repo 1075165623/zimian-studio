@@ -286,7 +286,7 @@ function applyGenre(kind) {
       const map = S.project.enabled[g] || (S.project.enabled[g] = {});
       for (const k of Object.keys(map)) map[k] = keys.includes(k);
     };
-    only('layout', ['journalText', 'journalPhoto']);
+    only('layout', J.JOURNAL_LAYOUTS || ['journalText', 'journalPhoto']);
     only('enter', ['cut']);            // the journal layouts animate the page themselves
     only('exit', ['cut']);
     only('hold', ['still']);
@@ -310,10 +310,8 @@ function applyGenre(kind) {
 function buildStyleGrid() {
   const box = $('#styleGrid');
   box.innerHTML = '';
-  // 66 套配色是引擎的资产，但一次全铺出来只会让人眼花。这里只给 8 套主推，
-  // 其余 4 套折进「更多配色」；每张卡只保留 3 个颜色 + 名字 + 一句气质。
-  const MAIN = ['noir', 'crimson', 'hud', 'specimen', 'paper', 'mono', 'mint', 'rouge'];
-  const MORE = J.STYLE_ORDER.filter(k => !MAIN.includes(k) && J.STYLES[k]);
+  // All 66 presets live in ONE fold; no “8 outside + 58 inside” split.
+  const ALL = J.STYLE_ORDER.filter(k => J.STYLES[k]);
   const make = (k) => {
     const st = J.STYLES[k]; if (!st) return null;
     const sc = (st.schemes && st.schemes[0]) || {};
@@ -335,15 +333,11 @@ function buildStyleGrid() {
     };
     return el;
   };
-  const main = document.createElement('div');
-  main.className = 'styles';
-  for (const k of MAIN) { const el = make(k); if (el) main.appendChild(el); }
-  box.appendChild(main);
   const more = document.createElement('details');
   more.className = 'style-more';
-  more.innerHTML = '<summary>全部配色（' + MORE.length + '）</summary><div class="styles all"></div>';
+  more.innerHTML = '<summary>全部配色（' + ALL.length + '）</summary><div class="styles all"></div>';
   const moreGrid = more.querySelector('.styles');
-  for (const k of MORE) { const el = make(k); if (el) moreGrid.appendChild(el); }
+  for (const k of ALL) { const el = make(k); if (el) moreGrid.appendChild(el); }
   box.appendChild(more);
 }
 

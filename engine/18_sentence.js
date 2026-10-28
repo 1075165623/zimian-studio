@@ -248,6 +248,9 @@ J.applySentences = (project, plan) => {
     if (ln.interlude || !ln.text) return;
     const o = ov[li] || {};
     if (o.lock || o.layout || o.single || o.cuts) return;
+    // enter/exit/hold/treat/trans only exist on word cuts; if the user picked
+    // one from the 928-item library, keep the word cuts so it is visible.
+    if (o.enter || o.exit || o.hold || o.treat || o.trans || o.decor || o.bg || o.cam) return;
     const row = wordRows.get(li); if (!row || !row.words.length) return;
     const sec = secs[li] || { kind: 'verse' };
     const si = secSeen.get(sec.kind) || 0;
@@ -255,8 +258,8 @@ J.applySentences = (project, plan) => {
     const scene = SCENE[sec.kind] || SCENE.verse;
     const sceneApply = (cut) => {
       const bk = scene.bgs[si % scene.bgs.length], ck2 = scene.cams[si % scene.cams.length];
-      cut.bg = hasBg(bk) ? bk : 'none'; cut.bgP = { seed: J.h(plan.seed | 0, li, 0x4247) };
-      cut.cam = hasCam(ck2) ? ck2 : 'still'; cut.camP = {};
+      if (!o.bg) { cut.bg = hasBg(bk) ? bk : 'none'; cut.bgP = { seed: J.h(plan.seed | 0, li, 0x4247) }; }
+      if (!o.cam) { cut.cam = hasCam(ck2) ? ck2 : 'still'; cut.camP = {}; }
     };
     // The strongest chorus line stays word-cut; everything else gets a sentence.
     if (sec.kind === 'chorus' && (ln.impact && row.words.length <= 2)) {
@@ -279,6 +282,7 @@ J.applySentences = (project, plan) => {
       tkey = pal[si % pal.length];
       tplCache.set(ck, tkey);
     }
+    const baseCut = old[0] || {};
     const words = row.words.map(w => ({ w: w.w, start: +w.start, end: +w.end, kind: w.kind }));
     const dr = J.rng(J.h(plan.seed | 0, li + 1, 0x4445434f));
     const dlist = AUTODECOR[sec.kind] || AUTODECOR.verse;
@@ -302,9 +306,12 @@ J.applySentences = (project, plan) => {
       start: Math.max(ln.start, words[0].start), end: Math.max(ln.end, words[words.length - 1].end),
       layout: 'sentence', enter: 'cut', exit: 'cut', hold: 'still', inDur: 0.08, outDur: 0,
       params: { template: tkey, words, mainIndex: mi, stage },
-      decor, scheme: old[0].scheme | 0, seed: J.h(ln.seed, 0x53454e54),
+      decor: o.decor !== undefined ? (baseCut.decor || []) : decor,
+      scheme: old[0].scheme | 0, seed: J.h(ln.seed, 0x53454e54),
       emph: !!ln.impact, words, stagger: 0, treat: 'none', treatP: {},
-      bg: 'none', bgP: {}, cam: 'still', camP: {}, trans: null, transP: {}, transDur: 0,
+      bg: o.bg ? (baseCut.bg || 'none') : 'none', bgP: o.bg ? (baseCut.bgP || {}) : {},
+      cam: o.cam ? (baseCut.cam || o.cam) : 'still', camP: o.cam ? (baseCut.camP || {}) : {},
+      trans: null, transP: {}, transDur: 0,
       stage, sentence: true, utext: ln.text,
     };
     sceneApply(cut);

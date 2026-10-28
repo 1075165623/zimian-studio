@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
@@ -407,14 +407,6 @@
         <i class="ch-ar"></i>
       </summary>
       <div class="ch-body">
-        <div class="genre-row">
-          <span class="genre-lab">编舞类型</span>
-          <div class="seg wide" id="segGenre">
-            <button data-v="mad" class="on">重击 MAD</button>
-            <button data-v="lyric">抒情 PV</button>
-            <button data-v="journal">手帐</button>
-          </div>
-        </div>
         <div class="style-custom">
           <span class="sc-t">自定义配色</span>
           <input type="color" id="cBg" value="#FFD9EC" title="底色">
@@ -508,6 +500,34 @@
 
   <!-- ═════════════ 右栏 ═════════════ -->
   <aside class="panel right" id="panelRight">
+
+    <details class="card" data-tone="switch" data-fold="switch" open>
+      <summary class="ch">
+        <i class="ch-ico">◎</i>
+        <span class="ch-t">编舞类型与开关</span>
+        <span class="ch-s" id="sumSwitch">5 / 6</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <div class="genre-row">
+          <span class="genre-lab">编舞类型</span>
+          <div class="seg wide" id="segGenre">
+            <button data-v="mad" class="on">重击 MAD</button>
+            <button data-v="lyric">抒情 PV</button>
+            <button data-v="journal">手帐</button>
+          </div>
+        </div>
+        <div class="togs">
+          <label class="tog"><input type="checkbox" id="swExtra" checked><i></i><span>更多特效</span></label>
+          <label class="tog"><input type="checkbox" id="swNew" checked><i></i><span>本作新增</span></label>
+          <label class="tog"><input type="checkbox" id="swTypo" checked><i></i><span>文字排版系</span></label>
+          <label class="tog"><input type="checkbox" id="swKinetic" checked><i></i><span>动态文字系</span></label>
+          <label class="tog"><input type="checkbox" id="swUnify" checked><i></i><span>统一感</span></label>
+          <label class="tog"><input type="checkbox" id="swTypeset" checked><i></i><span>中文排版</span></label>
+        </div>
+        <p class="tip">关掉某一类，自动编排时就完全不会用到它；已经手动指定的行不受影响。</p>
+      </div>
+    </details>
 
     <details class="card" data-tone="lines" data-fold="lines" open>
       <summary class="ch">
@@ -614,26 +634,6 @@
       </div>
     </details>
 
-    <details class="card" data-tone="switch" data-fold="switch">
-      <summary class="ch">
-        <i class="ch-ico">◎</i>
-        <span class="ch-t">编排开关</span>
-        <span class="ch-s" id="sumSwitch">5 / 6</span>
-        <i class="ch-ar"></i>
-      </summary>
-      <div class="ch-body">
-        <div class="togs">
-          <label class="tog"><input type="checkbox" id="swExtra" checked><i></i><span>更多特效</span></label>
-          <label class="tog"><input type="checkbox" id="swNew" checked><i></i><span>本作新增</span></label>
-          <label class="tog"><input type="checkbox" id="swTypo" checked><i></i><span>文字排版系</span></label>
-          <label class="tog"><input type="checkbox" id="swKinetic" checked><i></i><span>动态文字系</span></label>
-          <label class="tog"><input type="checkbox" id="swUnify" checked><i></i><span>统一感</span></label>
-          <label class="tog"><input type="checkbox" id="swTypeset" checked><i></i><span>中文排版</span></label>
-        </div>
-        <p class="tip">关掉某一类，自动编排时就完全不会用到它；已经手动指定的行不受影响。</p>
-      </div>
-    </details>
-
     <!-- 桌面宠物 -->
     <details class="card" data-tone="pet" data-fold="pet">
       <summary class="ch">
@@ -737,3 +737,4 @@
 <script src="app/ai_ref.js?v=2026110101"></script>
 </body>
 </html>
+

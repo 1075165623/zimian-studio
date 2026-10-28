@@ -774,3 +774,9 @@ input[type=range]::-webkit-slider-thumb{
 .styles.all .st-swatch{width:34px;height:20px;flex-basis:34px}
 .styles.all .st-name{font-size:10px}
 .styles.all .st-desc{display:none}
+
+.card[data-tone="switch"] .genre-row{display:block;margin:0 0 10px}
+.card[data-tone="switch"] .genre-row .genre-lab{display:block;margin-bottom:5px}
+.card[data-tone="switch"] .genre-row .seg{width:100%;margin:0}
+.card[data-tone="switch"] .genre-row .seg button{font-size:10.5px;padding:5px 2px}
+.styles.all{max-height:360px;overflow:auto;padding:2px 2px 4px}
