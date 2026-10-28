@@ -1173,8 +1173,8 @@ function tlHit(G, x, y) {
       const e = ln.visEnd != null ? ln.visEnd : ln.end;
       const xa = G.X(ln.start), xb = G.X(e);
       if (x >= xa - 1 && x <= xb + 1) {
-        if (xb - xa > 12 && x <= xa + 5) return { kind: 'text', i, edge: 'left' };
-        if (xb - xa > 12 && x >= xb - 6) return { kind: 'text', i, edge: 'right' };
+        if (xb - xa > 12 && x <= xa + 9) return { kind: 'text', i, edge: 'left' };
+        if (xb - xa > 12 && x >= xb - 9) return { kind: 'text', i, edge: 'right' };
         return { kind: 'text', i, edge: 'body' };
       }
     }
@@ -1194,8 +1194,8 @@ function tlHit(G, x, y) {
               if (Math.abs(x - G.X(m.start + kt)) <= 6) return { kind: 'kf', i, t: kt };
             }
           }
-          if (xb - xa > 12 && x <= xa + 5) return { kind: 'media', i, edge: 'left' };
-          if (xb - xa > 12 && x >= xb - 6) return { kind: 'media', i, edge: 'right' };
+          if (xb - xa > 12 && x <= xa + 9) return { kind: 'media', i, edge: 'left' };
+          if (xb - xa > 12 && x >= xb - 9) return { kind: 'media', i, edge: 'right' };
           return { kind: 'media', i, edge: 'body' };
         }
       }

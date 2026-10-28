@@ -91,6 +91,7 @@
         title: '明知故犯', sub: '', lyrics: CORE.defaults.lyrics,
         credits: CORE.defaults.credits, custom: J.PV_IMAGES || [],
       };
+      state.currentText = env.cut.text || '';
       try { CORE.render(env.ctx, env.t, state, P.scene, env.cut.start); }
       catch (e) { console.warn('PV render', e); }
       return { x0: 0, y0: 0, x1: env.W, y1: env.H };

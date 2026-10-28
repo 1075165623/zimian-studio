@@ -50,6 +50,9 @@ const SCENES = [
 ];
 
 function lyric(i) {
+  // One source of truth: the current cut's text. Scene-specific lyrics caused
+  // drift whenever the subtitle sheet had different timings or line counts.
+  if (S.currentText !== undefined) return '';
   const a = S.lyrics.length ? S.lyrics : DEFAULTS.lyrics;
   return (a[i] || a[a.length - 1] || '').trim();
 }
@@ -469,6 +472,25 @@ function end(lt) {
   hud(SCENES[11], true);
 }
 
+function lyricOverlay(sc) {
+  const text = S.currentText;
+  if (!text) return;
+  const dark = sc.kind === 'dark' || sc.kind === 'cry' || sc.kind === 'end';
+  const size = sc.kind === 'cover' ? 56 : 62;
+  const y = sc.kind === 'cover' ? H * .62 : sc.kind === 'end' ? H * .52 : H * .80;
+  // A translucent caption plate keeps the line readable over any portrait.
+  ctx.save();
+  ctx.font = `900 ${size}px ${SERIF}`;
+  const tw = Math.min(W * .84, ctx.measureText(text).width + size * .5);
+  rr(W * .5 - tw / 2, y - size * .95, tw, size * 1.28, 5, dark ? 'rgba(7,10,18,.58)' : 'rgba(247,247,248,.82)', .94);
+  ctx.fillStyle = dark ? '#fff' : C.blue;
+  ctx.fillRect(W * .5 - tw / 2 + 8, y - size * .95 + size * .22, 2.5, size * .84);
+  ctx.restore();
+  drawText(text, W * .5, y, {
+    size, font: SERIF, weight: 900, color: dark ? '#fff' : C.ink,
+    align: 'center', track: .03, p: 1, alpha: .96,
+  });
+}
 function titleOverlay(sc) {
   if (S.titleOn === false || !S.title) return;
   if (sc.kind !== 'cover' && sc.kind !== 'end') return;
@@ -509,6 +531,7 @@ function draw() {
   }
   ctx.restore();
   titleOverlay(sc);
+  lyricOverlay(sc);
   // hard-cut flash
   if (lt < .12) {
     ctx.save(); ctx.globalAlpha = (1 - lt / .12) * .6; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.restore();
