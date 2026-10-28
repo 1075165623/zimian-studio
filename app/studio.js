@@ -28,6 +28,7 @@ const S = {
   renderer: new J.Renderer(),
   t: 0, playing: false, t0: 0,
   need: true, slow: false,
+  tap: null,          // half-speed word tap: { line, words, i, starts }
   openLine: -1,
   exporting: null,
   fontsKey: '',
@@ -50,7 +51,7 @@ const S = {
 /* ───────────────────── 音频播放（WebAudio，导出不加任何处理） ───────────────────── */
 
 const AP = {
-  ctx: null, src: null, gain: null, startAt: 0, base: 0, vol: 0.8,
+  ctx: null, src: null, gain: null, startAt: 0, base: 0, vol: 0.8, rate: 1,
   play(buffer, offset) {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -58,6 +59,7 @@ const AP = {
     if (!this.gain) { this.gain = this.ctx.createGain(); this.gain.connect(this.ctx.destination); this.applyVol(); }
     const s = this.ctx.createBufferSource();
     s.buffer = buffer; s.connect(this.gain);
+    s.playbackRate.value = this.rate;
     const off = J.clamp(offset, 0, Math.max(0, buffer.duration - 0.01));
     s.start(0, off);
     this.src = s; this.startAt = this.ctx.currentTime; this.base = off;
@@ -68,7 +70,8 @@ const AP = {
     try { this.src.disconnect(); } catch (e) {}
     this.src = null;
   },
-  time() { return this.ctx ? this.base + (this.ctx.currentTime - this.startAt) : 0; },
+  time() { return this.ctx ? this.base + (this.ctx.currentTime - this.startAt) * this.rate : 0; },
+  setRate(r) { this.rate = J.clamp(r, 0.25, 2); if (this.src) { try { this.src.playbackRate.value = this.rate; } catch (e) {} } },
   setVol(v) { this.vol = J.clamp(v, 0, 1); this.applyVol(); },
   applyVol() { if (this.gain) this.gain.gain.value = this.vol * this.vol; },
 };
@@ -454,6 +457,61 @@ function targetLine() {
   return c && c.line >= 0 ? c.line : -1;
 }
 
+/* ── 半速逐词点拍 ──
+   播放速度降到 0.5×，唱到每个词时按空格 / 点画面，记下这个词的起点。
+   全部点完后写进 project.timing.words，恢复 1×。 */
+function startTap() {
+  if (!S.plan) return;
+  if (S.tap) { tapWord(); return; }
+  const li = targetLine();
+  if (li < 0) { toast('先把播放头停到要点的歌词行上'); return; }
+  const row = S.plan.mad && S.plan.mad.words ? S.plan.mad.words.find(x => x.line === li) : null;
+  if (!row || !row.words.length) { toast('这一行没有可点的词'); return; }
+  S.tap = { line: li, words: row.words.map(w => ({ w: w.w })), i: 0, starts: [] };
+  S.openLine = li;
+  AP.setRate(0.5);
+  const line = S.plan.lines[li];
+  seek(Math.max(0, line.start - 0.12));
+  if (!S.playing) play();
+  $('#btnWordTap').classList.add('on');
+  $('#btnWordTap').textContent = '点拍中 ' + S.tap.i + '/' + S.tap.words.length;
+  toast('半速点拍：唱到词就按空格 / 点画面；Esc 取消');
+}
+function tapWord() {
+  if (!S.tap) return;
+  const tap = S.tap;
+  const t = Math.max(0, S.audio ? AP.time() : S.t);
+  const last = tap.starts[tap.starts.length - 1];
+  if (last != null && t <= last + 0.04) return;
+  tap.starts.push(t);
+  tap.i = tap.starts.length;
+  $('#btnWordTap').textContent = '点拍中 ' + tap.i + '/' + tap.words.length;
+  if (tap.i >= tap.words.length) finishTap();
+}
+function finishTap() {
+  const tap = S.tap; if (!tap) return;
+  const line = S.plan.lines[tap.line] || { end: tap.starts[tap.starts.length - 1] + 0.4 };
+  const arr = tap.words.map((w, i) => ({
+    w: w.w,
+    start: +tap.starts[i].toFixed(3),
+    end: +(i + 1 < tap.starts.length ? tap.starts[i + 1] : Math.max(tap.starts[i] + 0.3, line.end)).toFixed(3),
+  }));
+  S.project.timing.words[tap.line] = arr;
+  S.tap = null;
+  AP.setRate(1);
+  pause();
+  $('#btnWordTap').classList.remove('on');
+  $('#btnWordTap').textContent = '半速点拍';
+  replan();
+  toast('第 ' + (tap.line + 1) + ' 行逐词时间已写入');
+}
+function cancelTap() {
+  if (!S.tap) return;
+  S.tap = null; AP.setRate(1); pause();
+  $('#btnWordTap').classList.remove('on');
+  $('#btnWordTap').textContent = '半速点拍';
+  toast('已取消半速点拍');
+}
 function markNowLine() {
   const now = S.plan && J.cutAt(S.plan, S.t);
   const li = now ? now.line : -1;
@@ -3948,8 +4006,16 @@ function bind() {
     } catch (err) { toast('逐字文件读取失败：' + (err && err.message || err)); }
     e.target.value = '';
   });
-
-
+  $('#btnWordTap').addEventListener('click', () => startTap());
+  window.addEventListener('keydown', e => {
+    if (!S.tap) return;
+    if (e.code === 'Space') { e.preventDefault(); e.stopImmediatePropagation(); tapWord(); }
+    else if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); cancelTap(); }
+  }, true);
+  $('#viewport').addEventListener('pointerdown', e => {
+    if (!S.tap) return;
+    e.preventDefault(); e.stopPropagation(); tapWord();
+  }, true);
 
   // 画幅 / 分辨率 / 帧率
   $('#segAspect').addEventListener('click', e => {

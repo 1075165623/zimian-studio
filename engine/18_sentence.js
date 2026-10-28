@@ -163,10 +163,11 @@ J.LAYOUTS.sentence = {
     if (!P.words || !P.words.length) return null;
     const s = setup(env, cut);
     const t = env.t != null ? env.t : cut.start + env.lt;
-    // The giant anchor is only used by the two compositions that are built
-    // around it; a translucent outline behind every layout reads as a ghost.
-    if (!(cut.stage && cut.stage.panel) && (P.template === 'ghostAnchor' || P.template === 'cropGiant')) {
-      const anchor = String(P.words[P.mainIndex | 0].w || P.words[P.mainIndex | 0].text || '');
+    // The giant anchor only exists after its own word has been sung; showing
+    // the future main word at 12% made the current word look tiny.
+    const mainW = P.words[P.mainIndex | 0];
+    if (!(cut.stage && cut.stage.panel) && P.template === 'ghostAnchor' && mainW && t >= mainW.start) {
+      const anchor = String(mainW.w || mainW.text || '');
       env.draw({ text: anchor, font: s.display, size: s.H * 0.92, x: s.W * 0.5, y: s.H * 0.54, align: 'center', color: s.sc.fg, alpha: 0.12, fill: true, ghost: false });
     }
     const items = build(P.template || 'leftHero', s);
@@ -197,7 +198,11 @@ J.LAYOUTS.sentence = {
       if (it.level === 1 && past) a = 0.55;
       let col = cur ? s.sc.accent : (it.level === 1 ? s.sc.fg : s.sc.sub);
       let fill = it.fill, stroke = it.stroke, strokeColor = it.strokeColor || s.sc.sub;
-      if (cur && it.level === 1) { fill = true; stroke = 0; col = s.sc.accent; }
+      let drawSize = it.size;
+      if (cur) {
+        drawSize = Math.min(it.size * 2.4, Math.max(it.size, s.mainSize * 0.88));
+        fill = true; stroke = 0; col = s.sc.accent;
+      }
       if (it.tag) {
         const w = it.text.length * it.size * 0.62 + it.size * 0.5;
         env.rrect(it.x - it.size * 0.18, it.y - it.size * 0.52, w, it.size * 1.04, it.size * 0.10, cur ? s.sc.accent : s.sc.dim, cur ? 0.95 : 0.55, false);
@@ -206,7 +211,7 @@ J.LAYOUTS.sentence = {
       const panel = cut.stage && cut.stage.panel;
       const overPhoto = panel && it.x - it.size * it.text.length * 0.3 < (panel.x + panel.w) * s.W && it.y > panel.y * s.H && it.y < (panel.y + panel.h) * s.H;
       const r = env.draw({
-        text: it.text, font: it.font, size: it.size, x: it.x, y: it.y, align: it.align,
+        text: it.text, font: it.font, size: drawSize, x: it.x, y: it.y, align: it.align,
         color: col, alpha: a, track: it.track, rot: it.rot, vertical: it.vertical,
         fill, stroke, strokeColor, blend: overPhoto && cur ? 'difference' : null, ghost: false,
       });
@@ -245,7 +250,7 @@ J.applySentences = (project, plan) => {
       cut.cam = hasCam(ck2) ? ck2 : 'still'; cut.camP = {};
     };
     // The strongest chorus line stays word-cut; everything else gets a sentence.
-    if (sec.kind === 'chorus' && (ln.impact || row.words.length <= 2)) {
+    if (sec.kind === 'chorus' && (ln.impact && row.words.length <= 2)) {
       for (const c of plan.cuts.filter(c => c.line === li)) {
         const bk = scene.bgs[si % scene.bgs.length];
         c.bg = hasBg(bk) ? bk : 'none'; c.bgP = { seed: J.h(plan.seed | 0, li, 0x4247) };
@@ -266,7 +271,15 @@ J.applySentences = (project, plan) => {
       tplCache.set(ck, tkey);
     }
     const words = row.words.map(w => ({ w: w.w, start: +w.start, end: +w.end, kind: w.kind }));
-    const mi = mainIndex(words, ln);
+    let mi = mainIndex(words, ln);
+    // A crop/ghost composition needs its anchor from the first syllable;
+    // waiting for the strongest word left the screen empty for half a line.
+    if (tkey === 'cropGiant' || tkey === 'ghostAnchor') {
+      const first = words.findIndex(w => w.kind !== 'func');
+      // if the first content word only arrives late, the opening is all
+      // particles — anchor on the first word so the composition exists at all
+      mi = (first >= 0 && words[first].start <= words[0].start + 0.35) ? first : 0;
+    }
     const stage = plan.stages && plan.stages[li] ? plan.stages[li] : null;
     const cut = {
       text: ln.text, lineText: ln.text, note: ln.note || null, line: li,

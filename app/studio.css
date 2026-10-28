@@ -766,3 +766,5 @@ input[type=range]::-webkit-slider-thumb{
 }
 .mv:hover{border-color:var(--cl);background:var(--cs);color:var(--c)}
 .mv:active{transform:translateY(1px)}
+
+#btnWordTap.on{background:#FDE7EF;border-color:#FF4D8D;color:#C2185B;font-weight:600}

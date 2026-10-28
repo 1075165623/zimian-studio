@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-Hans">
 <head>
 <meta charset="utf-8">
@@ -148,12 +148,13 @@
             <details class="sub" id="foldWords">
               <summary class="sh"><span>逐词时间（词级卡点）</span><i class="ch-ar"></i></summary>
               <div class="sb">
-                <p class="tip tight">每行：行号 → 词 → 起点秒 → 终点秒。留空会自动按字数和标点估算，并吸附到检测到的底鼓 / 军鼓。增强型 LRC 也可以写成 <b>&lt;00:12.34&gt;词</b>。</p>
+                <p class="tip tight">每行：行号 → 词 → 起点秒 → 终点秒。留空会自动估算并吸附人声起音；也可以「半速点拍」或导入 YRC / QRC / ASS 逐字。增强型 LRC 写成 <b>&lt;00:12.34&gt;词</b>。</p>
                 <textarea id="wordSheet" class="sheet" spellcheck="false" placeholder="1	我	0.066	0.320"></textarea>
                 <div class="row-btns">
                   <button class="btn tiny" id="btnWordSheet">生成 / 刷新</button>
                   <button class="btn tiny" id="btnWordApply">应用</button>
                   <button class="btn tiny" id="btnWordAuto">自动</button>
+                  <button class="btn tiny" id="btnWordTap" title="半速播放，唱到每个词时按空格 / 点画面">半速点拍</button>
                   <button class="btn tiny" id="btnWordImport" title="支持逐字 YRC / QRC / ASS 卡拉 OK；KRC 需要先解密">导入逐字</button>
                   <input type="file" id="wordFile" accept=".yrc,.qrc,.ass,.krc,.lrc,.txt" hidden>
                 </div>
