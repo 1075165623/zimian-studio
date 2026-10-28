@@ -2818,8 +2818,9 @@ function syncSlotClips() {
     }
     const cut = cutOfLine(m.line);
     const L = cut && J.LAYOUTS[cut.layout];
-    if (cut && cut.layout === 'mad') {
-      // word-level choreography has no slot: the clip is a full-bleed background
+    if (cut && (cut.layout === 'mad' || cut.layout === 'sentence' || cut.layout === 'stage' || cut.stage)) {
+      // word / sentence / stage layouts have no classic slot: the clip is
+      // painted by paintStageMedia (card, window, band or full bleed)
       m.orphan = false;
       m.start = cut.start;
       m.dur = Math.max(0.2, cut.end - cut.start);
@@ -4409,3 +4410,5 @@ function toast(msg) {
 window.STUDIO = S;
 boot();
 })();
+
+

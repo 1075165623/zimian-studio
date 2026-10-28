@@ -34,6 +34,15 @@ const SCENE = {
 const BGS = ['lyricWall', 'splitBlocks', 'gridCross', 'beatRings', 'speedLines', 'timecode', 'inkLine', 'leak', 'softField'];
 const CAMS = ['slowPush', 'driftDiag', 'breath', 'beatPunch', 'roll2', 'handheld'];
 const TRANS = ['flashCut', 'blockWipe', 'whip', 'zoomThrough', 'sliceShift', 'invertFlash'];
+/* one structural mark per sentence, borrowed from the restored library but
+   picked by section rather than at random; no sticker piles */
+const AUTODECOR = {
+  verse:  ['cropMarks', 'ruledLines', 'brackets'],
+  pre:    ['guides', 'cropMarks', 'counter'],
+  chorus: ['speedCorner', 'beatRing', 'registration'],
+  bridge: ['registration', 'cropMarks', 'timecodeBar'],
+  outro:  ['ruledLines', 'brackets'],
+};
 const hasBg = k => !!(J.BG && J.BG[k]);
 const hasCam = k => !!(J.CAMERA && J.CAMERA[k]);
 
@@ -271,6 +280,13 @@ J.applySentences = (project, plan) => {
       tplCache.set(ck, tkey);
     }
     const words = row.words.map(w => ({ w: w.w, start: +w.start, end: +w.end, kind: w.kind }));
+    const dr = J.rng(J.h(plan.seed | 0, li + 1, 0x4445434f));
+    const dlist = AUTODECOR[sec.kind] || AUTODECOR.verse;
+    const did = dlist[si % dlist.length];
+    const decor = J.DECOR && J.DECOR[did] ? [{
+      id: did, seed: dr.int(1, 1e9), n: 1, right: false, low: false,
+      accent: false, corner: true, big: false, mode: 'count', from: 0, to: 99, v: si % 6, r: dr(),
+    }] : [];
     let mi = mainIndex(words, ln);
     // A crop/ghost composition needs its anchor from the first syllable;
     // waiting for the strongest word left the screen empty for half a line.
@@ -286,7 +302,7 @@ J.applySentences = (project, plan) => {
       start: Math.max(ln.start, words[0].start), end: Math.max(ln.end, words[words.length - 1].end),
       layout: 'sentence', enter: 'cut', exit: 'cut', hold: 'still', inDur: 0.08, outDur: 0,
       params: { template: tkey, words, mainIndex: mi, stage },
-      decor: [], scheme: old[0].scheme | 0, seed: J.h(ln.seed, 0x53454e54),
+      decor, scheme: old[0].scheme | 0, seed: J.h(ln.seed, 0x53454e54),
       emph: !!ln.impact, words, stagger: 0, treat: 'none', treatP: {},
       bg: 'none', bgP: {}, cam: 'still', camP: {}, trans: null, transP: {}, transDur: 0,
       stage, sentence: true, utext: ln.text,

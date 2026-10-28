@@ -21,7 +21,7 @@ bg('lyricWall', {
     const { ctx, W, H, sc } = env, t = env.t || 0;
     const lines = (env.plan.lines || []).filter(l => l.text).slice(0, 10);
     const size = H * 0.052;
-    ctx.save(); ctx.globalAlpha = 0.042;
+    ctx.save(); ctx.globalAlpha = 0.065;
     lines.forEach((l, i) => {
       const dir = i % 2 ? 1 : -1;
       const x = W * 0.5 + dir * ((t * 7 + i * 37) % (W * 0.45));
