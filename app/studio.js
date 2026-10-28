@@ -2396,6 +2396,12 @@ function paintMedia(env, t, front) {
         const hasSlot = !!(cut && cut.line >= 0 && J.LAYOUTS[cut.layout] && J.LAYOUTS[cut.layout].slot);
         if (m.kind === 'video') paintVideoBg(env, m, t - m.start, hasSlot);
         else if (!hasSlot) paintDirectMedia(env, m, t - m.start);
+        // full-bleed material sits under type: a quiet colour scrim keeps the word readable
+        if (!hasSlot) {
+          ctx.save(); ctx.setTransform(k, 0, 0, k, 0, 0);
+          ctx.globalAlpha = 0.30; ctx.fillStyle = scheme.bg; ctx.fillRect(0, 0, W, H);
+          ctx.restore();
+        }
       }
       continue;                       // 已经融进版式：由版式的插槽来画，绝不再当贴图压在卡片底下
     }
