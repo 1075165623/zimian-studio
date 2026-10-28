@@ -509,11 +509,18 @@ J.LAYOUTS.mad = {
       const m = J.measure(it);
       env.rect(W * 0.5 - m.w * 0.64, it.y - m.h * 0.75, m.w * 1.28, m.h * 1.5, sc.accent, 0.10 * (1 - env.pOut), false);
     }
-    // 一颗巨大的底字：不是装饰，是把画面从「字幕」拉到「版面」的锚点
-    env.draw({
-      text, font, size: size * 2.55, x: W * 0.5, y: H * 0.53, color: sc.accent,
-      alpha: 0.055 * (1 - env.pOut), track: 0.01, mi: 99, ghost: false, noWeight: true,
-    });
+    // 一颗巨大的底字：不是装饰，是把画面从「字幕」拉到「版面」的锚点。
+    // 逐字硬切时底字也跟着逐字出现（不剧透）；老虎机/遮罩条不画，免得抢走揭示。
+    if (!['slot', 'mask'].includes(cut.action)) {
+      const ghost = {
+        text, font, size: size * 2.55, x: W * 0.5, y: H * 0.53, color: sc.accent,
+        alpha: 0.055 * (1 - env.pOut), track: 0.01, mi: 99, ghost: false, noWeight: true,
+      };
+      if (cut.action === 'step' && cut.charTimes) {
+        ghost.charFn = (i) => (env.lt < (cut.charTimes[i] || 0) - 1e-4 ? { hide: true } : null);
+      }
+      env.draw(ghost);
+    }
     it.matchFrom = cut.matchFrom || null;
     it.charTimes = cut.charTimes || null;
     const bb = J.mainDraw(env, it);
