@@ -49,10 +49,17 @@ T.01 明知故犯
     </section>
 
     <section class="pv-card">
-      <h2><i></i>立绘 / 可选</h2>
-      <p>默认用 SVG 人形占位（不是最终立绘）；上传 1–7 张图会按顺序替换画面里的角色。透明 PNG 效果最好。</p>
-      <label class="pv-field"><span>选择立绘（可多选）</span><input id="pvFiles" type="file" accept="image/*" multiple></label>
-      <div class="pv-row"><button class="pv-btn" id="pvClearFiles">清除自定义立绘</button></div>
+      <h2><i></i>立绘 / 7 个槽位</h2>
+      <p>每个角色单独一个槽位，点一下替换；透明 PNG 效果最好。未上传的槽位继续用 SVG 占位。</p>
+      <div class="pv-slots" id="pvSlots"></div>
+      <div class="pv-row"><label class="pv-btn" style="cursor:pointer">批量导入<input id="pvFiles" type="file" accept="image/*" multiple hidden></label><button class="pv-btn" id="pvClearFiles">全部清除</button></div>
+    </section>
+
+    <section class="pv-card">
+      <h2><i></i>音乐</h2>
+      <p>导入音频后，播放 / 暂停 / 时间线会跟着音乐走；没有音乐时按 44 秒静音时钟预览。</p>
+      <label class="pv-field"><span>选择音频</span><input id="pvAudio" type="file" accept="audio/*"></label>
+      <div class="pv-audio-row"><button class="pv-btn" id="pvAudioPlay">播放音乐</button><span id="pvAudioName">未载入</span></div>
     </section>
 
     <section class="pv-card">

@@ -65,7 +65,6 @@
 
   <div class="grow"></div>
 
-  <a class="btn ghost" href="pv.html" style="text-decoration:none">PV专区</a>
   <button class="btn ghost" id="btnOneShot" title="用完整高级手法库重新编排">一键成片</button>
   <button class="btn ghost" id="btnShuffleAll" title="换一整套编排（同样的字，不同的手法）">整片重排</button>
   <button class="btn ghost" id="btnExportPNG" title="导出带透明通道的 MOV 视频，可导入剪映 / AE / PR 当透明素材（Alt+点击 = 导出 PNG 序列 zip）">透明 MOV</button>
@@ -635,6 +634,21 @@
       </div>
     </details>
 
+    <!-- PV 专区：高级手法库里的全新手法包 -->
+    <details class="card pv-card" data-tone="pv" data-fold="pv">
+      <summary class="ch">
+        <i class="ch-ico">✦</i>
+        <span class="ch-t">PV专区</span>
+        <span class="ch-s">新手法包</span>
+        <i class="ch-ar"></i>
+      </summary>
+      <div class="ch-body">
+        <p class="tip tight">44 秒蓝白网格字 PV：超大窄体英文、宋体歌词、蓝色卡片、轨道线、星芒、手绘玫瑰。转场 / 装饰 / 镜头都注册在高级手法库里，是这一包的专用新手法。</p>
+        <button class="btn primary pv-open" id="btnPvOpen">打开 PV 模板</button>
+        <p class="tip tight">支持 7 个立绘槽位逐张替换，也可以导入音乐同步预览。底部 staff 可直接粘贴。</p>
+      </div>
+    </details>
+
     <!-- 桌面宠物 -->
     <details class="card" data-tone="pet" data-fold="pet">
       <summary class="ch">
@@ -725,6 +739,7 @@
 <script src="engine/18_sentence.js?v=2026110101"></script>
 <script src="engine/19_scene.js?v=2026110101"></script>
 <script src="engine/20_tail.js?v=2026110101"></script>
+<script src="app/pv_pack.js?v=2026110101"></script>
 
 <!-- 中文标签 / 本机字体 / 界面 -->
 <script src="app/names_zh.js?v=2026110101"></script>
@@ -733,6 +748,13 @@
 <script src="app/mov_muxer.js?v=2026110101"></script>
 <script src="app/zip.js?v=2026110101"></script>
 <script src="app/project_io.js?v=2026110101"></script>
+<div class="pv-modal" id="pvModal" hidden>
+  <div class="pv-modal-bg" id="pvModalBg"></div>
+  <div class="pv-modal-box">
+    <button class="pv-modal-x" id="btnPvClose" title="关闭">×</button>
+    <iframe id="pvFrame" title="PV专区" src="about:blank"></iframe>
+  </div>
+</div>
 <script src="app/studio.js?v=2026110101"></script>
 <script src="app/pet.js?v=2026110101"></script>
 <script src="app/catalog.js?v=2026110101"></script>

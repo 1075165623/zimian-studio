@@ -780,3 +780,14 @@ input[type=range]::-webkit-slider-thumb{
 .card[data-tone="switch"] .genre-row .seg{width:100%;margin:0}
 .card[data-tone="switch"] .genre-row .seg button{font-size:10.5px;padding:5px 2px}
 .styles.all{max-height:360px;overflow:auto;padding:2px 2px 4px}
+
+/* PV专区：右栏卡片 + 嵌入式模板 */
+.pv-card .pv-open{width:100%;margin:8px 0 2px}
+.pv-modal{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center}
+.pv-modal[hidden]{display:none}
+.pv-modal-bg{position:absolute;inset:0;background:rgba(18,24,44,.62);backdrop-filter:blur(8px)}
+.pv-modal-box{position:relative;width:96vw;height:94vh;background:#E8EBF4;border:1px solid #BFC9E4;border-radius:14px;box-shadow:0 30px 90px rgba(10,16,34,.38);overflow:hidden}
+.pv-modal-box iframe{width:100%;height:100%;border:0;display:block;background:#E8EBF4}
+.pv-modal-x{position:absolute;right:12px;top:9px;z-index:3;width:32px;height:32px;border:1px solid #C5CEE8;border-radius:50%;background:rgba(255,255,255,.92);color:#40549F;font-size:22px;line-height:1;cursor:pointer}
+.pv-modal-x:hover{background:#fff;border-color:#6175C7}
+@media (max-width:760px){.pv-modal-box{width:100vw;height:100vh;border-radius:0}}

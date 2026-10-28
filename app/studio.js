@@ -156,6 +156,7 @@ function boot() {
   initResizers();
   bind();
   bindMediaCard();
+  bindPv();
   syncMediaUI();
   syncSubState();
   syncMediaState();
@@ -442,6 +443,28 @@ function setOverride(li, g, val) {
   if (val == null) delete o[g]; else o[g] = val;
   if (!Object.keys(o).length) delete S.project.overrides[li];
   replan();
+}
+
+function bindPv() {
+  const modal = $('#pvModal'), frame = $('#pvFrame'), bg = $('#pvModalBg');
+  const open = $('#btnPvOpen'), close = $('#btnPvClose');
+  if (!modal || !frame || !open) return;
+  const openPv = () => {
+    modal.hidden = false;
+    frame.src = 'pv.html?embed=1&v=' + Date.now();
+    document.body.classList.add('pv-open');
+  };
+  const closePv = () => {
+    modal.hidden = true;
+    frame.src = 'about:blank';
+    document.body.classList.remove('pv-open');
+  };
+  open.addEventListener('click', openPv);
+  if (close) close.addEventListener('click', closePv);
+  if (bg) bg.addEventListener('click', closePv);
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.hidden) { e.preventDefault(); closePv(); }
+  });
 }
 
 const RAND_POOL = { layout: null, enter: null, hold: null, exit: null, decor: null, treat: null };

@@ -21,11 +21,12 @@ const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
 const easeOut = x => 1 - Math.pow(1 - clamp(x), 3);
 const easeInOut = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
 
+if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('pv-embed');
 const cv = $('#pvCanvas'), ctx = cv.getContext('2d');
 const S = {
   t: 0, playing: true, last: 0, title: '明知故犯',
   sub: '冷空气的气味，掺杂些许心碎',
-  lyrics: [], credits: [], custom: [],
+  lyrics: [], credits: [], custom: [], audioEl: null, audioUrl: null,
 };
 
 const DEFAULTS = {
@@ -500,7 +501,60 @@ function resetFields() {
   $('#pvLyrics').value = DEFAULTS.lyrics.join('\n');
   $('#pvCredits').value = DEFAULTS.credits.join('\n');
   S.custom = [];
+  buildSlots();
   applyFields(); toast('已恢复示例');
+}
+function buildSlots() {
+  const box = $('#pvSlots'); if (!box) return;
+  box.innerHTML = '';
+  for (let i = 0; i < 7; i++) {
+    const lab = document.createElement('label');
+    lab.className = 'pv-slot' + (S.custom[i] ? ' has' : '');
+    lab.title = '角色 ' + String(i + 1).padStart(2, '0') + '：点击上传 / 替换';
+    const img = document.createElement('img');
+    img.src = S.custom[i] ? S.custom[i].src : PV_ASSETS.portrait(i);
+    img.alt = '角色 ' + (i + 1);
+    const num = document.createElement('b'); num.textContent = '0' + (i + 1);
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.hidden = true;
+    inp.addEventListener('change', () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const im = new Image();
+      im.onload = () => {
+        S.custom[i] = im;
+        buildSlots(); draw(); toast('角色 ' + (i + 1) + ' 已替换');
+      };
+      im.src = URL.createObjectURL(f);
+    });
+    lab.appendChild(img); lab.appendChild(num); lab.appendChild(inp);
+    box.appendChild(lab);
+  }
+}
+function loadSlotFiles(files) {
+  const list = [...(files || [])].slice(0, 7);
+  list.forEach((f, i) => {
+    const im = new Image();
+    im.onload = () => {
+      S.custom[i] = im;
+      if (i === list.length - 1) { buildSlots(); draw(); toast('已载入 ' + list.length + ' 张立绘'); }
+    };
+    im.src = URL.createObjectURL(f);
+  });
+}
+function setPlaying(v) {
+  S.playing = !!v;
+  $('#pvPlay').textContent = S.playing ? '暂停' : '播放';
+  const a = S.audioEl;
+  if (!a) return;
+  if (S.playing) {
+    if (Math.abs(a.currentTime - S.t) > .12) a.currentTime = S.t;
+    a.play().catch(() => {});
+  } else a.pause();
+}
+function seekAudio(t) {
+  if (S.audioEl && S.audioEl.src && Number.isFinite(S.audioEl.duration)) {
+    try { S.audioEl.currentTime = clamp(t, 0, Math.max(0, S.audioEl.duration - .02)); } catch (e) {}
+  }
 }
 function buildTimeline() {
   const tr = $('#pvTrack');
@@ -523,6 +577,7 @@ function renderTimelineLabels() {
 }
 function seek(t) {
   S.t = clamp(+t || 0, 0, DUR - .001);
+  seekAudio(S.t);
   $('#pvScrub').value = S.t;
   $('#pvTime').textContent = fmt(S.t);
   updateHead(); renderTimelineLabels(); draw();
@@ -544,8 +599,13 @@ let last = performance.now();
 function tick(now) {
   const dt = Math.min(.06, Math.max(0, (now - last) / 1000)); last = now;
   if (S.playing) {
-    S.t += dt;
-    if (S.t >= DUR) S.t = 0;
+    if (S.audioEl && S.audioEl.src && !S.audioEl.paused) {
+      S.t = Math.min(DUR, S.audioEl.currentTime || 0);
+      if (S.t >= DUR - .02) { setPlaying(false); S.t = DUR - .001; }
+    } else {
+      S.t += dt;
+      if (S.t >= DUR) S.t = 0;
+    }
     updateHead(); renderTimelineLabels();
   }
   draw();
@@ -554,32 +614,53 @@ function tick(now) {
 function init() {
   S.lyrics = DEFAULTS.lyrics.slice(); S.credits = DEFAULTS.credits.slice();
   buildTimeline();
+  buildSlots();
   $('#pvScrub').min = 0; $('#pvScrub').max = DUR; $('#pvScrub').step = .01;
-  $('#pvScrub').addEventListener('input', e => { S.playing = false; $('#pvPlay').textContent = '播放'; seek(+e.target.value); });
+  $('#pvScrub').addEventListener('input', e => { setPlaying(false); seek(+e.target.value); });
   $('#pvTrack').addEventListener('click', e => {
     const r = e.currentTarget.getBoundingClientRect();
     seek((e.clientX - r.left) / r.width * DUR);
   });
   $('#pvPlay').addEventListener('click', () => {
-    S.playing = !S.playing; $('#pvPlay').textContent = S.playing ? '暂停' : '播放'; last = performance.now();
+    setPlaying(!S.playing);
+    if (S.playing && S.audioEl && S.audioEl.src) {
+      if (Math.abs(S.audioEl.currentTime - S.t) > .12) S.audioEl.currentTime = S.t;
+      S.audioEl.play().catch(() => {});
+    }
+    last = performance.now();
   });
   $('#pvApply').addEventListener('click', applyFields);
   $('#pvReset').addEventListener('click', resetFields);
   ['pvTitle', 'pvSub', 'pvLyrics', 'pvCredits'].forEach(id => $('#' + id).addEventListener('input', applyFields));
-  $('#pvFiles').addEventListener('change', async e => {
-    const fs = [...(e.target.files || [])].slice(0, 7);
-    if (!fs.length) return;
-    const imgs = await Promise.all(fs.map(f => new Promise(res => {
-      const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = URL.createObjectURL(f);
-    })));
-    S.custom = imgs.filter(Boolean);
-    draw(); toast('已载入 ' + S.custom.length + ' 张立绘');
+  $('#pvFiles').addEventListener('change', e => {
+    loadSlotFiles(e.target.files);
+    e.target.value = '';
   });
-  $('#pvClearFiles').addEventListener('click', () => { S.custom = []; $('#pvFiles').value = ''; draw(); toast('已恢复 SVG 占位立绘'); });
+  $('#pvClearFiles').addEventListener('click', () => {
+    S.custom = []; $('#pvFiles').value = ''; buildSlots(); draw(); toast('已恢复 SVG 占位立绘');
+  });
   $('#pvPng').addEventListener('click', () => {
     const a = document.createElement('a');
     a.download = 'PV-' + S.t.toFixed(2).replace('.', '_') + '.png';
     a.href = cv.toDataURL('image/png'); a.click();
+  });
+  // audio: one track, synced to the 44 s timeline
+  const au = new Audio(); au.preload = 'auto'; au.crossOrigin = 'anonymous'; S.audioEl = au;
+  au.addEventListener('ended', () => { setPlaying(false); S.t = Math.min(DUR, au.duration || DUR); seek(S.t); });
+  au.addEventListener('loadedmetadata', () => { $('#pvAudioPlay').textContent = '重播音乐'; });
+  $('#pvAudio').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    if (S.audioUrl) URL.revokeObjectURL(S.audioUrl);
+    S.audioUrl = URL.createObjectURL(f); au.src = S.audioUrl;
+    $('#pvAudioName').textContent = f.name;
+    S.t = 0; setPlaying(false); seek(0);
+    toast('音乐已载入：' + f.name);
+  });
+  $('#pvAudioPlay').addEventListener('click', () => {
+    if (!au.src) { toast('先选择一首音乐'); return; }
+    if (S.t >= DUR - .05) S.t = 0;
+    au.currentTime = S.t;
+    au.play().then(() => { S.playing = true; $('#pvPlay').textContent = '暂停'; }).catch(() => toast('浏览器拦截了自动播放，再点一次'));
   });
   window.addEventListener('keydown', e => {
     if (e.code === 'Space' && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) {
