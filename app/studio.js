@@ -2156,6 +2156,12 @@ async function loadMediaFile(file, opt = {}) {
     TL.sel = { kind: 'media', i: S.mediaSel };
     TL.multi = [{ kind: 'media', i: S.mediaSel }];
     applyDefaultLook(m, S.media.length - 1);
+    // Default look: the site/paper background stays the background. A free
+    // image or video becomes a contained foreground clip, not a full-bleed
+    // replacement; it can still be scaled up by hand in the 基础 panel.
+    m.bgMode = 'site';
+    m.fill = 'none';
+    if (!m.inLayout && m.scale > .9) m.scale = .62;
     // 视频整段铺开（可选项；默认关，视频会像图片一样先尝试嵌进版式）
     // A video dropped in "slot" mode must go into the current line's stage.
     // The old global "video spans the song" option used to bypass binding and
