@@ -801,3 +801,9 @@ input[type=range]::-webkit-slider-thumb{
 .pv-slot-mini img{width:100%;height:100%;object-fit:cover}
 .pv-slot-mini b{position:absolute;left:3px;top:2px;font-size:8px;background:rgba(255,255,255,.8);padding:0 2px;border-radius:2px;color:#6175C7}
 #btnPvExit{opacity:.55}
+
+.pv-title-toggle{display:flex;align-items:center;gap:5px;font-size:10.5px;margin:4px 0 5px;color:var(--ink-2)}
+.pv-title-toggle input{accent-color:var(--c)}
+.pv-title-pos{display:flex;gap:8px;margin:0 0 7px}
+.pv-title-pos label{flex:1;font-size:9px;color:var(--ink-3);display:flex;align-items:center;gap:4px}
+.pv-title-pos input{flex:1;min-width:0;accent-color:var(--c)}

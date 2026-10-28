@@ -206,19 +206,30 @@ function hud(sc, dark) {
 }
 
 /* ───────────── 立绘 ───────────── */
-function charImage(i) { return S.custom[i] || PV_ASSETS.image(PV_ASSETS.portrait(i)); }
+function pvMediaAt(i) { return (window.J && J.PV_MEDIA && J.PV_MEDIA[i]) || null; }
+function charImage(i) {
+  const m = pvMediaAt(i);
+  return (m && m.pvImg) || S.custom[i] || PV_ASSETS.image(PV_ASSETS.portrait(i));
+}
 function drawChar(i, cx, bottom, h, opt = {}) {
   const im = charImage(i);
   if (!im || !im.complete || !im.naturalWidth) return { x: cx - h * .3, y: bottom - h, w: h * .6, h };
-  const custom = !!S.custom[i];
+  const media = pvMediaAt(i);
+  const us = media ? Math.max(.2, +media.scale || 1) : 1;
+  const ux = media ? (+media.x || .5) : .5, uy = media ? (+media.y || .5) : .5;
+  cx += (ux - .5) * W * .60;
+  bottom += (uy - .5) * H * .42;
+  h *= us;
+  const custom = !!((media && media.pvImg) || S.custom[i]);
   let dw, dh, top;
   if (custom) {
-    // Uploaded art is never squashed: cover a portrait box, anchor the top
-    // of the drawing to the top of the slot so the face is never cut off.
+    // Uploaded art is never squashed. Crop to the upper body (head + torso),
+    // cover the slot width, and anchor the crop's top to the slot's top.
+    const cropH = im.naturalHeight * .58;
     const targetW = Math.max(opt.maxW || h * .62, h * .36);
     const targetH = h;
-    const scale = Math.max(targetW / im.naturalWidth, targetH / im.naturalHeight);
-    dw = im.naturalWidth * scale; dh = im.naturalHeight * scale;
+    const scale = Math.max(targetW / im.naturalWidth, targetH / cropH);
+    dw = im.naturalWidth * scale; dh = cropH * scale;
     top = -targetH;
   } else {
     const ar = im.naturalWidth / im.naturalHeight;
@@ -227,13 +238,21 @@ function drawChar(i, cx, bottom, h, opt = {}) {
     top = -dh;
   }
   ctx.save();
+  if (opt.clip) {
+    ctx.beginPath(); ctx.rect(opt.clip.x, opt.clip.y, opt.clip.w, opt.clip.h); ctx.clip();
+  }
   ctx.globalAlpha = opt.alpha == null ? 1 : opt.alpha;
   ctx.translate(cx, bottom); ctx.rotate((opt.rot || 0) * Math.PI / 180);
   if (opt.shadow !== false) {
     ctx.shadowColor = 'rgba(23,30,64,.20)'; ctx.shadowBlur = h * .045; ctx.shadowOffsetY = h * .018;
   }
   if (opt.tint) ctx.filter = 'grayscale(.15) brightness(.95)';
-  try { ctx.drawImage(im, -dw / 2, top, dw, dh); } catch (e) {}
+  if (custom) {
+    // draw the 0..58% source crop into the destination box, preserving aspect
+    try { ctx.drawImage(im, 0, 0, im.naturalWidth, im.naturalHeight * .58, -dw / 2, top, dw, dh); } catch (e) {}
+  } else {
+    try { ctx.drawImage(im, -dw / 2, top, dw, dh); } catch (e) {}
+  }
   ctx.restore();
   return { x: cx - dw / 2, y: bottom + top, w: dw, h: dh };
 }
@@ -258,7 +277,10 @@ function headCrop(i, x, y, w, h, opt = {}) {
 function card(x, y, w, h, i, opt = {}) {
   rr(x, y, w, h, opt.r == null ? 18 : opt.r, opt.fill || 'rgba(255,255,255,.78)', opt.alpha == null ? 1 : opt.alpha, opt.stroke || 'rgba(97,117,199,.55)', 2);
   if (opt.blue) rr(x + 8, y + 8, w - 16, h - 16, 14, C.blue, .92);
-  drawChar(i, x + w / 2, y + h - 8, h * (opt.scale || .96), { alpha: opt.charAlpha == null ? 1 : opt.charAlpha, maxW: w * .92, tint: opt.tint });
+  drawChar(i, x + w / 2, y + h - 8, h * (opt.scale || .96), {
+    alpha: opt.charAlpha == null ? 1 : opt.charAlpha, maxW: w * .98, tint: opt.tint,
+    clip: { x: x + 8, y: y + 8, w: w - 16, h: h - 12 },
+  });
   if (opt.label) drawText(opt.label, x + 16, y + 32, { size: 18, font: SERIF, weight: 500, color: opt.dark ? '#fff' : C.ink, track: .12, alpha: .8 });
 }
 
@@ -273,17 +295,10 @@ function cover(lt) {
   }
   orbit(W * .5, H * .43, W * .3, H * .2, -.16, C.blueL, .55 * p, 13);
   // title
-  const chars = [...S.title].slice(0, 5);
-  chars.forEach((ch, i) => {
-    const x = W * (.18 + i * .18), y = H * (.29 + (i % 2) * .015);
-    drawText(ch, x, y, {
-      size: 250, font: SERIF, weight: 900, color: C.blue, align: 'center',
-      rot: (i % 2 ? 2.2 : -3.4), p: clamp(p * 1.5 - i * .16), alpha: .96,
-    });
-  });
+  // title is a separate editable overlay (see titleOverlay)
   // seven portraits
   for (let i = 0; i < 7; i++) {
-    drawChar(i, W * (.075 + i * .142), H - 22, H * (.43 + (i % 3) * .035), { alpha: p, maxW: W * .14 });
+    drawChar(i, W * (.075 + i * .142), H - 22, H * .46, { alpha: p, maxW: W * .14 });
   }
   drawText(S.sub, 64, H * .48, { size: 27, font: SERIF, weight: 500, color: C.blue, track: .06, alpha: .85 * p });
   sparkle(W * .86, H * .18, 18, '#fff', .9 * p);
@@ -440,7 +455,6 @@ function end(lt) {
     drawChar(i, W * (.10 + i * .135), H - 10, H * .47, { alpha: .45 * p, maxW: W * .13, tint: true });
   }
   orbit(W * .5, H * .4, W * .33, H * .17, -.12, C.blueL, .4 * p, 7);
-  drawText(S.title, W * .5, H * .33, { size: 170, font: SERIF, weight: 900, color: '#fff', align: 'center', track: .18, p, alpha: .95 });
   drawText(S.sub, W * .5, H * .44, { size: 30, font: SERIF, weight: 500, color: '#D9DEEE', align: 'center', track: .1, alpha: .8 * p });
   // editable staff block on a quiet navy plate (no overlap with portraits)
   const lines = (S.credits.length ? S.credits : DEFAULTS.credits).slice(0, 9);
@@ -455,6 +469,18 @@ function end(lt) {
   hud(SCENES[11], true);
 }
 
+function titleOverlay(sc) {
+  if (S.titleOn === false || !S.title) return;
+  if (sc.kind !== 'cover' && sc.kind !== 'end') return;
+  const x = W * (S.titleX == null ? .5 : +S.titleX);
+  const y = H * (S.titleY == null ? .22 : +S.titleY);
+  const color = sc.kind === 'end' ? '#fff' : C.blue;
+  const size = sc.kind === 'end' ? 150 : 210;
+  drawText(S.title, x, y, {
+    size, font: SERIF, weight: 900, color, align: 'center',
+    track: .16, p: 1, alpha: .96,
+  });
+}
 function draw() {
   const sc = SCENES.find(x => S.t >= x.s && S.t < x.e) || SCENES[SCENES.length - 1];
   const lt = Math.max(0, S.t - sc.s), dur = sc.e - sc.s;
@@ -477,6 +503,7 @@ function draw() {
     default: end(lt);
   }
   ctx.restore();
+  titleOverlay(sc);
   // hard-cut flash
   if (lt < .12) {
     ctx.save(); ctx.globalAlpha = (1 - lt / .12) * .6; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.restore();

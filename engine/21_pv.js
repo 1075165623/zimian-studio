@@ -13,8 +13,10 @@
     sub: '冷空气的气味，掺杂些许心碎',
     lyrics: CORE.defaults.lyrics.slice(),
     credits: CORE.defaults.credits.slice(),
+    titleOn: true, titleX: .5, titleY: .22,
   });
   J.PV_IMAGES = [];
+  J.PV_MEDIA = [];
 
   J.pvPlan = (project, audio) => {
     const pv = Object.assign(J.PV_DEFAULT_STATE(), project.pvState || {});
@@ -30,7 +32,11 @@
     if (!rows.length) rows = CORE.defaults.lyrics.map(text => ({ text }));
     const lyrics = rows.map(x => String(x.text || '').trim());
     const credits = Array.isArray(pv.credits) ? pv.credits : CORE.defaults.credits;
-    const state = { title: pv.title || '明知故犯', sub: pv.sub || '', lyrics, credits, custom: J.PV_IMAGES || [] };
+    const state = {
+      title: pv.title || '明知故犯', sub: pv.sub || '', lyrics, credits,
+      custom: J.PV_IMAGES || [], titleOn: pv.titleOn !== false,
+      titleX: pv.titleX == null ? .5 : +pv.titleX, titleY: pv.titleY == null ? .22 : +pv.titleY,
+    };
     const W = 1920, H = 1080;
     const audioDur = audio && +audio.duration > 0 ? +audio.duration : 0;
     const total = audioDur || +((tm && tm.duration) || CORE.DUR || 44);

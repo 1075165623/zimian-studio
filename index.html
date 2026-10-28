@@ -647,6 +647,8 @@
         <div class="row-btns"><button class="btn primary tiny" id="btnPvLoad">载入 PV 时间线</button><button class="btn tiny" id="btnPvExit">退出 PV</button></div>
         <div id="pvLive" hidden>
           <label class="pv-inline"><span>标题</span><input id="pvTitleMain" maxlength="16" value="明知故犯"></label>
+          <label class="check pv-title-toggle"><input type="checkbox" id="pvTitleOn" checked> 显示标题（独立文字层）</label>
+          <div class="pv-title-pos"><label>X <input type="range" id="pvTitleX" min="8" max="92" value="50"></label><label>Y <input type="range" id="pvTitleY" min="8" max="88" value="22"></label></div>
           <label class="pv-inline"><span>底部 staff（一行一条）</span><textarea id="pvCreditsMain" rows="4"></textarea></label>
           <div class="pv-slots-mini" id="pvSlotsMain"></div>
         </div>

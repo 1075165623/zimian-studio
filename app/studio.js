@@ -213,6 +213,7 @@ function replan() {
   updateTime();
   updateSums();
   ensureFonts();
+  if (S.project && S.project.pvMode) syncPvDurations();
   S.need = true;
 }
 
@@ -445,20 +446,59 @@ function setOverride(li, g, val) {
   replan();
 }
 
+function ensurePvMedia() {
+  S.media = S.media.filter(m => !m.pvChar);
+  J.PV_IMAGES = J.PV_IMAGES || [];
+  const dur = (S.plan && S.plan.duration) || 44;
+  for (let i = 0; i < 7; i++) {
+    const src = PV_ASSETS.portrait(i);
+    S.media.push({
+      id: 'pvchar' + i, assetId: 'pvchar' + i, kind: 'image', pvChar: true, pvSlot: i,
+      name: 'PV 立绘 0' + (i + 1), start: 0, dur, trim: 0, loop: true,
+      x: .5, y: .5, scale: 1, rot: 0, opacity: 1, lane: i,
+      front: false, inLayout: false, layout: 'auto', fill: 'none', border: 0, shadow: 0,
+      radius: 0, blend: 0, react: 0, inM: 'none', outFade: true,
+      kf: newKf(), iw: 600, ih: 1000, img: src, url: src,
+      pvImg: J.PV_IMAGES[i] || null,
+    });
+  }
+  J.PV_MEDIA = S.media.filter(m => m.pvChar);
+  syncMediaList(); drawTimeline();
+}
+function syncPvDurations() {
+  if (!S.project.pvMode) return;
+  const pv = (S.media || []).filter(m => m.pvChar);
+  const dur = (S.plan && S.plan.duration) || 44;
+  for (const m of pv) { m.start = 0; m.dur = dur; }
+  if (pv.length) drawTimeline();
+}
+function removePvMedia() {
+  S.media = S.media.filter(m => !m.pvChar);
+  J.PV_MEDIA = [];
+  syncMediaList(); drawTimeline();
+  S.need = true;
+}
 function bindPv() {
   const load = $('#btnPvLoad'), exit = $('#btnPvExit'), live = $('#pvLive');
   if (!load || !live) return;
   const title = $('#pvTitleMain'), credits = $('#pvCreditsMain');
+  const titleOn = $('#pvTitleOn'), titleX = $('#pvTitleX'), titleY = $('#pvTitleY');
   const slots = $('#pvSlotsMain');
   const syncFields = () => {
     const st = S.project.pvState || J.PV_DEFAULT_STATE();
     title.value = st.title || '明知故犯';
     credits.value = (st.credits || []).join('\n');
+    if (titleOn) titleOn.checked = st.titleOn !== false;
+    if (titleX) titleX.value = Math.round((st.titleX == null ? .5 : st.titleX) * 100);
+    if (titleY) titleY.value = Math.round((st.titleY == null ? .22 : st.titleY) * 100);
   };
   const readFields = () => {
     const st = S.project.pvState || (S.project.pvState = J.PV_DEFAULT_STATE());
     st.title = title.value.trim() || '明知故犯';
     st.credits = credits.value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    if (titleOn) st.titleOn = titleOn.checked;
+    if (titleX) st.titleX = (+titleX.value || 50) / 100;
+    if (titleY) st.titleY = (+titleY.value || 22) / 100;
   };
   const buildSlots = () => {
     slots.innerHTML = '';
@@ -473,7 +513,12 @@ function bindPv() {
       inp.addEventListener('change', () => {
         const f = inp.files && inp.files[0]; if (!f) return;
         const img = new Image();
-        img.onload = () => { J.PV_IMAGES[i] = img; S.need = true; buildSlots(); toast('PV 立绘 ' + (i + 1) + ' 已替换'); };
+        img.onload = () => {
+          J.PV_IMAGES[i] = img;
+          const m = (J.PV_MEDIA || [])[i];
+          if (m) { m.pvImg = img; m.img = img.src; m.iw = img.naturalWidth; m.ih = img.naturalHeight; syncMediaList(); drawTimeline(); }
+          S.need = true; buildSlots(); toast('PV 立绘 ' + (i + 1) + ' 已替换');
+        };
         img.src = URL.createObjectURL(f);
       });
       lab.append(im, num, inp); slots.appendChild(lab);
@@ -494,20 +539,25 @@ function bindPv() {
     const card = load.closest('details'); if (card) card.open = true;
     show(true); syncFields(); buildSlots();
     replan();
-    toast('PV 时间线已载入：12 个分镜 / 44 秒');
+    ensurePvMedia(); syncPvDurations();
+    toast('PV 时间线已载入：12 个分镜 / ' + (S.plan.duration || 44).toFixed(1) + ' 秒');
   };
   load.addEventListener('click', loadPv);
   exit.addEventListener('click', () => {
     S.project.pvMode = false;
     show(false);
     S.t = 0; S.playing = false;
+    removePvMedia();
     replan();
     toast('已退出 PV，回到普通编排');
   });
   title.addEventListener('input', () => { readFields(); replan(); });
   credits.addEventListener('input', () => { readFields(); replan(); });
+  if (titleOn) titleOn.addEventListener('change', () => { readFields(); replan(); });
+  if (titleX) titleX.addEventListener('input', () => { readFields(); replan(); });
+  if (titleY) titleY.addEventListener('input', () => { readFields(); replan(); });
   // 工程已经是 PV：打开控制区并填入当前文字
-  if (S.project.pvMode) { show(true); syncFields(); buildSlots(); }
+  if (S.project.pvMode) { show(true); syncFields(); buildSlots(); ensurePvMedia(); }
 }
 
 const RAND_POOL = { layout: null, enter: null, hold: null, exit: null, decor: null, treat: null };
@@ -2531,6 +2581,7 @@ function paintMedia(env, t, front) {
   // 轨道号小的在上面：倒着画，最后画的盖在最上层
   const list = S.media.slice().sort((a, b) => (b.lane | 0) - (a.lane | 0));
   for (const m of list) {
+    if (m.pvChar) continue;                    // PV character layers only feed PV_CORE
     if (m.inLayout && !m.orphan) {
       if (stagedCut && (m.line === env.cut.line || (m.spanSlot && m.spanLines && m.spanLines.includes(env.cut.line)))) continue;   // drawn by paintStageMedia
       // 视频嵌进版式时：有插槽的段落铺模糊视频背景；没有插槽的段落不模糊，直接压在文字后面
@@ -2887,6 +2938,7 @@ function syncSlotClips() {
   if (!S.plan) return;
   if (!S.media.length) { if (Array.isArray(S.project.slotLines) && S.project.slotLines.length) S.project.slotLines = []; return; }
   for (const m of S.media) {
+    if (m.pvChar) continue;                    // PV character layers are drawn by PV_CORE
     if (!m.inLayout) continue;
     if (m.spanSlot) {                                 // 跨句素材：时间由自己决定，只重算覆盖到哪几句
       const lines = coveredLines(m.start, m.start + m.dur);
